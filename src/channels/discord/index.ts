@@ -57,16 +57,27 @@ export class DiscordChannel implements Channel {
     client.on('shardError', (err: Error, id: number) =>
       process.stderr.write(`nimbus: shard ${id} error: ${err}\n`))
 
-    // ── Heartbeat check — 60s re-login (L939-947) ────────────────────────────
+    // ── Heartbeat check — re-login ONLY when truly wedged ─────────────────────
+    // 关键修复:旧版单次非 READY 就 destroy+login,会在 gateway **正常重连**
+    // (status=RECONNECTING≠READY)时一脚踢飞正在恢复的连接 → 重连风暴(实测73次)。
+    // 改:连续 N 次(默认3次=90s)都非 READY 才判定僵死、re-login;正常重连几秒
+    // 内恢复,不会连续命中。
+    let notReadyStreak = 0
     setInterval(() => {
       if (client.ws.status !== 0) { // 0 = READY
-        process.stderr.write('nimbus: gateway not ready, attempting re-login...\n')
-        client.destroy()
-        client.login(TOKEN!).catch(err => {
-          process.stderr.write(`nimbus: re-login failed: ${err}\n`)
-        })
+        notReadyStreak++
+        if (notReadyStreak >= 3) {
+          process.stderr.write(`nimbus: gateway wedged ${notReadyStreak}×30s non-READY, re-login...\n`)
+          notReadyStreak = 0
+          client.destroy()
+          client.login(TOKEN!).catch(err => {
+            process.stderr.write(`nimbus: re-login failed: ${err}\n`)
+          })
+        }
+      } else {
+        notReadyStreak = 0 // 恢复 READY → 清零
       }
-    }, 60_000).unref()
+    }, 30_000).unref()
 
     // ── messageCreate (L836-839) ──────────────────────────────────────────────
     client.on('messageCreate', msg => {
