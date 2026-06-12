@@ -83,10 +83,10 @@ function mcpActionSegment(toolName: string): string {
  * this regex provides broad defence against new MCP integrations.
  */
 const MCP_TRADING_VERB_RE = new RegExp(
-  // order/trade verbs + money-movement + broker order-mutation verbs.
-  // Covers Longbridge broker MCP (submit_order/cancel_order/dca/withdraw/…).
-  // Read-only prefixes (get_/list_/quote/…) are exempted BEFORE this runs.
-  '(order|buy|sell|long|short|close|execute|bet|trade|position|trader' +
+  // 交易/改单/出金动作动词。注意:不含 'position'/'trade' 这类**查询**名词
+  // (stock_positions / trades / trade_stats 是只读账户/历史查询,由 isAccountTool
+  // 按身份管,不该当交易拦)。下单动作靠 order/submit/buy/sell/dca 等覆盖。
+  '(order|buy|sell|long|short|close|execute|bet|trader' +
   '|submit|dca|withdraw|deposit|transfer|amend|replace)' +
   '|polymarket.*run-autonomous-trader' +
   '|alpaca.*(place|create).*order',
@@ -153,6 +153,25 @@ export function needsApproval(toolName: string, input: Record<string, unknown>):
 /** Async approver: returns true to allow, false to deny. */
 export type Approver = (toolName: string, input: Record<string, unknown>) => Promise<boolean>
 
+// ── Account/holdings tools (隐私:非本人禁查) ──────────────────────────────────
+// Matches portfolio/account/balance/positions queries across futu/longbridge/
+// IBKR/alpaca. These leak the master's real holdings/cash → denied for非本人.
+export const ACCOUNT_TOOL_RE =
+  /(portfolio|all_portfolios|account_positions|stock_positions|account_balance|get_account|holdings|balances?|cash_flow|fund_positions|net_asset|positions)\b/i
+/** Bash commands that pull real account data (futu/IBKR scripts). */
+export const ACCOUNT_BASH_RE =
+  /(get_all_portfolios|portfolio_state|account_positions|get_account|ibkr_positions)/i
+
+/** True if a tool call reads the master's private account/holdings data. */
+export function isAccountTool(toolName: string, input: Record<string, unknown>): boolean {
+  if (ACCOUNT_TOOL_RE.test(toolName)) return true
+  if (toolName === 'Bash' || toolName === 'bash') {
+    const cmd = typeof input['command'] === 'string' ? (input['command'] as string) : ''
+    if (ACCOUNT_BASH_RE.test(cmd)) return true
+  }
+  return false
+}
+
 // ── canUseTool factory ────────────────────────────────────────────────────────
 //
 // Three outcomes:
@@ -162,11 +181,15 @@ export type Approver = (toolName: string, input: Record<string, unknown>) => Pro
 // When no approver is provided (tests / direct use), ASK ops fall through to
 // allow — preserving the original behaviour; protection engages once wired.
 
-export function makeCanUseTool(approver?: Approver): CanUseTool {
+export function makeCanUseTool(approver?: Approver, opts?: { blockAccount?: boolean }): CanUseTool {
   return async (toolName, input, _options) => {
     const inp = (input ?? {}) as Record<string, unknown>
     if (isTradeDenied(toolName, inp)) {
       return { behavior: 'deny', message: DENY_MSG }
+    }
+    // 非本人提问 → 禁查主人的账户/持仓数据(隐私隔离)。
+    if (opts?.blockAccount && isAccountTool(toolName, inp)) {
+      return { behavior: 'deny', message: '🔒 此操作涉及主人的私密账户/持仓数据,仅主人本人可查。' }
     }
     if (approver && needsApproval(toolName, inp)) {
       const ok = await approver(toolName, inp)

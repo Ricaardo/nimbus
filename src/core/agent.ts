@@ -183,6 +183,7 @@ export class AgentRunnerImpl implements AgentRunner {
     approver,
     effort,
     settingSources,
+    blockAccount,
   }: {
     prompt: string
     resume?: string
@@ -195,6 +196,8 @@ export class AgentRunnerImpl implements AgentRunner {
     /** Override settingSources for special calls (e.g. portfolio-refresh needs
      *  'user' to reach the claude.ai IBKR connector). Default = lean project+local. */
     settingSources?: ('user' | 'project' | 'local')[]
+    /** 非本人提问 → 禁查主人账户/持仓工具(隐私隔离)。 */
+    blockAccount?: boolean
   }): Promise<{ sessionId?: string; text: string }> {
     let sessionId: string | undefined
     let accumulatedText = ''
@@ -224,7 +227,7 @@ export class AgentRunnerImpl implements AgentRunner {
       permissionMode: 'default',
       // Layer 2: SDK-level trade guard. With an approver, ASK-listed ops get
       // routed to the user for approval; without one, the static guard is used.
-      canUseTool: approver ? makeCanUseTool(approver) : canUseTool,
+      canUseTool: approver || blockAccount ? makeCanUseTool(approver, { blockAccount }) : canUseTool,
       includePartialMessages: true, // Enable streaming token-level deltas via stream_event.
       ...(resume !== undefined ? { resume } : {}),
       ...(model !== undefined ? { model } : {}),

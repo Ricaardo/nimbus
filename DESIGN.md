@@ -507,3 +507,70 @@ agent.ts 用 `systemPrompt: {type:'preset', preset:'claude_code', append: REPLY_
 
 ### 15.5 部署（已上线）
 launchd `com.nimbus.daemon` → `scripts/nimbus-daemon.sh`（tmux `nimbus` + 退避 supervisor）→ `bun run src/main.ts`。改代码重载 = `tmux kill-session -t nimbus`。单消费者铁律：原 CC discord 插件已删、TG `com.claude.daemon` 已 bootout，Nimbus 独占两 token。测试：`bun test`（476）。运维/故障排查见 `USAGE.md`。
+
+---
+
+## 16. 最终架构总览（2026-06-12 · 这是当前真实形态,新人先读本节）
+
+> §1-15 是演进过程。本节是**收敛后的最终架构**——分层职责、数据流、安全模型、已知权衡。
+
+### 16.1 一句话
+Nimbus = **基于 Claude Agent SDK 的常驻投顾编排层**。自己只做"渠道 / 路由 / 触发 / 安全 / 记忆 / 调度",所有投资分析交给继承自 CC 的 skill+MCP。**北极星:用 CC 能力,不重做 CC。**
+
+### 16.2 分层职责
+```
+渠道层 channels/    Discord + Telegram adapter(统一 Channel 接口)
+   ↓ InboundMsg(带 userId → 身份感知)
+编排层 core/
+   ├ dispatcher    ★中枢:身份隔离 → 意图分档 → per-chat 串行队列 →
+   │                记忆/时间/护栏注入 → agent.run → 流式/embed/outbox/台账
+   ├ router/symbol L0 行情快路径分流 + 代码归一化(含中文名)
+   ├ agent         Agent SDK 封装(订阅auth/动态模型/自适应思考/canUseTool/项目加载)
+   ├ models        动态模型发现(supportedModels 滚动别名,跟随新发布)
+   ├ safety        ★交易硬拦 + 账户隔离 + 人审批闸
+   ├ memory        持仓画像/持久记忆(偏好/决策/教训)/时间注入
+   ├ permission    人在回路审批(Discord y/n)
+   ├ db            bun:sqlite(sessions/audit/jobs/memories/usage/decisions/cooldowns)
+   └ scheduler/eventsource  cron + 告警轮询
+能力层(继承)      37 投资 skill + MCP(futu/长桥/cmc/tavily/alpaca)+ IBKR连接器
+                  + 内置工具(Bash/Write/WebSearch/WebFetch/Task子代理)+ python画图
+模块层 modules/    被动(quote/guardrail/echo)+ 主动 cron(reports/opportunity/
+                  reflection/portfolio-refresh/ops)+ 事件(alerts)
+```
+
+### 16.3 一条消息的完整数据流
+```
+DM → 渠道 gate(白名单) → dispatcher:
+  1. isOwner = userId ∈ OWNER_IDS          ← ★隐私分叉
+  2. "记住X" 快路径(仅本人)
+  3. 意图分档 classify:
+     · L0 行情 → 直 spawn futu/yfinance(不起 agent,秒回)
+     · 否则 → 选模型(haiku/sonnet/opus 动态别名)
+  4. 组 prompt:[北京时间] +(本人才有)[持仓画像(首轮)/记忆recall/护栏] +(非本人)[身份警示] + 用户消息
+  5. agent.run(订阅auth · 项目skill · 自适应思考 · canUseTool[交易deny+非本人账户deny] · blockAccount)
+  6. 流式增量 edit 占位 → 终态:剥离 ===DECISION===(仅本人入台账)→ 免责 → 发送
+  7. outbox 有图自动发 · 用量入库(超预算提示)
+```
+
+### 16.4 安全模型(三层,红线不可松)
+- **交易硬拦**(所有人):trade-guard hook(进程级)+ canUseTool(SDK级)→ futu/长桥/IBKR/hl/polymarket 下单工具全 deny。**AI 绝不下单。**
+- **账户隔离**(非本人):非 OWNER → 不注入持仓、`blockAccount` 硬 deny 账户/持仓查询、prompt 警示禁透露隐私、不存记忆。
+- **人审批**(对外操作):发布/发送/破坏性命令 → Discord y/n 才执行。
+- 数据卫生:真实持仓/密钥经 gitignore 不入库;运行时数据不版本控制。
+
+### 16.5 自动运转(8 cron + 告警)
+进攻:机会扫描(工作日9点)· 防守:三日报+告警(止损/集中度/论点)· 数据:持仓刷新(含IBKR)· 进化:周反思(学教训入记忆)· 运维:成本周报+健康自愈。
+
+### 16.6 "实时跟随最新"的双机制
+- **模型**:supportedModels() 滚动别名 + 24h 刷新 → 新版自动用上。
+- **SDK**:受控升级(typecheck+test+smoke 守护,不盲目)。
+
+### 16.7 已知权衡(诚实记录)
+- **半独立**:agent 从项目 `.claude` 加载 skill 定义,但数据(state/历史)+ 7 个 skill 脚本仍指向 `~/.claude`。本机部署下合理;完全独立需改脚本路径+同步数据,收益低未做。
+- **vendored skills 会漂移**:`sync-skills.sh` 手动同步,非自动。
+- **embed 仅结构化推送**:自由对话/日报用 markdown(embed 4096 限+丢格式)。
+- **单消费者铁律**:同 token 只能一个 nimbus 持 channel(防双回复)。
+- **长桥连接器依赖 claude.ai 订阅态**:彻底脱离 claude.ai 则失效,那时才需自接 API。
+
+### 16.8 还可做(非必须)
+知识 theses 导入让 bot 帮建 · browser-use(JS渲染/截图,边缘场景再加) · Discord 完全独立(state/脚本路径) · 决策台账的结果回填自动化(现靠周反思人工对照)。

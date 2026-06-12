@@ -6,7 +6,11 @@ import { openDb } from '../../core/db.js'
 function makeCtx(db: any, sends: string[]) {
   return {
     trigger: { kind: 'cron', job: 'x' },
-    channels: { async send(_c: string, _ch: string, t: string) { sends.push(t); return 'id' }, async edit(){}, async sendTyping(){} },
+    channels: { async send(_c: string, _ch: string, t: string, opts?: any) {
+      const e = opts?.embed
+      const flat = e ? [e.title, e.description, ...(e.fields ?? []).map((f: any) => `${f.name} ${f.value}`), e.footer].filter(Boolean).join(' ') : ''
+      sends.push([t, flat].filter(Boolean).join(' ')); return 'id'
+    }, async edit(){}, async sendTyping(){} },
     db, memory: {}, safety: {}, agent: {},
   } as any
 }

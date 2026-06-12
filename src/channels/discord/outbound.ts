@@ -5,7 +5,18 @@ import { mkdirSync, writeFileSync, statSync, realpathSync } from 'fs'
 import { join, sep } from 'path'
 import { INBOX_DIR, STATE_DIR } from '../../config.js'
 import { dmChannelUsers, loadAccess, noteSent } from './access.js'
-import type { SendOpts, HistoryEntry } from '../channel.js'
+import type { SendOpts, HistoryEntry, EmbedSpec } from '../channel.js'
+
+/** EmbedSpec → discord.js plain embed object (no EmbedBuilder import needed). */
+function toDiscordEmbed(e: EmbedSpec): Record<string, unknown> {
+  return {
+    ...(e.title ? { title: e.title } : {}),
+    ...(e.description ? { description: e.description } : {}),
+    ...(e.color != null ? { color: e.color } : {}),
+    ...(e.fields ? { fields: e.fields } : {}),
+    ...(e.footer ? { footer: { text: e.footer } } : {}),
+  }
+}
 
 // Type aliases — erased at runtime, so safe without loading discord.js.
 type DiscordClient = import('discord.js').Client
@@ -94,7 +105,9 @@ export async function sendReply(
   const limit = Math.max(1, Math.min(access.textChunkLimit ?? MAX_CHUNK_LIMIT, MAX_CHUNK_LIMIT))
   const mode = access.chunkMode ?? 'length'
   const replyMode = access.replyToMode ?? 'first'
-  const chunks = chunk(text, limit, mode)
+  const embedObj = opts?.embed ? toDiscordEmbed(opts.embed) : undefined
+  // Allow embed-only (no text); otherwise chunk the text.
+  const chunks = text ? chunk(text, limit, mode) : ['']
   const sentIds: string[] = []
 
   try {
@@ -104,7 +117,8 @@ export async function sendReply(
         replyMode !== 'off' &&
         (replyMode === 'all' || i === 0)
       const sent = await (ch as any).send({
-        content: chunks[i],
+        ...(chunks[i] ? { content: chunks[i] } : {}),
+        ...(i === 0 && embedObj ? { embeds: [embedObj] } : {}),
         ...(i === 0 && files.length > 0 ? { files } : {}),
         ...(shouldReplyTo
           ? { reply: { messageReference: opts!.replyTo, failIfNotExists: false } }

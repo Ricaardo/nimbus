@@ -95,7 +95,19 @@ export class TelegramChannel implements Channel {
   async send(chatId: string, text: string, opts?: SendOpts): Promise<string> {
     if (!this._bot) throw new Error('TelegramChannel not started')
 
-    const chunks = chunk(text, TG_CHUNK_LIMIT, 'newline')
+    // TG has no embeds → degrade embed to plain text appended to the message.
+    let body = text
+    if (opts?.embed) {
+      const e = opts.embed
+      const parts = [
+        e.title ? `**${e.title}**` : '',
+        e.description ?? '',
+        ...(e.fields ?? []).map(f => `${f.name}: ${f.value}`),
+        e.footer ? `_${e.footer}_` : '',
+      ].filter(Boolean)
+      body = [text, parts.join('\n')].filter(Boolean).join('\n')
+    }
+    const chunks = chunk(body || ' ', TG_CHUNK_LIMIT, 'newline')
     let firstId: string | null = null
 
     for (let i = 0; i < chunks.length; i++) {

@@ -9,6 +9,7 @@
 
 import type { Module, ModuleContext } from '../module.js'
 import { defaultTcpCheck } from '../quote/index.js'
+import { buildEmbed } from '../../core/embed.js'
 import { OPEND_HOST, OPEND_PORT, REPORT_DM, HEALTH_CRON } from '../../config.js'
 
 const COOLDOWN_MS = 60 * 60_000 // 1h between repeated down-alerts
@@ -30,13 +31,19 @@ const healthCheck: Module = {
       process.stderr.write(`nimbus: health — OpenD ${OPEND_HOST}:${OPEND_PORT} 不可达\n`)
       const firstOrCooled = flagged === 0 || Date.now() - flagged > COOLDOWN_MS
       if (firstOrCooled) {
-        await ctx.channels.send('discord', REPORT_DM,
-          '⚠️ **健康告警**: futu OpenD 不可达 → L0 行情降级到 yfinance。请检查 OpenD(端口 11111)是否在运行。', {})
+        await ctx.channels.send('discord', REPORT_DM, '', {
+          embed: buildEmbed('danger', {
+            title: '⚠️ 健康告警 — OpenD 不可达',
+            description: `futu OpenD(${OPEND_HOST}:${OPEND_PORT})无响应 → L0 行情降级到 yfinance。\n请检查 OpenD 是否在运行。`,
+          }),
+        })
         ctx.db.setCooldown(KEY, Date.now()) // mark down + record alert time
       }
     } else if (flagged > 0) {
       // Recovered from a previously-flagged outage → notify once, reset to healthy.
-      await ctx.channels.send('discord', REPORT_DM, '✅ **健康恢复**: OpenD 已恢复,L0 行情正常。', {})
+      await ctx.channels.send('discord', REPORT_DM, '', {
+        embed: buildEmbed('success', { title: '✅ 健康恢复 — OpenD', description: 'OpenD 已恢复,L0 行情正常。' }),
+      })
       ctx.db.setCooldown(KEY, 0)
     }
   },

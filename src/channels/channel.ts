@@ -9,9 +9,27 @@ export interface InboundMsg {
   attachments?: string[]
 }
 
+export interface EmbedField {
+  name: string
+  value: string
+  inline?: boolean
+}
+
+/** Channel-agnostic rich-card spec. Discord renders as an embed;
+ *  Telegram (no embeds) degrades to formatted text. */
+export interface EmbedSpec {
+  title?: string
+  description?: string
+  /** 0xRRGGBB integer; use buildEmbed() semantic colors. */
+  color?: number
+  fields?: EmbedField[]
+  footer?: string
+}
+
 export interface SendOpts {
   replyTo?: string
   files?: string[]
+  embed?: EmbedSpec
 }
 
 export interface HistoryEntry {

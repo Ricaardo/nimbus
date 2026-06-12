@@ -94,6 +94,8 @@ export interface AgentRunner {
     effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max'
     /** Override settingSources (e.g. add 'user' for IBKR-connector refresh). */
     settingSources?: ('user' | 'project' | 'local')[]
+    /** 非本人 → 禁查主人账户/持仓工具(隐私隔离)。 */
+    blockAccount?: boolean
   }): Promise<{ sessionId?: string; text: string }>
 }
 

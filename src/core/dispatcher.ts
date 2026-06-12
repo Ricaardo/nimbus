@@ -2,7 +2,7 @@ import type { Module, ChannelRegistry, AgentRunner, DB, Memory, Safety, EventTyp
 import type { InboundMsg } from '../channels/channel.js'
 import { readdirSync, statSync, renameSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { WORKSPACE, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, OUTBOX_DIR } from '../config.js'
+import { WORKSPACE, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, OUTBOX_DIR, OWNER_IDS } from '../config.js'
 import { modelFor } from './models.js'
 import { detect as guardrailDetect } from '../modules/guardrail/index.js'
 import type { PermissionBroker } from './permission.js'
@@ -241,11 +241,17 @@ export class Dispatcher {
 
   async #process(inbound: InboundMsg): Promise<void> {
     const chatId = inbound.chatId
+    // ★隐私隔离:只有主人本人能看持仓/资金/记忆,他人受限。
+    const isOwner = OWNER_IDS.includes(inbound.userId)
 
     // ── Memory capture fast-path (Phase 2) ─────────────────────────────────────
-    // "记住 X" → store a lasting preference (persists across sessions). No agent.
+    // "记住 X" → store a lasting preference. ONLY the owner can write memory.
     const cap = /^\s*记住[：:，,]?\s*(.+)/s.exec(inbound.content)
     if (cap && cap[1] && cap[1].trim().length >= 2) {
+      if (!isOwner) {
+        await this.#channels.send(inbound.channel, chatId, '🔒 仅主人本人可写入记忆。', { replyTo: inbound.messageId })
+        return
+      }
       const pref = cap[1].trim()
       rememberPreference(pref)
       this.#db.audit({ channel: inbound.channel, chatId, user: inbound.user, kind: 'in', payload: `[mem-capture] ${pref}` })
@@ -300,17 +306,23 @@ export class Dispatcher {
     const prior = this.#db.getSession(inbound.channel, chatId)?.sdkSessionId
 
     // ── Default conversation (agent pass-through) ─────────────────────────────
-    // P0 省额度: inject the heavy portfolio/profile context ONLY on the first
-    // turn of a session — resume carries it forward, so re-injecting every turn
-    // just burns tokens (× every tool round-trip) and breaks prompt cache.
-    const ctxPrefix = prior ? '' : this.#memory.buildContext()
-    const guardrailInstruction = guardrailDetect(inbound.content)
-    // Per-message recall (small): decision/lesson memories relevant to this Q.
-    const recalled = recallMemories(inbound.content)
+    // ★隐私隔离:持仓画像/记忆/护栏只对主人本人注入;他人完全不注入。
+    // P0 省额度: 持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。
+    const ctxPrefix = isOwner && !prior ? this.#memory.buildContext() : ''
+    const guardrailInstruction = isOwner ? guardrailDetect(inbound.content) : null
+    const recalled = isOwner ? recallMemories(inbound.content) : []
     const userLine = `[${inbound.user} @ ${inbound.ts}] ${inbound.content}`
 
-    // Build prompt: [now] [context (first turn)] [recall?] [guardrail?] [---] [user]
+    // Build prompt: [now] [privacy-guard?] [context] [recall?] [guardrail?] [---] [user]
     const parts: string[] = [nowLine()] // 每轮注入当前北京时间(给 agent 时间概念)
+    if (!isOwner) {
+      parts.push(
+        '【⚠️ 身份警示 — 当前提问者不是主人本人】' +
+        '严禁透露主人的任何隐私:持仓/成本/资金/盈亏/账户/密钥/API key/真实身份。' +
+        '不要调用任何账户或真实持仓工具(已被硬拦)。只做公开的市场/个股一般性分析。' +
+        '不要提及主人的具体仓位或画像。礼貌但保持边界。',
+      )
+    }
     if (ctxPrefix) parts.push(ctxPrefix)
     if (recalled.length > 0) parts.push('【相关记忆（你过去说过/做过）】\n' + recalled.map(m => `• ${m}`).join('\n'))
     if (guardrailInstruction) parts.push(guardrailInstruction)
@@ -389,6 +401,7 @@ export class Dispatcher {
         model,
         onText: streamOnText,
         approver,
+        blockAccount: !isOwner, // 非本人:禁查账户/持仓工具
       })
       sessionId = result.sessionId
       text = result.text
@@ -425,9 +438,12 @@ export class Dispatcher {
     }
 
     // Decision ledger: strip + record any ===DECISION=== block the agent appended.
+    // ★只记录主人本人的决策(他人对话不进台账/记忆)。
     const { clean, decisions } = extractDecisions(text || '(no response)')
-    for (const d of decisions) {
-      recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale })
+    if (isOwner) {
+      for (const d of decisions) {
+        recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale })
+      }
     }
     const rawText = clean || '(no response)'
     // Apply disclaimer post-processing

@@ -4,6 +4,7 @@
  */
 
 import type { Module, ModuleContext } from '../module.js'
+import { buildEmbed } from '../../core/embed.js'
 import { REPORT_DM, COST_REPORT_CRON } from '../../config.js'
 
 function fmtTok(n: number): string {
@@ -27,17 +28,17 @@ const costReport: Module = {
     const total = rows.reduce((s, r) => s + r.cost, 0)
     const calls = rows.reduce((s, r) => s + r.calls, 0)
     const cacheRead = rows.reduce((s, r) => s + r.cacheRead, 0)
-    const lines = [
-      `📊 **成本周报**（过去 7 天）`,
-      `总花费 **$${total.toFixed(2)}** · ${calls} 次调用 · 缓存命中 ${fmtTok(cacheRead)} tok`,
-      '',
-      ...rows.map(r =>
-        `- \`${r.model}\`: **$${r.cost.toFixed(2)}** · ${r.calls}次 · in ${fmtTok(r.inTok)} / out ${fmtTok(r.outTok)}`,
-      ),
-      '',
-      `> 省额度提示:闲聊走 Haiku、行情走 L0 直连(不计 token)、上下文每会话只注一次。`,
-    ]
-    await ctx.channels.send('discord', REPORT_DM, lines.join('\n'), {})
+    const embed = buildEmbed('neutral', {
+      title: '📊 成本周报（过去 7 天）',
+      description: `总花费 **$${total.toFixed(2)}** · ${calls} 次调用 · 缓存命中 ${fmtTok(cacheRead)} tok`,
+      fields: rows.map(r => ({
+        name: r.model,
+        value: `$${r.cost.toFixed(2)} · ${r.calls}次 · in ${fmtTok(r.inTok)} / out ${fmtTok(r.outTok)}`,
+        inline: true,
+      })),
+      footer: '省额度:闲聊→Haiku · 行情→L0直连(不计token) · 上下文每会话只注一次',
+    })
+    await ctx.channels.send('discord', REPORT_DM, '', { embed })
   },
 }
 

@@ -295,7 +295,7 @@ describe('memory.buildContext is injected into prompt', () => {
     }
 
     const dispatcher = new Dispatcher([], registry, agent, nullDb, richMemory, passSafety)
-    await dispatcher.dispatch(makeInbound({ chatId: 'ctx-test', content: 'NVDA?' }))
+    await dispatcher.dispatch(makeInbound({ chatId: 'ctx-test', content: 'NVDA?', userId: '1086665220723855560' }))
 
     expect(agentCalls).toHaveLength(1)
     expect(agentCalls[0].prompt).toContain('【风险画像】')
@@ -575,7 +575,7 @@ describe('guardrail injection', () => {
     const { registry } = makeRegistry()
     const dispatcher = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
 
-    await dispatcher.dispatch(makeInbound({ content: 'SOXL 抄底时机' }))
+    await dispatcher.dispatch(makeInbound({ content: 'SOXL 抄底时机', userId: '1086665220723855560' }))
 
     expect(agentCalls).toHaveLength(1)
     expect(agentCalls[0].prompt).toContain('强提醒')
@@ -1367,5 +1367,32 @@ describe('extractDecisions', () => {
     const { clean, decisions } = extractDecisions('ok\n===DECISION=== {not json}')
     expect(clean).toBe('ok')
     expect(decisions).toHaveLength(0)
+  })
+})
+
+describe('privacy isolation by sender identity', () => {
+  test('non-owner: no portfolio context, no memory, blockAccount=true, privacy warning', async () => {
+    const calls: Array<any> = []
+    const agent: AgentRunner = { async run(o) { calls.push(o); return { text: 'ok' } } }
+    const mem: Memory = { loadPortfolioState: () => null, riskProfile: () => '', buildContext: () => '【持仓摘要】NVDA 44%' }
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, mem, passSafety)
+    // 非本人 userId
+    await d.dispatch(makeInbound({ userId: 'stranger-999', content: 'NVDA 怎么样', chatId: 'pc-1' }))
+    expect(calls).toHaveLength(1)
+    expect(calls[0].blockAccount).toBe(true)
+    expect(calls[0].prompt).toContain('不是主人本人')
+    expect(calls[0].prompt).not.toContain('持仓摘要')   // 持仓画像未注入
+  })
+  test('owner: gets portfolio context + blockAccount=false', async () => {
+    const calls: Array<any> = []
+    const agent: AgentRunner = { async run(o) { calls.push(o); return { text: 'ok' } } }
+    const mem: Memory = { loadPortfolioState: () => null, riskProfile: () => '', buildContext: () => '【持仓摘要】NVDA 44%' }
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, mem, passSafety)
+    await d.dispatch(makeInbound({ userId: '1086665220723855560', content: 'NVDA 怎么样', chatId: 'pc-2' }))
+    expect(calls[0].blockAccount).toBe(false)
+    expect(calls[0].prompt).toContain('持仓摘要')
+    expect(calls[0].prompt).not.toContain('不是主人本人')
   })
 })

@@ -71,3 +71,26 @@ describe('makeCanUseTool — approval (ASK) flow', () => {
     }
   })
 })
+
+import { isAccountTool, makeCanUseTool as mkCut } from './safety.js'
+
+describe('privacy: account-tool isolation (非本人)', () => {
+  const opts = {} as any
+  test('isAccountTool detects holdings/account queries', () => {
+    expect(isAccountTool('mcp__longbridge__stock_positions', {})).toBe(true)
+    expect(isAccountTool('mcp__longbridge__account_balance', {})).toBe(true)
+    expect(isAccountTool('Bash', { command: 'python3 get_all_portfolios.py --trd-env REAL' })).toBe(true)
+    expect(isAccountTool('mcp__longbridge__quote', {})).toBe(false)   // 公开行情 OK
+    expect(isAccountTool('WebSearch', {})).toBe(false)
+  })
+  test('blockAccount=true denies account tools; false allows', async () => {
+    const denyCut = mkCut(undefined, { blockAccount: true })
+    expect((await denyCut('mcp__longbridge__stock_positions', {}, opts)).behavior).toBe('deny')
+    const okCut = mkCut(undefined, { blockAccount: false })
+    expect((await okCut('mcp__longbridge__stock_positions', {}, opts)).behavior).toBe('allow')
+  })
+  test('trade still hard-denied regardless of blockAccount', async () => {
+    const cut = mkCut(undefined, { blockAccount: false })
+    expect((await cut('mcp__longbridge__submit_order', {}, opts)).behavior).toBe('deny')
+  })
+})

@@ -14,6 +14,12 @@ export const OUTBOX_DIR = join(DATA_DIR, 'outbox')
 // ── Discord / channel config ──────────────────────────────────────────────────
 export const REPORT_DM = '1484554871800725624'
 
+// ── 主人身份(隐私隔离:只有本人能看持仓/资金/记忆) ──────────────────────────
+// 非本人(即便进了白名单/群@)→ 不注入持仓画像/记忆、不存记忆、禁查账户工具、
+// 强护栏禁透露持仓/资金/密钥。Discord + Telegram 的主人 id。
+export const OWNER_IDS: string[] = (process.env.NIMBUS_OWNER_IDS ?? '1086665220723855560,8777584169')
+  .split(',').map(s => s.trim()).filter(Boolean)
+
 // ── Usage / budget (Phase 1 省额度) ───────────────────────────────────────────
 /** Advisory daily cost budget (USD). Over this → stderr warning (not a hard block;
  *  never suppresses red-line alerts). Tune to taste. */
