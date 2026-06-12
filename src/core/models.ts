@@ -33,17 +33,20 @@ export function modelFor(tier: Tier): string {
  *  Prefer the bare rolling alias (haiku/sonnet/opus) — it always points at the
  *  latest. Else any value whose id/displayName contains the family keyword. */
 function pick(models: Array<{ value: string; displayName?: string }>, family: Tier): string | null {
-  // 1. exact rolling alias
+  // ★避开需额外付费的上下文变体(如 'sonnet[1m]' = 1M 上下文,订阅外要 credits)。
+  // 优先裸别名(标准上下文,订阅内免费)。
+  // 1. exact rolling alias (bare, standard context) — 首选
   const exact = models.find(m => m.value === family)
   if (exact) return exact.value
-  // 2. alias with context suffix (e.g. 'sonnet[1m]')
-  const suffixed = models.find(m => m.value.startsWith(`${family}[`))
-  if (suffixed) return suffixed.value
-  // 3. any value/displayName containing the family keyword (case-insensitive)
-  const kw = models.find(m =>
-    m.value.toLowerCase().includes(family) || (m.displayName ?? '').toLowerCase().includes(family),
+  // 2. family keyword but WITHOUT a '[...]' paid-context suffix
+  const standard = models.find(m =>
+    !/\[.*\]/.test(m.value) &&
+    (m.value.toLowerCase().includes(family) || (m.displayName ?? '').toLowerCase().includes(family)),
   )
-  return kw ? kw.value : null
+  if (standard) return standard.value
+  // ★绝不自动选付费 [1m] 变体。没有免费标准别名 → 返回 null → 调用方用 config
+  //   的标准全名 fallback(免费标准上下文)。
+  return null
 }
 
 function loadMcp(): Record<string, unknown> {

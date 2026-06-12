@@ -44,12 +44,12 @@ export const LEVERAGE_BAN_UNTIL = '2026-07-06'
 // ── Model tiers (动态发现,别写死版本号) ──────────────────────────────────────
 // SDK 的 supportedModels() 返回滚动别名(haiku/sonnet/opus),新版发布自动跟随。
 // 启动时 model-registry 用它解析每档;解析不到才退到这些 fallback。
-/** L-Haiku: 闲聊/操作(最便宜快)。fallback 用滚动别名 'haiku'。 */
-export const HAIKU_MODEL = 'haiku'
-/** L1 默认:快评/新闻。fallback 'sonnet'。 */
-export const SONNET_MODEL = 'sonnet'
-/** L2 深度:估值/组合/场景。fallback 'opus'。 */
-export const OPUS_MODEL = 'opus'
+// fallback 用**标准上下文全名**(订阅内免费),不用会解析成付费 [1m] 变体的别名。
+// models.ts 优先用 supportedModels 里的裸别名(自动最新);只有该档没有免费标准
+// 别名(如本账户 sonnet 只有 sonnet[1m] 付费版)时,才退到这些标准全名。
+export const HAIKU_MODEL = 'claude-haiku-4-5'
+export const SONNET_MODEL = 'claude-sonnet-4-6'
+export const OPUS_MODEL = 'claude-opus-4-8'
 
 // ── Scheduler / report config ─────────────────────────────────────────────────
 /** Model for routine scheduled reports — Sonnet for cost (P0 省额度).
