@@ -574,3 +574,32 @@ DM → 渠道 gate(白名单) → dispatcher:
 
 ### 16.8 还可做(非必须)
 知识 theses 导入让 bot 帮建 · browser-use(JS渲染/截图,边缘场景再加) · Discord 完全独立(state/脚本路径) · 决策台账的结果回填自动化(现靠周反思人工对照)。
+
+---
+
+## 17. 框架最终评估（2026-06-12 · review,主要看框架结构）
+
+> 506 测试绿、live 稳定运行后的框架层评估。诚实记录优点 + 真问题 + 建议,不空泛。
+
+### 17.1 框架优点(经验证)
+- **分层清晰 + 解耦真**:渠道(Channel 接口)/ 编排(core)/ 模块(Module 接口)三层。Telegram 接入时 dispatcher 以下零改 = 解耦经实战验证。
+- **安全收口在一处**:所有 agent.run → 同一 `AgentRunnerImpl.run` → 同一 `canUseTool`(safety.ts)。红线(交易deny/账户隔离/paper闸)是**框架级单点收口**,不散落,难绕过。
+- **统一 Trigger 抽象**:message/cron/event 三类触发归一,EventSource/Scheduler/渠道都产 Trigger → dispatcher 统一路由。加触发源不改核心。
+- **错误兜底一致**:每个 cron 模块都有 try/catch;agent.run 有 stale-session 自愈 + 额度错误友好提示。失败不拖垮进程。
+- **能力靠继承不重造**:37 skill + MCP 经 SDK 继承,nimbus 只做编排——北极星守得住。
+
+### 17.2 框架真问题(按严重度)
+1. **★dispatcher `#process` 是 250 行上帝方法**(最该改)。一个方法干了:身份隔离 / 记忆捕获 / 模块分发 / 意图分类 / L0 quote / 模型选择 / prompt 组装 / 占位+typing / 流式 / agent.run / 台账 / disclaimer / outbox / audit。**症状**:难读、难测局部、改一处怕碰别处(近期几个 bug 都在这附近)。**建议**:拆成 `#handleMemoryCapture` / `#handleQuote` / `#buildPrompt(isOwner)` / `#runConversation` / `#deliverFinal` 私有方法,#process 只做编排。有 506 测试守护,可渐进拆。
+2. **cron 模块重复模式**:reports/opportunity/reflection/portfolio-refresh 都是"buildContext + getSession(resume) + agent.run + putSession + send"。reports 有 runReport helper 但其他各自重复。**建议**:抽 `runAgentReport(ctx, {prompt, model, targetChat})` 共享 helper,去重 + 统一(如统一加 nowLine/disclaimer)。
+3. **DB 接口 12 方法偏胖**(违反接口隔离):getSession/putSession/audit/getJob/upsertJob/markJobRun/getCooldown/setCooldown/openDecisions?/recordDecision?/getUsageSummary?。模块只用其中几个。**建议(可选,低优先)**:拆 SessionStore/AuditLog/JobStore/MemoryStore/UsageStore 子接口;或保持(单实现下实用够用)。
+4. **module.ts 是契约大杂烩**:Channel 引用 + Detector/Trigger/Position/PortfolioState/AgentRunner/Safety/Memory/DB/ModuleContext/Module 全在一文件。**建议(可选)**:按域拆(types/portfolio.ts、types/agent.ts...);或保持(集中查阅方便)。
+
+### 17.3 演进性评估(加东西容易吗)
+- **加渠道**:实现 Channel 接口 + registry.register → ✅ 易(Telegram 验证过)。
+- **加被动模块**(对话响应):写 Module + match → ✅ 易(quote/paper 是例)。
+- **加 cron/event 模块**:写 Module + cron/events + 注册 → ✅ 易(8 个 cron 都这么加的)。
+- **加数据源**:MCP 进 secrets/mcp.json 或 skill → ✅ 易(长桥这么加的)。
+- **改对话主流程**:⚠️ 要碰 250 行 #process → 中等风险(问题1)。
+
+### 17.4 结论
+框架**骨架健康**(分层/解耦/安全收口/触发抽象/演进性都达标),无结构性缺陷。唯一明确的技术债是 **#process 上帝方法**(问题1)——值得在求稳期后渐进重构。其余(cron重复/DB胖/module.ts大)是整洁度问题,不影响正确性,按需处理。
