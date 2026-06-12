@@ -248,7 +248,7 @@
 > 下面是想到但暂缓的,随时可挑一个继续。
 
 ### 数据 / 持仓
-- **长桥持仓并入 portfolio_state**:现长桥账户(IBIT 1733股)独立于 futu/IBKR,nimbus 总持仓视图未含长桥。可像 IBKR 那样让刷新作业并入(写 longbridge_positions.json → portfolio_state.py 合并)。**待定:并入 or 仅当行情/查询源。**
+- **长桥持仓 ❌ 不并入(2026-06-12 实测=模拟盘)**:长桥 MCP 账户绑的是**模拟/Paper 账户**(IBIT 1733分数股/现金≈0/净值与持仓矛盾/320万整数融资额=demo 特征;主人确认真实账户无持仓)。**持仓数据不可信,绝不并入真实组合。长桥只当行情/数据源(行情真实)。** 若要真实账户:需真实户开通 OpenAPI 权限后重新 OAuth;但 futu/IBKR 已覆盖真实持仓,长桥保持纯行情源最干净。
 - **三账户统一净值视图**:futu + IBKR + 长桥 总资产/总盈亏/跨账户集中度。
 - 论点 theses 导入:`~/.claude/skills/.../theses/` 现空 → 让 bot 帮你给现有持仓建论点 YAML(thesis-tracker),周反思/decay 才有素材。
 
