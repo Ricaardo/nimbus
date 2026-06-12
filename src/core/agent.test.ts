@@ -502,3 +502,32 @@ function makeMockQueryWithPartial(messages: SDKMessage[]) {
   }
   return { mockQuery: mockQuery as any }
 }
+
+describe('stale session retry', () => {
+  test('No conversation found → retries once without resume, succeeds', async () => {
+    let calls = 0
+    const seenResume: Array<unknown> = []
+    const mockQuery: any = ({ options }: any) => {
+      calls++
+      seenResume.push(options.resume)
+      if (calls === 1) {
+        // 第一次带失效 resume → 迭代时抛
+        return (async function* () {
+          throw new Error('Claude Code returned an error result: No conversation found with session ID: dead-123')
+        })()
+      }
+      // 第二次(无 resume)→ 正常返回
+      return (async function* () {
+        yield { type: 'system', subtype: 'init', session_id: 'fresh-1' }
+        yield { type: 'result', subtype: 'success', result: 'ok', usage: {}, modelUsage: {}, total_cost_usd: 0 }
+      })()
+    }
+    const runner = new AgentRunnerImpl(mockQuery)
+    const r = await runner.run({ prompt: 'hi', resume: 'dead-123' })
+    expect(calls).toBe(2)
+    expect(seenResume[0]).toBe('dead-123')   // 首次带失效 resume
+    expect(seenResume[1]).toBeUndefined()    // 重试不带 resume
+    expect(r.text).toBe('ok')
+    expect(r.sessionId).toBe('fresh-1')
+  })
+})

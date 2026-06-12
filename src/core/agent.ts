@@ -202,6 +202,10 @@ export class AgentRunnerImpl implements AgentRunner {
     /** ★长桥模拟盘下单放行(仅 paper 模块、指纹验证通过后传 true)。 */
     allowPaperTrade?: boolean
   }): Promise<{ sessionId?: string; text: string }> {
+    // One attempt with a given resume value. Wrapped so a stale session
+    // ("No conversation found") can be retried once WITHOUT resume (fresh session)
+    // instead of hard-failing every message on that chat.
+    const attempt = async (resumeArg: string | undefined): Promise<{ sessionId?: string; text: string }> => {
     let sessionId: string | undefined
     let accumulatedText = ''
     let resultText: string | undefined
@@ -234,7 +238,7 @@ export class AgentRunnerImpl implements AgentRunner {
         ? makeCanUseTool(approver, { blockAccount, allowPaperTrade })
         : canUseTool,
       includePartialMessages: true, // Enable streaming token-level deltas via stream_event.
-      ...(resume !== undefined ? { resume } : {}),
+      ...(resumeArg !== undefined ? { resume: resumeArg } : {}),
       ...(model !== undefined ? { model } : {}),
     }
 
@@ -295,6 +299,18 @@ export class AgentRunnerImpl implements AgentRunner {
     return {
       sessionId,
       text: resultText ?? accumulatedText,
+    }
+    } // end attempt
+
+    try {
+      return await attempt(resume)
+    } catch (err) {
+      // Stale/expired session id → drop resume and start a fresh conversation once.
+      if (resume !== undefined && /No conversation found|session ID|session not found/i.test(String(err))) {
+        process.stderr.write(`nimbus: stale session ${resume} → 重开新会话\n`)
+        return await attempt(undefined)
+      }
+      throw err
     }
   }
 }
