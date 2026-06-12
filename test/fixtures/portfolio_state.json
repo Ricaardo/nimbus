@@ -1,0 +1,113 @@
+{
+  "as_of": "2026-06-07T08:00:00Z",
+  "nav_usd": 22000,
+  "cash_usd": 1800,
+  "cash_pct": 8.2,
+  "ibkr_stale": false,
+  "positions": [
+    {
+      "code": "AVGO",
+      "name": "Broadcom Inc",
+      "source": "futu",
+      "qty": 15,
+      "avg_cost": 220.5,
+      "price": 235.0,
+      "mv_usd": 3525,
+      "pl_pct": 0.066,
+      "canon": "AVGO",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 16.0,
+      "thesis": "AI infra demand, custom ASIC moat",
+      "conviction_score": 8,
+      "thesis_verdict": "on_track",
+      "stop_loss": 200.0
+    },
+    {
+      "code": "MRVL",
+      "name": "Marvell Technology",
+      "source": "futu",
+      "qty": 100,
+      "avg_cost": 62.3,
+      "price": 68.0,
+      "mv_usd": 6800,
+      "pl_pct": 0.091,
+      "canon": "MRVL",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 31.0,
+      "thesis": "Custom silicon, data-center optical",
+      "conviction_score": 7,
+      "thesis_verdict": "intact",
+      "stop_loss": 55.0
+    },
+    {
+      "code": "00700",
+      "name": "Tencent Holdings",
+      "source": "futu",
+      "qty": 50,
+      "avg_cost": 380.0,
+      "price": 410.0,
+      "mv_usd": 2628,
+      "pl_pct": 0.079,
+      "canon": "00700.HK",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 12.0,
+      "thesis": "Gaming + WeChat ecosystem",
+      "conviction_score": 6,
+      "thesis_verdict": "intact",
+      "stop_loss": null
+    },
+    {
+      "code": "02269",
+      "name": "WuXi Biologics",
+      "source": "futu",
+      "qty": 1000,
+      "avg_cost": 7.2,
+      "price": 6.8,
+      "mv_usd": 875,
+      "pl_pct": -0.056,
+      "canon": "02269.HK",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 4.0,
+      "thesis": "CDMO recovery play",
+      "conviction_score": 4,
+      "thesis_verdict": "weak",
+      "stop_loss": 5.5
+    },
+    {
+      "code": "SOXS",
+      "name": "Direxion Daily Semis Bear 3X",
+      "source": "futu",
+      "qty": 0,
+      "avg_cost": 0,
+      "price": 0,
+      "mv_usd": 0,
+      "pl_pct": 0,
+      "canon": "SOXS",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 0.0,
+      "thesis": null,
+      "conviction_score": null,
+      "thesis_verdict": null,
+      "stop_loss": null
+    }
+  ],
+  "reconcile_flags": [
+    {
+      "type": "行业集中_SEMI>30%",
+      "ticker": "SEMI",
+      "severity": "high",
+      "detail": "SEMI 合计 41.2% > 30.0%"
+    },
+    {
+      "type": "裸仓_无论点",
+      "ticker": "MRVL",
+      "severity": "medium",
+      "detail": "Marvell Technology 占 31% 却无论点档案"
+    }
+  ]
+}

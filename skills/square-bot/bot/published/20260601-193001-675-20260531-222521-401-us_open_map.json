@@ -1,0 +1,46 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260531-222521-401-us_open_map.json",
+  "published_at": "2026-06-01T19:30:01",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "美盘前观察和风险检查：$BTC 约 72,686，24h 变化 -1.66%；$ETH 变化 -1.83%，目前是BTC/ETH 强弱接近。\n1. 美盘前最怕的不是方向错，而是流动性放大假突破。\n2. 如果 BTC 稳住、ETH 跟随，风险偏好可能扩散。\n3. 如果 BTC 转弱但小币继续冲，反而要防尾部轮动。\n失效条件：BTC 跌破 24h 低位后无法快速收回，或 ETH/BTC 强弱突然反转。\n今晚你更关注主线资产，还是高波动轮动？#MarketUpdate $BTC $ETH"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 329409336866321\nLink: https://app.binance.com/uni-qr/cpos/329409336866321?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "draft",
+    "risk_level": "S1",
+    "slot": "us_open_map",
+    "slot_time": "2026-06-01T19:30:00",
+    "post_type": "text",
+    "title": "",
+    "body": "美盘前观察和风险检查：$BTC 约 72,686，24h 变化 -1.66%；$ETH 变化 -1.83%，目前是BTC/ETH 强弱接近。\n1. 美盘前最怕的不是方向错，而是流动性放大假突破。\n2. 如果 BTC 稳住、ETH 跟随，风险偏好可能扩散。\n3. 如果 BTC 转弱但小币继续冲，反而要防尾部轮动。\n失效条件：BTC 跌破 24h 低位后无法快速收回，或 ETH/BTC 强弱突然反转。\n今晚你更关注主线资产，还是高波动轮动？#MarketUpdate $BTC $ETH",
+    "cashtags": [
+      "$BTC",
+      "$ETH"
+    ],
+    "hashtags": [
+      "#MarketUpdate",
+      "#BTC",
+      "#ETH",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "16:9 crypto US session risk check visual, Bitcoin and Ethereum comparative market structure, subtle volatility bands, professional financial newsletter style, no logo",
+    "media_paths": [],
+    "source_notes": [
+      "Binance 24h ticker BTCUSDT price=72,686, change=-1.66%.",
+      "Binance 24h ticker ETHUSDT change=-1.83%."
+    ],
+    "publish_reason": "Pre-US-session low-risk BTC/ETH structure check.",
+    "invalidation": "BTC 跌破 24h 低位后无法快速收回，或 ETH/BTC 强弱突然反转。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "generated_at": "2026-06-01T19:25:23",
+    "data_health": {
+      "status": "ok"
+    }
+  }
+}

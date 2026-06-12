@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Env files with secrets
+.env
+
+# Reports (generated output)
+reports/
+
+# Temp
+*.tmp
+*.log

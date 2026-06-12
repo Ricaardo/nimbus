@@ -1,0 +1,43 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260604-192519-430-education_note.json",
+  "published_at": "2026-06-05T16:40:03",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "新手教育观察：支撑位不是买入指令，它只是市场曾经出现承接的位置。\n1. 真正要看的不是价格触到支撑，而是触到后有没有成交和快速收回。\n2. 如果 BTC 同时放量跌破，支撑位可能从参考变成压力。\n3. 风险是把一个静态数字当成确定答案。\n失效条件：价格跌破支撑后连续收不回，说明原来的观察位失效。\n你平时更容易提前抄底，还是等确认太久？#BTC #CryptoEducation"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 330783144939777\nLink: https://app.binance.com/uni-qr/cpos/330783144939777?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "draft",
+    "risk_level": "S1",
+    "slot": "education_note",
+    "slot_time": "2026-06-05T16:40:00",
+    "post_type": "text",
+    "title": "支撑位不是买入指令",
+    "body": "新手教育观察：支撑位不是买入指令，它只是市场曾经出现承接的位置。\n1. 真正要看的不是价格触到支撑，而是触到后有没有成交和快速收回。\n2. 如果 BTC 同时放量跌破，支撑位可能从参考变成压力。\n3. 风险是把一个静态数字当成确定答案。\n失效条件：价格跌破支撑后连续收不回，说明原来的观察位失效。\n你平时更容易提前抄底，还是等确认太久？#BTC #CryptoEducation",
+    "cashtags": [
+      "$BTC"
+    ],
+    "hashtags": [
+      "#BTC",
+      "#CryptoEducation",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "",
+    "media_paths": [],
+    "source_notes": [
+      "Evergreen education note generated from local risk-management templates."
+    ],
+    "publish_reason": "Low-risk evergreen education content.",
+    "invalidation": "教育框架不适用于极端行情和重大突发新闻，需要结合实时风险环境。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "generated_at": "2026-06-05T16:35:26",
+    "data_health": {
+      "status": "ok"
+    }
+  }
+}

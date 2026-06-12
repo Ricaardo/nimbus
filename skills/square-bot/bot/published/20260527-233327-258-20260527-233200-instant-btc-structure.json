@@ -1,0 +1,48 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260527-233200-instant-btc-structure.json",
+  "published_at": "2026-05-27T23:33:27",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "BTC 即时观察：$BTC 目前约 75,474，24h 仍是小幅回落结构。\n\n1. 现在的重点不是猜方向，而是看 74,758 附近低位能不能守住。\n2. 上方先看能否重新收回 76,710 附近的 24h 高位区域。\n3. 风险是夜盘流动性变薄，把反弹或下跌都放大成假信号。\n\n失效条件：价格放量脱离 24h 区间，并在下一小时仍不能回到区间内。\n我现在更关注区间质量，不看单根 K 线。#BTC #BTCUSDT #BinanceSquare"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 327699684543297\nLink: https://app.binance.com/uni-qr/cpos/327699684543297?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "approved",
+    "risk_level": "S1",
+    "slot": "instant_observation",
+    "slot_time": "2026-05-27T23:31:00",
+    "post_type": "text",
+    "title": "",
+    "body": "BTC 即时观察：$BTC 目前约 75,474，24h 仍是小幅回落结构。\n\n1. 现在的重点不是猜方向，而是看 74,758 附近低位能不能守住。\n2. 上方先看能否重新收回 76,710 附近的 24h 高位区域。\n3. 风险是夜盘流动性变薄，把反弹或下跌都放大成假信号。\n\n失效条件：价格放量脱离 24h 区间，并在下一小时仍不能回到区间内。\n我现在更关注区间质量，不看单根 K 线。#BTC #BTCUSDT #BinanceSquare",
+    "cashtags": [
+      "$BTC"
+    ],
+    "hashtags": [
+      "#BTC",
+      "#BTCUSDT",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "",
+    "media_paths": [],
+    "source_notes": [
+      "Binance 24h ticker BTCUSDT price=75474.09, change=-1.53%, high=76710.01, low=74758.33, observed_at=2026-05-27T23:31:09."
+    ],
+    "publish_reason": "即时低风险 BTC 区间观察。",
+    "invalidation": "价格放量脱离 24h 区间，并在下一小时仍不能回到区间内。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "data_health": {
+      "status": "ok"
+    },
+    "generated_at": "2026-05-27T23:31:09",
+    "approval": {
+      "source": "human",
+      "approved_by": "user",
+      "approved_at": "2026-05-27T23:31:09"
+    }
+  }
+}

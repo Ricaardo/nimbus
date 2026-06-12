@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.nimbus.daemon.plist — launchd agent for Nimbus Discord bot.
+
+  INSTALL (manual — run once, after confirming single-consumer rule):
+    cp ~/nimbus/deploy/com.nimbus.daemon.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.daemon.plist
+
+  RELOAD after code change:
+    tmux kill-session -t nimbus      # supervisor detects exit → launchd respawns
+
+  UNLOAD:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.daemon.plist
+
+  ⚠️ Single-consumer rule (§9.2):
+    Before bootstrapping, confirm:
+      1. No 'claude --channels' daemon is running.
+      2. This interactive Claude session does NOT have plugin:discord:discord active.
+    Running two consumers on the same Discord token causes duplicate replies.
+
+  NOTE: EnvironmentVariables intentionally omits API keys.
+    DISCORD_BOT_TOKEN and PROXY_URL must live in:
+      ~/.claude/channels/discord/.env
+    (loaded by src/config.ts at startup)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nimbus.daemon</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/x/nimbus/scripts/nimbus-daemon.sh</string>
+  </array>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/x/nimbus/logs/daemon.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/x/nimbus/logs/daemon.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- miniforge first (futu-capable python3), then ~/.bun/bin (bun/tmux). -->
+    <key>PATH</key>
+    <string>/Users/x/miniforge3/bin:/Users/x/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/x/nimbus</string>
+</dict>
+</plist>

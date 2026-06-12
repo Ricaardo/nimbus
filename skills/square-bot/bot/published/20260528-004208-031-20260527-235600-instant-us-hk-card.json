@@ -1,0 +1,45 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260527-235600-instant-us-hk-card.json",
+  "published_at": "2026-05-28T00:42:08",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "美股、港卡、跨境券商这条线，我先当作风险观察，不当作操作结论。\n1. 真正要区分：官方规则、券商执行、银行风控、社媒传闻，四件事不是一回事。\n2. 港卡的核心不是“能不能绕开”，而是资金来源、用途、身份资料和出入金路径是否经得起合规审核。\n3. 对加密市场的影响也不是直接利空/利多，而是通过跨境资金便利度、风险偏好、美股/中概情绪传导到 $BTC 这类高 beta 资产。\n风险：把单条新闻理解成“全面禁止”，或者把一个人的成功出入金经验当成可复制路径，都容易误判。\n失效条件：后续没有官方或多家主流来源确认，且美股、中概、BTC 都没有连续反应，这条线就只按噪音处理。\n我更关注的是通道稳定性，而不是一句标题。#MarketUpdate $BTC #BTC"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 327716565381361\nLink: https://app.binance.com/uni-qr/cpos/327716565381361?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "draft",
+    "risk_level": "S1",
+    "slot": "education_note",
+    "slot_time": "2026-05-28T00:41:31",
+    "post_type": "text",
+    "title": "",
+    "body": "美股、港卡、跨境券商这条线，我先当作风险观察，不当作操作结论。\n1. 真正要区分：官方规则、券商执行、银行风控、社媒传闻，四件事不是一回事。\n2. 港卡的核心不是“能不能绕开”，而是资金来源、用途、身份资料和出入金路径是否经得起合规审核。\n3. 对加密市场的影响也不是直接利空/利多，而是通过跨境资金便利度、风险偏好、美股/中概情绪传导到 $BTC 这类高 beta 资产。\n风险：把单条新闻理解成“全面禁止”，或者把一个人的成功出入金经验当成可复制路径，都容易误判。\n失效条件：后续没有官方或多家主流来源确认，且美股、中概、BTC 都没有连续反应，这条线就只按噪音处理。\n我更关注的是通道稳定性，而不是一句标题。#MarketUpdate $BTC #BTC",
+    "cashtags": [
+      "$BTC"
+    ],
+    "hashtags": [
+      "#MarketUpdate",
+      "#BTC",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "",
+    "media_paths": [],
+    "source_notes": [
+      "User-requested immediate educational/risk-observation post about US stocks, Hong Kong cards, and cross-border brokerage channel risk.",
+      "No unverified regulatory claim is presented as fact."
+    ],
+    "publish_reason": "Immediate low-risk channel-risk observation requested by user.",
+    "invalidation": "后续没有官方或多家主流来源确认，且美股、中概、BTC 都没有连续反应。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。",
+      "不提供开户、绕道或规避监管建议。"
+    ],
+    "generated_at": "2026-05-28T00:41:31",
+    "data_health": {
+      "status": "ok"
+    }
+  }
+}

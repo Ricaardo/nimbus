@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "/Users/x/nimbus/.claude/hooks/trade-guard.sh" }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "mcp__claude_ai_Interactive_Brokers_IBKR__create_order_instruction",
+      "mcp__claude_ai_Interactive_Brokers_IBKR__delete_order_instruction"
+    ]
+  }
+}

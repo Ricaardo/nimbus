@@ -1,0 +1,43 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260528-192529-440-education_note.json",
+  "published_at": "2026-05-29T16:40:10",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "交易结构观察：假突破常见，不是因为图形骗人，而是流动性会集中在明显位置。\n1. 越多人盯同一个高点，突破瞬间越容易触发追单和止损。\n2. 如果突破后没有继续放量，风险是价格重新回到区间。\n3. 判断突破质量，要看后续站稳时间，不只看第一根 K 线。\n失效条件：价格回到区间内且无法再次站上突破位。\n你更怕假突破，还是怕错过真突破？#BTC #TradingPsychology"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 328305910349089\nLink: https://app.binance.com/uni-qr/cpos/328305910349089?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "draft",
+    "risk_level": "S1",
+    "slot": "education_note",
+    "slot_time": "2026-05-29T16:40:00",
+    "post_type": "text",
+    "title": "假突破为什么常见",
+    "body": "交易结构观察：假突破常见，不是因为图形骗人，而是流动性会集中在明显位置。\n1. 越多人盯同一个高点，突破瞬间越容易触发追单和止损。\n2. 如果突破后没有继续放量，风险是价格重新回到区间。\n3. 判断突破质量，要看后续站稳时间，不只看第一根 K 线。\n失效条件：价格回到区间内且无法再次站上突破位。\n你更怕假突破，还是怕错过真突破？#BTC #TradingPsychology",
+    "cashtags": [
+      "$BTC"
+    ],
+    "hashtags": [
+      "#BTC",
+      "#CryptoEducation",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "",
+    "media_paths": [],
+    "source_notes": [
+      "Evergreen education note generated from local risk-management templates."
+    ],
+    "publish_reason": "Low-risk evergreen education content.",
+    "invalidation": "教育框架不适用于极端行情和重大突发新闻，需要结合实时风险环境。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "generated_at": "2026-05-29T16:35:34",
+    "data_health": {
+      "status": "ok"
+    }
+  }
+}

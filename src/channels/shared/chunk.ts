@@ -1,0 +1,26 @@
+// channel-agnostic text chunking helper — shared across Discord, Telegram, etc.
+
+/**
+ * Split `text` into chunks of at most `limit` characters.
+ * mode='length'  — hard split at `limit` chars.
+ * mode='newline' — prefer splitting at paragraph / line / word boundaries.
+ * Returns a single-element array when text fits within the limit.
+ */
+export function chunk(text: string, limit: number, mode: 'length' | 'newline'): string[] {
+  if (text.length <= limit) return [text]
+  const out: string[] = []
+  let rest = text
+  while (rest.length > limit) {
+    let cut = limit
+    if (mode === 'newline') {
+      const para = rest.lastIndexOf('\n\n', limit)
+      const line = rest.lastIndexOf('\n', limit)
+      const space = rest.lastIndexOf(' ', limit)
+      cut = para > limit / 2 ? para : line > limit / 2 ? line : space > 0 ? space : limit
+    }
+    out.push(rest.slice(0, cut))
+    rest = rest.slice(cut).replace(/^\n+/, '')
+  }
+  if (rest) out.push(rest)
+  return out
+}

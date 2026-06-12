@@ -1,0 +1,43 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260604-123526-164-morning_map.json",
+  "published_at": "2026-06-05T09:10:01",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "BTC 早盘观察：$BTC 现在更像是震荡结构，不适合只猜涨跌。\n1. 当前参考价约 63,500，24h 区间 61,384-64,764。\n2. 上方先看能否重新站回区间高位；下方关注低位是否放量失守。\n3. 如果仍在区间内，风险是把震荡误判成趋势。\n失效条件：价格放量突破区间并连续站稳，或跌破区间低位后无法快速收回。\n你今天更担心假突破，还是踏空？#BTC #BTCUSDT #BinanceSquare"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 330672545282049\nLink: https://app.binance.com/uni-qr/cpos/330672545282049?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "draft",
+    "risk_level": "S1",
+    "slot": "morning_map",
+    "slot_time": "2026-06-05T09:10:00",
+    "post_type": "text",
+    "title": "",
+    "body": "BTC 早盘观察：$BTC 现在更像是震荡结构，不适合只猜涨跌。\n1. 当前参考价约 63,500，24h 区间 61,384-64,764。\n2. 上方先看能否重新站回区间高位；下方关注低位是否放量失守。\n3. 如果仍在区间内，风险是把震荡误判成趋势。\n失效条件：价格放量突破区间并连续站稳，或跌破区间低位后无法快速收回。\n你今天更担心假突破，还是踏空？#BTC #BTCUSDT #BinanceSquare",
+    "cashtags": [
+      "$BTC"
+    ],
+    "hashtags": [
+      "#BTC",
+      "#BTCUSDT",
+      "#BinanceSquare"
+    ],
+    "image_prompt": "16:9 editorial crypto market image, calm Bitcoin market map, abstract candlestick range, subtle support and resistance bands, no exchange logo, no exact price text, professional financial newsletter style",
+    "media_paths": [],
+    "source_notes": [
+      "Binance 24h ticker BTCUSDT price=63,500, change=0.46%."
+    ],
+    "publish_reason": "Daily morning market map.",
+    "invalidation": "价格放量突破区间并连续站稳，或跌破区间低位后无法快速收回。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "generated_at": "2026-06-05T08:55:28",
+    "data_health": {
+      "status": "ok"
+    }
+  }
+}

@@ -1,0 +1,176 @@
+import { readFileSync, chmodSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
+
+// ── Nimbus workspace / data paths ─────────────────────────────────────────────
+export const PROJECT_ROOT = '/Users/x/nimbus'
+export const WORKSPACE = join(PROJECT_ROOT, 'workspace')
+export const DATA_DIR = join(PROJECT_ROOT, 'data')
+export const DB_PATH = join(DATA_DIR, 'state.db')
+export const LOG_DIR = join(PROJECT_ROOT, 'logs')
+/** Agent drops charts/files here; dispatcher auto-sends them to the chat. */
+export const OUTBOX_DIR = join(DATA_DIR, 'outbox')
+
+// ── Discord / channel config ──────────────────────────────────────────────────
+export const REPORT_DM = '1484554871800725624'
+
+// ── Usage / budget (Phase 1 省额度) ───────────────────────────────────────────
+/** Advisory daily cost budget (USD). Over this → stderr warning (not a hard block;
+ *  never suppresses red-line alerts). Tune to taste. */
+export const DAILY_COST_BUDGET_USD = 5
+
+// ── Portfolio state ───────────────────────────────────────────────────────────
+export const PORTFOLIO_STATE_PATH = '/Users/x/.claude/skills/references/state/portfolio_state.json'
+
+// ── Safety / trade guard ──────────────────────────────────────────────────────
+/** Leverage-ETF ban end date (ISO date, exclusive — i.e., ban lifts after this day). */
+export const LEVERAGE_BAN_UNTIL = '2026-07-06'
+
+// ── Model tiers (动态发现,别写死版本号) ──────────────────────────────────────
+// SDK 的 supportedModels() 返回滚动别名(haiku/sonnet/opus),新版发布自动跟随。
+// 启动时 model-registry 用它解析每档;解析不到才退到这些 fallback。
+/** L-Haiku: 闲聊/操作(最便宜快)。fallback 用滚动别名 'haiku'。 */
+export const HAIKU_MODEL = 'haiku'
+/** L1 默认:快评/新闻。fallback 'sonnet'。 */
+export const SONNET_MODEL = 'sonnet'
+/** L2 深度:估值/组合/场景。fallback 'opus'。 */
+export const OPUS_MODEL = 'opus'
+
+// ── Scheduler / report config ─────────────────────────────────────────────────
+/** Model for routine scheduled reports — Sonnet for cost (P0 省额度).
+ *  早间/盘前/收盘日报用 Sonnet;真要深度周报再单独传 OPUS_MODEL。 */
+export const REPORT_MODEL = SONNET_MODEL
+
+// ── OpenD / futu quote config (M7 L0 fast path) ──────────────────────────────
+/** futu OpenD daemon host. */
+export const OPEND_HOST = '127.0.0.1'
+
+/** futu OpenD daemon port. */
+export const OPEND_PORT = 11111
+
+/** Absolute path to futu get_snapshot.py script. */
+export const FUTU_SNAPSHOT_SCRIPT = '/Users/x/.claude/skills/futuapi/scripts/quote/get_snapshot.py'
+
+/** Absolute path to yfinance fallback quote script. */
+export const MARKET_DATA_QUOTE_SCRIPT = '/Users/x/.claude/skills/market-data/scripts/quote.py'
+
+/** Timeout for L0 quote subprocess calls (ms). */
+export const QUOTE_TIMEOUT_MS = 10_000
+
+/** Python interpreter that has the `futu` package installed (conda/miniforge).
+ *  The daemon's restricted PATH otherwise resolves python3 to homebrew python
+ *  which lacks futu → L0 quotes fail. Override via NIMBUS_PYTHON env. */
+export const PYTHON_BIN = process.env.NIMBUS_PYTHON ?? `${homedir()}/miniforge3/bin/python3`
+
+/** Asia/Shanghai cron schedules for the three daily report jobs. */
+export const MORNING_CRON = '0 8 * * *'    // 08:00 CST — morning check
+export const PREMARKET_CRON = '0 21 * * *'  // 21:00 CST — US pre-market (day before)
+export const CLOSE_CRON = '0 6 * * *'       // 06:00 CST — US market close recap
+/** Portfolio refresh (拉 futu+IBKR 写 state) — 07:30 & 20:30 CST,赶在早间/盘前报告前。 */
+export const REFRESH_CRON = '30 7,20 * * *'
+/** 机会扫描(进攻自动化)— 工作日 09:00 CST,早间体检后主动找赚钱机会。 */
+export const OPPORTUNITY_CRON = '0 9 * * 1-5'
+/** 周反思(自进化)— 周日 21:00 CST,从真实交易数据学教训写进记忆。 */
+export const REFLECTION_CRON = '0 21 * * 0'
+/** 成本周报 — 周一 08:30 CST,汇总上周各模型用量/成本/缓存命中。 */
+export const COST_REPORT_CRON = '30 8 * * 1'
+/** 健康自愈检查 — 每 20 分钟,异常才推(冷却内静默)。 */
+export const HEALTH_CRON = '*/20 * * * *'
+/** IBKR positions cache file (agent writes via connector; portfolio_state.py reads it). */
+export const IBKR_POSITIONS_FILE = '/Users/x/.claude/skills/references/state/ibkr_positions.json'
+/** L1 portfolio_state.py generator (pulls futu + reads ibkr_positions.json → writes state). */
+export const PORTFOLIO_STATE_GEN = '/Users/x/.claude/skills/portfolio-manager/scripts/portfolio_state.py'
+
+// ── Alert / EventSource config ────────────────────────────────────────────────
+/** How often the EventSource polls detectors (ms). */
+export const EVENT_INTERVAL_MS = 15 * 60_000
+
+/** Minimum gap between re-firing the same alert key (ms). Default 6 hours. */
+export const COOLDOWN_TTL_MS = 6 * 3600_000
+
+/** Maximum soft alerts dispatched per day (stop_hit is exempt). */
+export const ALERT_DAILY_CAP = 6
+
+/** Quiet hours in Asia/Shanghai: suppress soft alerts from start to end (exclusive). */
+export const QUIET_HOURS = { start: 23, end: 7 } as const
+
+/** Single-position concentration breach threshold (weight_pct is already in %). */
+export const SINGLE_CONC_PCT = 25
+
+/** Semiconductor bucket concentration breach threshold (%). */
+export const SEMIS_CONC_PCT = 40
+
+/** Thesis verdict strings considered as decaying / broken. */
+export const DECAY_VERDICTS: readonly string[] = [
+  'decaying', 'broken', 'thesis_broken', 'decay', 'impaired',
+]
+
+/** Disclaimer appended to investment-related AI responses. */
+export const DISCLAIMER = '以上为 AI 辅助分析，非投资建议；AI 不下单，请自行决策与执行。'
+
+/** Grace period after startup before the first alert tick fires (ms). */
+export const STARTUP_GRACE = 60_000
+
+// ── Streaming / incremental edit config ──────────────────────────────────────
+/** Minimum ms between streaming edit-updates to the Discord placeholder. */
+export const STREAM_EDIT_INTERVAL_MS = 1500
+
+/** Minimum new characters accumulated before a streaming edit is issued. */
+export const STREAM_EDIT_MIN_CHARS = 60
+
+// ── Discord state dir ─────────────────────────────────────────────────────────
+export const STATE_DIR = process.env.DISCORD_STATE_DIR ?? join(homedir(), '.claude', 'channels', 'discord')
+export const ACCESS_FILE = join(STATE_DIR, 'access.json')
+export const ENV_FILE = join(STATE_DIR, '.env')
+export const INBOX_DIR = join(STATE_DIR, 'inbox')
+
+// Load ~/.claude/channels/discord/.env into process.env. Real env wins.
+// Plugin-spawned servers don't get an env block — this is where the token lives.
+try {
+  // Token is a credential — lock to owner. No-op on Windows (would need ACLs).
+  chmodSync(ENV_FILE, 0o600)
+  for (const line of readFileSync(ENV_FILE, 'utf8').split('\n')) {
+    const m = line.match(/^(\w+)=(.*)$/)
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+  }
+} catch {}
+
+export const TOKEN = process.env.DISCORD_BOT_TOKEN
+export const PROXY_URL = process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY
+
+if (!TOKEN) {
+  process.stderr.write(
+    `discord channel: DISCORD_BOT_TOKEN required\n` +
+    `  set in ${ENV_FILE}\n` +
+    `  format: DISCORD_BOT_TOKEN=MTIz...\n`,
+  )
+  process.exit(1)
+}
+
+// ── Telegram state dir + config ───────────────────────────────────────────────
+export const TG_STATE_DIR = process.env.TG_STATE_DIR ?? join(homedir(), '.claude', 'channels', 'telegram')
+export const TG_INBOX_DIR = join(TG_STATE_DIR, 'inbox')
+const TG_ENV_FILE = join(TG_STATE_DIR, '.env')
+
+// Telegram chunk limit — Telegram messages cap at 4096 chars.
+export const TG_CHUNK_LIMIT = 4096
+
+// Load ~/.claude/channels/telegram/.env into process.env. Real env wins.
+// TG channel is optional — missing file is silently skipped (no exit).
+try {
+  chmodSync(TG_ENV_FILE, 0o600)
+  for (const line of readFileSync(TG_ENV_FILE, 'utf8').split('\n')) {
+    const m = line.match(/^(\w+)=(.*)$/)
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+  }
+} catch {}
+
+// TELEGRAM_BOT_TOKEN may be undefined — TG channel is optional; callers must
+// guard before constructing TelegramChannel.
+export const TELEGRAM_BOT_TOKEN: string | undefined = process.env.TELEGRAM_BOT_TOKEN
+
+// Allowlist of Telegram user IDs permitted to interact with the bot.
+// Override by setting TG_ALLOW env var to a comma-separated list of IDs.
+export const TELEGRAM_ALLOW: string[] = process.env.TG_ALLOW
+  ? process.env.TG_ALLOW.split(',').map(s => s.trim()).filter(Boolean)
+  : ['8777584169']

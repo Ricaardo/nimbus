@@ -1,0 +1,49 @@
+{
+  "draft_file": "/Users/x/ops/binance-square-bot/queue/20260527-233201-instant-eth-btc.json",
+  "published_at": "2026-05-27T23:33:29",
+  "command": [
+    "/usr/local/bin/node",
+    "scripts/post-text.mjs",
+    "--text",
+    "ETH/BTC 强弱观察：$ETH 目前约 2,078，24h 变化约 -0.95%；$BTC 约 -1.53%。\n\n1. ETH 暂时比 BTC 抗跌一点，但还谈不上独立走强。\n2. 如果 BTC 稳住，ETH 的相对强势才有扩散意义。\n3. 风险是 BTC 一旦继续下压，ETH 的相对强势可能只剩短线噪音。\n\n失效条件：ETH 跌破 24h 低位附近后无法快速收回，或 BTC 同步放量转弱。\n今晚我更看强弱关系，不急着给方向结论。#ETH #BTC #MarketUpdate"
+  ],
+  "output": "Publishing text post...\n\nSuccess!\nID: 327699699199186\nLink: https://app.binance.com/uni-qr/cpos/327699699199186?r=DHMNHJMY&l=zh-CN\n",
+  "draft": {
+    "status": "approved",
+    "risk_level": "S1",
+    "slot": "instant_observation",
+    "slot_time": "2026-05-27T23:31:00",
+    "post_type": "text",
+    "title": "",
+    "body": "ETH/BTC 强弱观察：$ETH 目前约 2,078，24h 变化约 -0.95%；$BTC 约 -1.53%。\n\n1. ETH 暂时比 BTC 抗跌一点，但还谈不上独立走强。\n2. 如果 BTC 稳住，ETH 的相对强势才有扩散意义。\n3. 风险是 BTC 一旦继续下压，ETH 的相对强势可能只剩短线噪音。\n\n失效条件：ETH 跌破 24h 低位附近后无法快速收回，或 BTC 同步放量转弱。\n今晚我更看强弱关系，不急着给方向结论。#ETH #BTC #MarketUpdate",
+    "cashtags": [
+      "$ETH",
+      "$BTC"
+    ],
+    "hashtags": [
+      "#ETH",
+      "#BTC",
+      "#MarketUpdate"
+    ],
+    "image_prompt": "",
+    "media_paths": [],
+    "source_notes": [
+      "Binance 24h ticker ETHUSDT price=2077.75, change=-0.952%; BTCUSDT change=-1.53%; observed_at=2026-05-27T23:31:09."
+    ],
+    "publish_reason": "即时低风险 ETH/BTC 强弱观察。",
+    "invalidation": "ETH 跌破 24h 低位附近后无法快速收回，或 BTC 同步放量转弱。",
+    "compliance_notes": [
+      "不含交易指令。",
+      "包含观察、风险和失效条件。"
+    ],
+    "data_health": {
+      "status": "ok"
+    },
+    "generated_at": "2026-05-27T23:31:09",
+    "approval": {
+      "source": "human",
+      "approved_by": "user",
+      "approved_at": "2026-05-27T23:31:09"
+    }
+  }
+}
