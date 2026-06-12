@@ -239,3 +239,37 @@
 - 持仓刷新管线 + IBKR 自接是真开发量(非配置),Phase 3 最重。
 - 记忆库自进化要防"学歪"(把错误偏好固化)——需人工可审/可回滚。
 - 额度守卫不能误伤红线告警(止损类仍须及时)。
+
+---
+
+## 后续待办池（2026-06-12 收尾,按价值排,未做）
+
+> 已完成的核心(三档/记忆/自进化/机会引擎/隐私隔离/embed/动态模型/长桥/代理)见各章 + git 历史。
+> 下面是想到但暂缓的,随时可挑一个继续。
+
+### 数据 / 持仓
+- **长桥持仓并入 portfolio_state**:现长桥账户(IBIT 1733股)独立于 futu/IBKR,nimbus 总持仓视图未含长桥。可像 IBKR 那样让刷新作业并入(写 longbridge_positions.json → portfolio_state.py 合并)。**待定:并入 or 仅当行情/查询源。**
+- **三账户统一净值视图**:futu + IBKR + 长桥 总资产/总盈亏/跨账户集中度。
+- 论点 theses 导入:`~/.claude/skills/.../theses/` 现空 → 让 bot 帮你给现有持仓建论点 YAML(thesis-tracker),周反思/decay 才有素材。
+
+### 能力 / 体验
+- **Discord embed 用到更多场景**:机会扫描/告警也可上 embed 卡片(现仅成本周报/健康)。
+- **决策台账结果回填自动化**:现靠周反思人工对照;可让刷新作业按价格自动 closeDecision(命中目标/止损)。
+- **图表能力增强**:让 agent 默认对深度个股分析配 K 线/对比图(现要显式要求)。
+- browser-use:JS 渲染页/登录抓取/截图(边缘,真遇到再加)。
+- 语音输入(TG/Discord 语音 → STT → 提问)。
+
+### 架构 / 独立性
+- **完全独立(脱离 ~/.claude)**:7 个 skill 脚本硬编码 ~/.claude 路径 + state/历史数据在 ~/.claude → 改路径 + 数据迁项目。本机部署下非必须,半独立合理。
+- vendored skills 自动同步:现 `sync-skills.sh` 手动;可加 cron 定期同步 + 自动 commit。
+- 多用户正式化:现隐私隔离按 OWNER_IDS;若要给家人/朋友只读访问,可加"访客模式"分级。
+
+### 运维 / 可靠性
+- **代理/连通自愈扩展**:health 现只查 OpenD;可加 gateway/长桥/各 MCP 健康 + 自动重连。
+- 成本预算硬限:现超 $5/天仅提示;可选硬停主动任务(保留红线告警)。
+- 知识库 recall 升级:现关键词;可上 embedding 向量召回(更准,需向量库)。
+
+### 已知小修(技术债)
+- guardrail/memory 的 SOXL 等具体案例数字是硬编码,应改从 trade-journal 真实数据读。
+- buildContext 持仓摘要 only top-5 by weight;可配。
+- TG markdown:grammY 的 MarkdownV2 转义未做(现纯文本,主人说不做)。
