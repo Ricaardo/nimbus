@@ -184,6 +184,7 @@ export class AgentRunnerImpl implements AgentRunner {
     effort,
     settingSources,
     blockAccount,
+    allowPaperTrade,
   }: {
     prompt: string
     resume?: string
@@ -198,6 +199,8 @@ export class AgentRunnerImpl implements AgentRunner {
     settingSources?: ('user' | 'project' | 'local')[]
     /** 非本人提问 → 禁查主人账户/持仓工具(隐私隔离)。 */
     blockAccount?: boolean
+    /** ★长桥模拟盘下单放行(仅 paper 模块、指纹验证通过后传 true)。 */
+    allowPaperTrade?: boolean
   }): Promise<{ sessionId?: string; text: string }> {
     let sessionId: string | undefined
     let accumulatedText = ''
@@ -227,7 +230,9 @@ export class AgentRunnerImpl implements AgentRunner {
       permissionMode: 'default',
       // Layer 2: SDK-level trade guard. With an approver, ASK-listed ops get
       // routed to the user for approval; without one, the static guard is used.
-      canUseTool: approver || blockAccount ? makeCanUseTool(approver, { blockAccount }) : canUseTool,
+      canUseTool: approver || blockAccount || allowPaperTrade
+        ? makeCanUseTool(approver, { blockAccount, allowPaperTrade })
+        : canUseTool,
       includePartialMessages: true, // Enable streaming token-level deltas via stream_event.
       ...(resume !== undefined ? { resume } : {}),
       ...(model !== undefined ? { model } : {}),

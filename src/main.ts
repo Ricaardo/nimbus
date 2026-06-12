@@ -20,6 +20,7 @@ import { opportunityModules } from './modules/opportunity/index.js'
 import { reflectionModules } from './modules/reflection/index.js'
 import { costReportModules } from './modules/ops/cost-report.js'
 import { healthModules } from './modules/ops/health.js'
+import { paperModules } from './modules/paper/index.js'
 import { alertModules } from './modules/alerts/index.js'
 import { EventSource } from './core/eventsource.js'
 import { defaultDetectors } from './modules/alerts/detectors.js'
@@ -83,7 +84,7 @@ registry.register(discordChannel)
 if (telegramChannel) registry.register(telegramChannel)
 
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
-const allModules = [...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...costReportModules, ...healthModules, ...alertModules]
+const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...costReportModules, ...healthModules, ...alertModules]
 
 // Human-in-the-loop approval: ASK-listed ops (publish/send/destructive) prompt
 // the user over their chat and wait for `y/n <code>` before the agent proceeds.

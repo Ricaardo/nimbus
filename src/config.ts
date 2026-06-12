@@ -20,6 +20,15 @@ export const REPORT_DM = '1484554871800725624'
 export const OWNER_IDS: string[] = (process.env.NIMBUS_OWNER_IDS ?? '1086665220723855560,8777584169')
   .split(',').map(s => s.trim()).filter(Boolean)
 
+// ── Paper trading(长桥模拟盘:AI 可下单;真实账户永远 deny) ────────────────────
+// 长桥 OpenAPI 无"模拟/真实"程序标识 → 用【指纹锁】:真实账户必有真实入金
+// (deposits)+ 绑定提现银行卡(bank_cards)才能交易;两者都空 = 模拟账户特征。
+// 下单前验证两者为空才放行;任一非空(=真实账户)→ 拒绝 + 告警。
+// ★默认 OFF。主人审阅安全闸后 env NIMBUS_PAPER_TRADING=1 显式开启。
+export const PAPER_TRADING = process.env.NIMBUS_PAPER_TRADING === '1'
+/** 单笔模拟单上限(USD,指纹失效时的兜底)。 */
+export const PAPER_MAX_ORDER_USD = Number(process.env.NIMBUS_PAPER_MAX_USD ?? '20000')
+
 // ── Usage / budget (Phase 1 省额度) ───────────────────────────────────────────
 /** Advisory daily cost budget (USD). Over this → stderr warning (not a hard block;
  *  never suppresses red-line alerts). Tune to taste. */

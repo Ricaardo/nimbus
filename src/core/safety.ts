@@ -162,6 +162,13 @@ export const ACCOUNT_TOOL_RE =
 export const ACCOUNT_BASH_RE =
   /(get_all_portfolios|portfolio_state|account_positions|get_account|ibkr_positions)/i
 
+// ── Longbridge paper-trading 放行(仅模拟盘下单/改单;出金永远 deny) ────────────
+// 长桥下单/改单工具(submit/cancel/replace/dca)。paper 模式 + 指纹验证通过时放行。
+export const LONGBRIDGE_PAPER_ORDER_RE =
+  /^mcp__longbridge__(submit_order|cancel_order|replace_order|dca_(create|update|pause|resume|stop))$/i
+/** 长桥动钱工具(出入金/转账)— 即使 paper 模式也**永远 deny**(AI 不碰钱)。 */
+export const LONGBRIDGE_MONEY_RE = /^mcp__longbridge__(withdraw|deposit|transfer)/i
+
 /** True if a tool call reads the master's private account/holdings data. */
 export function isAccountTool(toolName: string, input: Record<string, unknown>): boolean {
   if (ACCOUNT_TOOL_RE.test(toolName)) return true
@@ -181,9 +188,14 @@ export function isAccountTool(toolName: string, input: Record<string, unknown>):
 // When no approver is provided (tests / direct use), ASK ops fall through to
 // allow — preserving the original behaviour; protection engages once wired.
 
-export function makeCanUseTool(approver?: Approver, opts?: { blockAccount?: boolean }): CanUseTool {
+export function makeCanUseTool(approver?: Approver, opts?: { blockAccount?: boolean; allowPaperTrade?: boolean }): CanUseTool {
   return async (toolName, input, _options) => {
     const inp = (input ?? {}) as Record<string, unknown>
+    // ★Paper trading 放行(最先,先于交易硬拦):仅当 paper 模式已验证(allowPaperTrade)
+    // + 是长桥下单/改单工具 + 非动钱工具 → 放行。其余一切下单仍走下面的硬拦。
+    if (opts?.allowPaperTrade && LONGBRIDGE_PAPER_ORDER_RE.test(toolName) && !LONGBRIDGE_MONEY_RE.test(toolName)) {
+      return { behavior: 'allow' }
+    }
     if (isTradeDenied(toolName, inp)) {
       return { behavior: 'deny', message: DENY_MSG }
     }

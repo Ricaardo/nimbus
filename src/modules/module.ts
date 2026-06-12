@@ -96,6 +96,8 @@ export interface AgentRunner {
     settingSources?: ('user' | 'project' | 'local')[]
     /** 非本人 → 禁查主人账户/持仓工具(隐私隔离)。 */
     blockAccount?: boolean
+    /** 长桥模拟盘下单放行(仅 paper 模块、指纹验证通过后)。 */
+    allowPaperTrade?: boolean
   }): Promise<{ sessionId?: string; text: string }>
 }
 
