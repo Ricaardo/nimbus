@@ -15,8 +15,8 @@ export interface EmbedField {
   inline?: boolean
 }
 
-/** Channel-agnostic rich-card spec. Discord renders as an embed;
- *  Telegram (no embeds) degrades to formatted text. */
+/** Channel-agnostic rich-card spec. Discord renders as an embed; channels
+ *  without embed support fall back to formatted text. */
 export interface EmbedSpec {
   title?: string
   description?: string

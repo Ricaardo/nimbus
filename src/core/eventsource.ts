@@ -18,10 +18,15 @@ import type { Dispatcher } from './dispatcher.js'
 import {
   EVENT_INTERVAL_MS,
   COOLDOWN_TTL_MS,
+  GAIN_COOLDOWN_MS,
   ALERT_DAILY_CAP,
   QUIET_HOURS,
   REPORT_DM,
 } from '../config.js'
+
+/** Fetches fresh { futu-code → last price } for the given held codes. Injected
+ *  by main.ts (L0 futu snapshot probe); empty/throwing → detectors use snapshot. */
+export type PriceFetcher = (codes: string[]) => Promise<Map<string, number>>
 
 /** Return the current hour (0-23) in Asia/Shanghai timezone. */
 function shanghaiHour(now: Date): number {
@@ -51,6 +56,7 @@ export class EventSource {
   readonly #dispatcher: Dispatcher
   readonly #db: DB
   readonly #memory: Memory
+  readonly #priceFetcher?: PriceFetcher
 
   #timer: ReturnType<typeof setInterval> | undefined
   #firstTick = true
@@ -64,11 +70,42 @@ export class EventSource {
     dispatcher: Dispatcher,
     db: DB,
     memory: Memory,
+    priceFetcher?: PriceFetcher,
   ) {
     this.#detectors = detectors
     this.#dispatcher = dispatcher
     this.#db = db
     this.#memory = memory
+    this.#priceFetcher = priceFetcher
+  }
+
+  /** Probe fresh intraday prices for currently-held codes. Never throws —
+   *  a miss returns undefined and detectors fall back to the snapshot price. */
+  async #freshPrices(): Promise<Map<string, number> | undefined> {
+    if (!this.#priceFetcher) return undefined
+    try {
+      const state = this.#memory.loadPortfolioState()
+      const codes = (state?.positions ?? []).map(p => p.code).filter(Boolean)
+      if (codes.length === 0) return undefined
+      const map = await this.#priceFetcher(codes)
+      return map.size > 0 ? map : undefined
+    } catch (err) {
+      process.stderr.write(`nimbus: eventsource price probe failed (using snapshot): ${err}\n`)
+      return undefined
+    }
+  }
+
+  /** Return the prior NAV high-water mark (for the drawdown detector) and ratchet
+   *  the stored HWM up if current NAV set a new high. Returns undefined when kv
+   *  storage isn't available or NAV is unknown. */
+  #syncHighWater(): number | undefined {
+    if (!this.#db.getKv || !this.#db.setKv) return undefined
+    const nav = this.#memory.loadPortfolioState()?.nav_usd
+    if (!(typeof nav === 'number' && nav > 0)) return undefined
+    const stored = this.#db.getKv('nav_hwm')
+    const prior = stored ? Number(stored) : 0
+    if (nav > prior) this.#db.setKv('nav_hwm', String(nav))
+    return prior > 0 ? prior : undefined
   }
 
   start(): void {
@@ -128,10 +165,18 @@ export class EventSource {
 
     const quiet = isQuietHour(nowDate)
 
+    // Fresh intraday prices (once per tick) so stop/gain detectors run on
+    // near-real-time data rather than the twice-daily portfolio_state snapshot.
+    const prices = await this.#freshPrices()
+
+    // NAV high-water mark: pass the prior peak to the drawdown detector, then
+    // ratchet it up if NAV made a new high. First observation just seeds the HWM.
+    const navHighWater = this.#syncHighWater()
+
     for (const detector of this.#detectors) {
       let payloads
       try {
-        payloads = detector.detect({ memory: this.#memory })
+        payloads = detector.detect({ memory: this.#memory, prices, navHighWater })
       } catch (err) {
         process.stderr.write(`nimbus: eventsource detector "${detector.name}" error: ${err}\n`)
         continue
@@ -140,9 +185,10 @@ export class EventSource {
       for (const payload of payloads) {
         const isStopHit = payload.event === 'stop_hit'
 
-        // 1. Cooldown gate
+        // 1. Cooldown gate (gain alerts re-fire far less often than risk alerts)
+        const ttl = payload.event === 'gain_alert' ? GAIN_COOLDOWN_MS : COOLDOWN_TTL_MS
         const lastFired = this.#db.getCooldown(payload.key)
-        if (lastFired !== null && (now - lastFired) <= COOLDOWN_TTL_MS) {
+        if (lastFired !== null && (now - lastFired) <= ttl) {
           continue // within cooldown window
         }
 

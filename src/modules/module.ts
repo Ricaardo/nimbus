@@ -10,7 +10,7 @@ export interface ChannelRegistry {
 // ── Event / Trigger types ─────────────────────────────────────────────────────
 
 /** M6 event classification. */
-export type EventType = 'anomaly' | 'stop_hit' | 'regime_shift' | 'thesis_decay' | 'concentration_breach'
+export type EventType = 'anomaly' | 'stop_hit' | 'gain_alert' | 'drawdown' | 'regime_shift' | 'thesis_decay' | 'concentration_breach'
 
 /** Structured payload emitted by a Detector. */
 export interface EventPayload {
@@ -25,6 +25,13 @@ export interface EventPayload {
 /** Context passed to Detector.detect(). */
 export interface DetectCtx {
   memory: Memory
+  /** Optional fresh { futu-code → last price } override, injected by EventSource
+   *  from an intraday L0 probe. Detectors prefer this over the (twice-daily)
+   *  portfolio_state snapshot price so stop/gain alerts fire in near-real-time. */
+  prices?: Map<string, number>
+  /** Optional peak NAV (high-water mark) injected by EventSource from persistent
+   *  kv storage, so the drawdown detector can measure peak-to-current decline. */
+  navHighWater?: number
 }
 
 /** Stateless, synchronous portfolio-state watcher. */
@@ -59,6 +66,9 @@ export interface Position {
   conviction_score: number | null
   thesis_verdict: string | null
   stop_loss: number | null
+  /** Optional explicit take-profit target (populated by L1 when set). When the
+   *  fresh price reaches it, the gain_alert detector fires a lock-profit nudge. */
+  take_profit?: number | null
 }
 
 export interface ReconcileFlag {
@@ -129,6 +139,10 @@ export interface DB {
     data: { sdkSessionId: string; model?: string; cwd?: string },
   ): void
 
+  /** Drop the stored agent session for a chat so the next turn starts fresh
+   *  (used by the "新话题/重置" command). No-op if no row exists. */
+  clearSession?(channel: string, chatId: string): void
+
   audit(row: {
     channel: string
     chatId: string
@@ -145,10 +159,15 @@ export interface DB {
   getCooldown(key: string): number | null
   /** Stores the last-fired timestamp for an alert key. */
   setCooldown(key: string, ts: number): void
+  /** Small persistent key→value store (e.g. NAV high-water mark). */
+  getKv?(key: string): string | null
+  setKv?(key: string, value: string): void
   /** Decision ledger: open recommendations for reflection to score. */
   openDecisions?(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }>
   /** Record an explicit trade recommendation. */
   recordDecision?(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void
+  /** Resolve a ledger entry with an outcome (weekly reflection closes scored ones). */
+  closeDecision?(id: number, outcome: string): void
   /** Per-model usage summary over last N days (weekly cost report). */
   getUsageSummary?(days: number): Array<{ model: string; calls: number; cost: number; inTok: number; outTok: number; cacheRead: number }>
 }

@@ -110,17 +110,21 @@ interface SnapshotItem {
   [key: string]: unknown
 }
 
-/** Format a single snapshot item into a one-line summary. */
+/** Format a single snapshot item into a one-line summary.
+ *  Uses middot separators (single spaces collapse in Discord markdown rendering)
+ *  and a 📈/📉/➖ direction marker so the move reads at a glance on mobile. */
 function formatItem(item: SnapshotItem): string {
   const name = item.name ?? item.code ?? '?'
   const code = item.code ?? ''
   const last = item.last_price ?? 0
   const prev = item.prev_close ?? 0
-  const chg = prev > 0 ? ((last - prev) / prev) * 100 : 0
+  const diff = last - prev
+  const chg = prev > 0 ? (diff / prev) * 100 : 0
   const sign = chg >= 0 ? '+' : ''
+  const arrow = chg > 0 ? '📈' : chg < 0 ? '📉' : '➖'
   const vol = item.volume != null ? formatVolume(item.volume) : '-'
 
-  return `${name} (${code})  现价 ${last.toFixed(2)}  ${sign}${chg.toFixed(2)}%  量 ${vol}`
+  return `${arrow} **${name}** (${code}) · 现价 **${last.toFixed(2)}** · ${sign}${chg.toFixed(2)}% (${sign}${diff.toFixed(2)}) · 量 ${vol}`
 }
 
 function formatVolume(v: number): string {
@@ -129,26 +133,29 @@ function formatVolume(v: number): string {
   return String(v)
 }
 
-/** Parse futu get_snapshot.py --json output and return formatted lines.
+/** Parse futu get_snapshot.py --json stdout into structured items.
  *  futu writes connection logs to stdout alongside the JSON, so we extract the
- *  JSON line (the one starting with `{`) instead of parsing the whole stream. */
-function parseFutuOutput(stdout: string, symbols: string[]): string {
+ *  JSON line (the one starting with `{`) instead of parsing the whole stream.
+ *  Returns [] on parse failure or no data (callers degrade gracefully). */
+function parseFutuItems(stdout: string): SnapshotItem[] {
   const jsonLine = stdout
     .split('\n')
     .map(l => l.trim())
     .find(l => l.startsWith('{') && l.includes('"data"'))
-  let data: { data?: SnapshotItem[] }
   try {
-    data = JSON.parse(jsonLine ?? stdout.trim())
+    const data = JSON.parse(jsonLine ?? stdout.trim()) as { data?: SnapshotItem[] }
+    return data.data ?? []
   } catch {
-    return `⚠️ 行情解析失败 (${symbols.join(', ')})`
+    return []
   }
+}
 
-  const items = data.data ?? []
+/** Parse futu snapshot stdout and return formatted lines (or a ⚠️ string). */
+function parseFutuOutput(stdout: string, symbols: string[]): string {
+  const items = parseFutuItems(stdout)
   if (items.length === 0) {
-    return `⚠️ 未找到行情数据 (${symbols.join(', ')})`
+    return `⚠️ 行情解析失败或无数据 (${symbols.join(', ')})`
   }
-
   return items.map(formatItem).join('\n')
 }
 
@@ -206,7 +213,7 @@ export async function fetchQuotes(
         const price = obj['price'] ?? obj['last_price'] ?? obj['regularMarketPrice'] ?? obj['close']
         const name = obj['name'] ?? obj['shortName'] ?? sym
         if (price != null) {
-          results.push(`${name} (${sym})  ${price}`)
+          results.push(`**${name}** (${sym}) · 现价 **${price}**`)
           continue
         }
       } catch {
@@ -221,4 +228,50 @@ export async function fetchQuotes(
 
   if (results.length === 0) return '⚠️ 行情服务暂时不可用'
   return results.join('\n')
+}
+
+/**
+ * Fetch structured snapshots for the given futu-format symbols (futu/OpenD only,
+ * no yfinance fallback — intended for the alert price-probe where speed and a
+ * clean numeric result matter more than coverage).
+ *
+ * Returns [] if OpenD is down or the script fails — callers fall back to the
+ * last portfolio_state price, so a probe miss never breaks detection.
+ */
+export async function fetchSnapshots(
+  symbols: string[],
+  spawnFn: SpawnFn = spawn as unknown as SpawnFn,
+  tcpCheck: TcpCheckFn = defaultTcpCheck,
+): Promise<SnapshotItem[]> {
+  if (symbols.length === 0) return []
+  const opendUp = await tcpCheck(OPEND_HOST, OPEND_PORT, 2000)
+  if (!opendUp) return []
+  const { stdout, exitCode } = await runProcess(
+    PYTHON_BIN,
+    [FUTU_SNAPSHOT_SCRIPT, ...symbols, '--json'],
+    QUOTE_TIMEOUT_MS,
+    spawnFn,
+  )
+  if (exitCode !== 0 || !stdout.trim()) return []
+  return parseFutuItems(stdout)
+}
+
+/**
+ * Build a fresh { futu-code → last price } map for the given symbols.
+ * Empty map on any failure (OpenD down, parse error) — detectors then use the
+ * portfolio_state snapshot price unchanged.
+ */
+export async function fetchPriceMap(
+  symbols: string[],
+  spawnFn: SpawnFn = spawn as unknown as SpawnFn,
+  tcpCheck: TcpCheckFn = defaultTcpCheck,
+): Promise<Map<string, number>> {
+  const items = await fetchSnapshots(symbols, spawnFn, tcpCheck)
+  const map = new Map<string, number>()
+  for (const it of items) {
+    if (it.code && typeof it.last_price === 'number' && it.last_price > 0) {
+      map.set(it.code, it.last_price)
+    }
+  }
+  return map
 }

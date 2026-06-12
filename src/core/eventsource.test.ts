@@ -59,8 +59,10 @@ interface CooldownStore { [key: string]: number }
 function makeDb(initialCooldowns: CooldownStore = {}): {
   db: DB
   cooldowns: CooldownStore
+  kv: Record<string, string>
 } {
   const cooldowns: CooldownStore = { ...initialCooldowns }
+  const kv: Record<string, string> = {}
   const db: DB = {
     getSession: () => null,
     putSession: () => {},
@@ -70,8 +72,10 @@ function makeDb(initialCooldowns: CooldownStore = {}): {
     markJobRun: () => {},
     getCooldown: (key: string) => cooldowns[key] ?? null,
     setCooldown: (key: string, ts: number) => { cooldowns[key] = ts },
+    getKv: (key: string) => kv[key] ?? null,
+    setKv: (key: string, value: string) => { kv[key] = value },
   }
-  return { db, cooldowns }
+  return { db, cooldowns, kv }
 }
 
 // ── First tick is skipped (seed cooldowns) ────────────────────────────────────
@@ -346,5 +350,114 @@ describe('EventSource: detector errors do not crash tick', () => {
     // Good detector still ran
     expect(dispatched).toHaveLength(1)
     expect(dispatched[0].payload.key).toBe('stop_hit:GOOD')
+  })
+})
+
+// ── Fresh-price probe + per-event cooldown ────────────────────────────────────
+
+function makeMemoryWithCodes(codes: string[]): Memory {
+  return {
+    loadPortfolioState: () => ({
+      as_of: new Date().toISOString(),
+      nav_usd: 1, cash_usd: 0, cash_pct: 0, ibkr_stale: false,
+      positions: codes.map(code => ({
+        code, name: code, source: 'futu', qty: 1, avg_cost: 1, price: 1, mv_usd: 1,
+        pl_pct: 0, canon: code, is_option: false, underlying: null, weight_pct: 1,
+        thesis: null, conviction_score: null, thesis_verdict: null, stop_loss: null,
+      })),
+      reconcile_flags: [],
+    }),
+    riskProfile: () => '',
+    buildContext: () => '',
+  }
+}
+
+describe('EventSource: fresh-price probe', () => {
+  test('invokes priceFetcher with held codes and passes prices to detectors', async () => {
+    let seenCodes: string[] = []
+    let seenPrices: Map<string, number> | undefined
+    const probe = async (codes: string[]) => {
+      seenCodes = codes
+      return new Map([['US.NVDA', 52]])
+    }
+    const calls = { n: 0 }
+    const detector: Detector = {
+      name: 'stop_hit', event: 'stop_hit',
+      detect: (ctx: DetectCtx) => {
+        calls.n++
+        seenPrices = ctx.prices
+        // [] on the seed tick (calls.n===1) so nothing seeds the cooldown.
+        return calls.n === 1 ? [] : [makePayload('stop_hit', 'stop_hit:US.NVDA')]
+      },
+    }
+    const { dispatched, dispatcher } = makeDispatcher()
+    const { db } = makeDb()
+    const es = new EventSource([detector], dispatcher as never, db, makeMemoryWithCodes(['US.NVDA']), probe)
+
+    await es.tick() // seed
+    await es.tick() // dispatch
+
+    expect(seenCodes).toEqual(['US.NVDA'])
+    expect(seenPrices?.get('US.NVDA')).toBe(52)
+    expect(dispatched).toHaveLength(1)
+  })
+
+  test('gain_alert respects the long cooldown (not re-fired within 6h)', async () => {
+    const detector = makeDetector('gain_alert', [makePayload('gain_alert', 'gain_alert:NVDA:25')])
+    const { dispatched, dispatcher } = makeDispatcher()
+    // Seed a cooldown 1h ago — well inside GAIN_COOLDOWN_MS (7d).
+    const { db } = makeDb({ 'gain_alert:NVDA:25': Date.now() - 3600_000 })
+    const es = new EventSource([detector], dispatcher as never, db, makeNullMemory())
+
+    await es.tick() // seed
+    await es.tick() // would dispatch, but cooldown blocks
+
+    expect(dispatched).toHaveLength(0)
+  })
+})
+
+// ── NAV high-water mark + drawdown wiring ─────────────────────────────────────
+
+function makeMemoryWithNav(nav: number): Memory {
+  return {
+    loadPortfolioState: () => ({
+      as_of: new Date().toISOString(),
+      nav_usd: nav, cash_usd: 0, cash_pct: 0, ibkr_stale: false,
+      positions: [], reconcile_flags: [],
+    }),
+    riskProfile: () => '',
+    buildContext: () => '',
+  }
+}
+
+describe('EventSource: NAV high-water mark', () => {
+  test('seeds HWM on first observation and ratchets up on new highs', async () => {
+    const detector = makeDetector('drawdown', []) // no payloads; we only check kv
+    const { dispatcher } = makeDispatcher()
+    const { db, kv } = makeDb()
+    // NAV 20000 — first real tick should seed HWM.
+    const es = new EventSource([detector], dispatcher as never, db, makeMemoryWithNav(20000))
+    await es.tick() // seed cooldowns (no HWM sync on the skipped first tick)
+    await es.tick() // observes nav=20000 → sets HWM
+    expect(kv['nav_hwm']).toBe('20000')
+  })
+
+  test('passes the prior stored HWM to the detector (does not lower it on a dip)', async () => {
+    let seenHwm: number | undefined
+    const detector: Detector = {
+      name: 'drawdown', event: 'drawdown',
+      detect: (ctx: DetectCtx) => { seenHwm = ctx.navHighWater; return [] },
+    }
+    const { dispatcher } = makeDispatcher()
+    // Prior peak already stored at 25000; current NAV 20000 (a dip).
+    const { db, kv } = makeDb()
+    db.setKv!('nav_hwm', '25000')
+    const es = new EventSource([detector], dispatcher as never, db, makeMemoryWithNav(20000))
+
+    await es.tick() // seed
+    await es.tick() // detector sees the prior HWM
+
+    expect(seenHwm).toBe(25000)      // detector got the peak, not current NAV
+    expect(kv['nav_hwm']).toBe('25000') // HWM not lowered by the dip
   })
 })

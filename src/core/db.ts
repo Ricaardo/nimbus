@@ -73,6 +73,14 @@ class SqliteDB implements DB {
       )
     `)
 
+    // Small persistent key→value store (NAV high-water mark, etc.).
+    this.#db.run(`
+      CREATE TABLE IF NOT EXISTS kv (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `)
+
     this.#db.run(`
       CREATE TABLE IF NOT EXISTS usage (
         id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,6 +156,10 @@ class SqliteDB implements DB {
     stmt.run(channel, chatId, data.sdkSessionId, data.model ?? null, data.cwd ?? null, Date.now())
   }
 
+  clearSession(channel: string, chatId: string): void {
+    this.#db.prepare('DELETE FROM sessions WHERE channel = ? AND chat_id = ?').run(channel, chatId)
+  }
+
   audit(row: {
     channel: string
     chatId: string
@@ -210,6 +222,19 @@ class SqliteDB implements DB {
        ON CONFLICT (key) DO UPDATE SET last_fired = excluded.last_fired`,
     )
     stmt.run(key, ts)
+  }
+
+  getKv(key: string): string | null {
+    const row = this.#db
+      .prepare<{ value: string }, [string]>('SELECT value FROM kv WHERE key = ?')
+      .get(key)
+    return row ? row.value : null
+  }
+
+  setKv(key: string, value: string): void {
+    this.#db
+      .prepare('INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
+      .run(key, value)
   }
 
   // ── Usage tracking (Phase 1 省额度可见性) — concrete, not on DB interface ──────

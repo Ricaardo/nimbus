@@ -16,8 +16,8 @@ export const REPORT_DM = '1484554871800725624'
 
 // ── 主人身份(隐私隔离:只有本人能看持仓/资金/记忆) ──────────────────────────
 // 非本人(即便进了白名单/群@)→ 不注入持仓画像/记忆、不存记忆、禁查账户工具、
-// 强护栏禁透露持仓/资金/密钥。Discord + Telegram 的主人 id。
-export const OWNER_IDS: string[] = (process.env.NIMBUS_OWNER_IDS ?? '1086665220723855560,8777584169')
+// 强护栏禁透露持仓/资金/密钥。Discord 的主人 id。
+export const OWNER_IDS: string[] = (process.env.NIMBUS_OWNER_IDS ?? '1086665220723855560')
   .split(',').map(s => s.trim()).filter(Boolean)
 
 // ── Paper trading(长桥模拟盘:AI 可下单;真实账户永远 deny) ────────────────────
@@ -112,6 +112,17 @@ export const QUIET_HOURS = { start: 23, end: 7 } as const
 /** Single-position concentration breach threshold (weight_pct is already in %). */
 export const SINGLE_CONC_PCT = 25
 
+/** Unrealized-gain nudge threshold (%). A position up ≥ this (on fresh price)
+ *  triggers a "consider locking profit / trail the stop" gain_alert. */
+export const GAIN_ALERT_PCT = 30
+
+/** Portfolio peak-to-current NAV drawdown alert threshold (%). */
+export const DRAWDOWN_PCT = 10
+
+/** Gain alerts re-fire far less often than risk alerts — a standing winner
+ *  should nudge at most ~weekly per gain band, not every cooldown window. */
+export const GAIN_COOLDOWN_MS = 7 * 24 * 3600_000
+
 /** Semiconductor bucket concentration breach threshold (%). */
 export const SEMIS_CONC_PCT = 40
 
@@ -161,31 +172,3 @@ if (!TOKEN) {
   )
   process.exit(1)
 }
-
-// ── Telegram state dir + config ───────────────────────────────────────────────
-export const TG_STATE_DIR = process.env.TG_STATE_DIR ?? join(homedir(), '.claude', 'channels', 'telegram')
-export const TG_INBOX_DIR = join(TG_STATE_DIR, 'inbox')
-const TG_ENV_FILE = join(TG_STATE_DIR, '.env')
-
-// Telegram chunk limit — Telegram messages cap at 4096 chars.
-export const TG_CHUNK_LIMIT = 4096
-
-// Load ~/.claude/channels/telegram/.env into process.env. Real env wins.
-// TG channel is optional — missing file is silently skipped (no exit).
-try {
-  chmodSync(TG_ENV_FILE, 0o600)
-  for (const line of readFileSync(TG_ENV_FILE, 'utf8').split('\n')) {
-    const m = line.match(/^(\w+)=(.*)$/)
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
-  }
-} catch {}
-
-// TELEGRAM_BOT_TOKEN may be undefined — TG channel is optional; callers must
-// guard before constructing TelegramChannel.
-export const TELEGRAM_BOT_TOKEN: string | undefined = process.env.TELEGRAM_BOT_TOKEN
-
-// Allowlist of Telegram user IDs permitted to interact with the bot.
-// Override by setting TG_ALLOW env var to a comma-separated list of IDs.
-export const TELEGRAM_ALLOW: string[] = process.env.TG_ALLOW
-  ? process.env.TG_ALLOW.split(',').map(s => s.trim()).filter(Boolean)
-  : ['8777584169']

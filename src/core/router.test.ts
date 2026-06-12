@@ -48,6 +48,65 @@ describe('classify — L0 quote tier', () => {
   })
 })
 
+describe('classify — bare ticker (no keyword) → quote', () => {
+  test('bare US ticker → quote', () => {
+    const r = classify('NVDA')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('US.NVDA')
+  })
+
+  test('bare known Chinese name → quote', () => {
+    const r = classify('腾讯')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('HK.00700')
+  })
+
+  test('bare HK digit code → quote', () => {
+    const r = classify('00700')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('HK.00700')
+  })
+
+  test('filler + ticker stays bare → quote', () => {
+    const r = classify('查下 AAPL')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('US.AAPL')
+  })
+
+  test('multiple bare tickers → quote with all symbols', () => {
+    const r = classify('NVDA AAPL')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('US.NVDA')
+    expect(r.symbols).toContain('US.AAPL')
+  })
+
+  test('ticker + real question does NOT hijack to quote', () => {
+    const r = classify('NVDA 怎么样')
+    expect(r.tier).not.toBe('quote')
+  })
+
+  test('ticker + depth word still wins to opus', () => {
+    const r = classify('NVDA 分析')
+    expect(r.tier).toBe('opus')
+  })
+
+  test('all-caps English chit-chat does NOT hijack to quote', () => {
+    for (const word of ['OK', 'NO', 'ALL', 'ARE', 'IT', 'AI', 'YES', 'ALL GOOD', 'I DO']) {
+      expect(classify(word).tier).not.toBe('quote')
+    }
+  })
+
+  test('explicit quote keyword overrides stopword guard (ON 股价 → quote)', () => {
+    const r = classify('ON 股价')
+    expect(r.tier).toBe('quote')
+    expect(r.symbols).toContain('US.ON')
+  })
+
+  test('real ticker that is not a stopword still routes to quote', () => {
+    expect(classify('TSM').tier).toBe('quote')
+  })
+})
+
 describe('classify — L2 opus tier', () => {
   test('分析 keyword → opus', () => {
     const r = classify('NVDA 深度分析一下')

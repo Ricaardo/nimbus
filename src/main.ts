@@ -4,14 +4,13 @@ import './channels/discord/proxy.js'
 
 import { mkdirSync } from 'fs'
 import { DiscordChannel } from './channels/discord/index.js'
-import { TelegramChannel } from './channels/telegram/index.js'
 import { Dispatcher } from './core/dispatcher.js'
 import { SimpleRegistry } from './core/registry.js'
 import { agentRunner, assertSubscriptionMode, setUsageLogger } from './core/agent.js'
 import { refreshModels } from './core/models.js'
 import { memory, setMemoryStore } from './core/memory.js'
 import { safety } from './core/safety.js'
-import { WORKSPACE, DATA_DIR, TELEGRAM_BOT_TOKEN, DAILY_COST_BUDGET_USD } from './config.js'
+import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD } from './config.js'
 import { defaultDb, closeDb } from './core/db.js'
 import { Scheduler } from './core/scheduler.js'
 import { reportModules } from './modules/reports/index.js'
@@ -24,6 +23,7 @@ import { paperModules } from './modules/paper/index.js'
 import { alertModules } from './modules/alerts/index.js'
 import { EventSource } from './core/eventsource.js'
 import { defaultDetectors } from './modules/alerts/detectors.js'
+import { fetchPriceMap } from './modules/quote/index.js'
 import { PermissionBroker } from './core/permission.js'
 
 // Last-resort safety net
@@ -67,21 +67,8 @@ setUsageLogger(u => {
 
 const discordChannel = new DiscordChannel()
 
-// ── Telegram channel instance (optional) ──────────────────────────────────────
-// ⚠️  Stop the Claude TG channel launchd daemon before enabling Nimbus TG to
-// avoid double-reply (same token → two consumers → two responses per message):
-//   launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.claude.telegram.plist
-const telegramChannel = TELEGRAM_BOT_TOKEN
-  ? new TelegramChannel(TELEGRAM_BOT_TOKEN)
-  : null
-
-if (!telegramChannel) {
-  process.stderr.write('nimbus: telegram: no token, skipping\n')
-}
-
 const registry = new SimpleRegistry()
 registry.register(discordChannel)
-if (telegramChannel) registry.register(telegramChannel)
 
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
 const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...costReportModules, ...healthModules, ...alertModules]
@@ -110,7 +97,9 @@ for (const mod of cronModules) {
 scheduler.start(cronModules)
 
 // ── EventSource (alert poller) ─────────────────────────────────────────────────
-const eventSource = new EventSource(defaultDetectors, dispatcher, db, memory)
+// Inject an L0 futu-snapshot price probe so stop/gain detectors run on fresh
+// intraday prices, not just the twice-daily portfolio_state snapshot.
+const eventSource = new EventSource(defaultDetectors, dispatcher, db, memory, codes => fetchPriceMap(codes))
 eventSource.start()
 
 discordChannel.onMessage(m => {
@@ -118,14 +107,6 @@ discordChannel.onMessage(m => {
     process.stderr.write(`nimbus: dispatcher error: ${err}\n`)
   })
 })
-
-if (telegramChannel) {
-  telegramChannel.onMessage(m => {
-    dispatcher.dispatch(m).catch(err => {
-      process.stderr.write(`nimbus: telegram dispatcher error: ${err}\n`)
-    })
-  })
-}
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 let shuttingDown = false
@@ -142,7 +123,6 @@ function shutdown(): void {
   // db.audit / db.markJobRun calls don't write to an already-closed database (B3).
   const drainTimeout = new Promise<void>(resolve => setTimeout(resolve, 10_000))
   void Promise.race([dispatcher.drain(), drainTimeout]).finally(() => {
-    telegramChannel?.destroy()
     void Promise.resolve(discordChannel.destroy()).finally(() => {
       closeDb()
       process.exit(0)
@@ -154,4 +134,3 @@ process.on('SIGINT', shutdown)
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 await discordChannel.start()
-if (telegramChannel) await telegramChannel.start()

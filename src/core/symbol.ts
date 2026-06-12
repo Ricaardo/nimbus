@@ -67,6 +67,25 @@ function extractNames(content: string): string[] {
   return out
 }
 
+/** Token regex shared by extractSymbols and residualText (prefixed codes |
+ *  uppercase 1-5 letters | 4-6 digit strings). */
+const TOKEN_RE = /\b(?:(?:US|HK|SH|SZ|SG)\.[A-Z0-9]{1,6}|[A-Z]{1,5}(?:[.\-][A-Z]{1,3})?|\d{4,6})\b/g
+
+/**
+ * Return what's left of a message after stripping every symbol-like token and
+ * known company-name key.  Used by the router to decide whether a message is a
+ * *bare* ticker lookup (residual is empty/trivial) vs. a question that merely
+ * mentions a ticker (residual carries the real intent). No investment logic.
+ */
+export function residualText(content: string): string {
+  let s = content.replace(TOKEN_RE, ' ')
+  for (const name of Object.keys(NAME_MAP)) {
+    if (/[a-z]/i.test(name)) s = s.replace(new RegExp(name, 'gi'), ' ')
+    else s = s.split(name).join(' ')
+  }
+  return s
+}
+
 /** Normalize a single token to futu code format.  Returns null if
  *  the token cannot be mapped to a supported market code. */
 export function normalizeSymbol(token: string): string | null {
@@ -112,11 +131,10 @@ export function normalizeSymbol(token: string): string | null {
  */
 export function extractSymbols(content: string): string[] {
   // Match: prefixed codes | uppercase 1-5 letters | 4-6 digit strings
-  const tokenRe = /\b(?:(?:US|HK|SH|SZ|SG)\.[A-Z0-9]{1,6}|[A-Z]{1,5}(?:[.\-][A-Z]{1,3})?|\d{4,6})\b/g
   const seen = new Set<string>()
   const result: string[] = []
 
-  const tokens = content.match(tokenRe) ?? []
+  const tokens = content.match(TOKEN_RE) ?? []
   for (const tok of tokens) {
     const code = normalizeSymbol(tok)
     if (code && !seen.has(code)) {

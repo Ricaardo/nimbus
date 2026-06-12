@@ -7,8 +7,14 @@
  * Thresholds are imported from config.ts constants for testability.
  */
 
-import type { Detector, DetectCtx, EventPayload } from '../module.js'
-import { SINGLE_CONC_PCT, DECAY_VERDICTS } from '../../config.js'
+import type { Detector, DetectCtx, EventPayload, Position } from '../module.js'
+import { SINGLE_CONC_PCT, DECAY_VERDICTS, GAIN_ALERT_PCT, DRAWDOWN_PCT } from '../../config.js'
+
+/** Fresh intraday price for a position if the EventSource probe supplied one,
+ *  else the (twice-daily) portfolio_state snapshot price. */
+function freshPrice(ctx: DetectCtx, pos: Position): number {
+  return ctx.prices?.get(pos.code) ?? pos.price
+}
 
 // ── Stop-hit detector ─────────────────────────────────────────────────────────
 
@@ -29,15 +35,17 @@ export const stopHitDetector: Detector = {
     const results: EventPayload[] = []
     for (const pos of state.positions) {
       if (pos.stop_loss === null || pos.stop_loss === undefined) continue
-      if (pos.price <= pos.stop_loss) {
+      const price = freshPrice(ctx, pos)
+      if (price <= pos.stop_loss) {
+        const live = ctx.prices?.has(pos.code) ? '实时价' : `as_of: ${state.as_of}`
         results.push({
           event: 'stop_hit',
           key: `stop_hit:${pos.code}`,
-          summary: `止损触发：${pos.code} (${pos.name}) 当前价 ${pos.price} ≤ 止损价 ${pos.stop_loss}（as_of: ${state.as_of}）`,
+          summary: `止损触发：${pos.code} (${pos.name}) 当前价 ${price} ≤ 止损价 ${pos.stop_loss}（${live}）`,
           data: {
             code: pos.code,
             name: pos.name,
-            price: pos.price,
+            price,
             stop_loss: pos.stop_loss,
             as_of: state.as_of,
           },
@@ -45,6 +53,91 @@ export const stopHitDetector: Detector = {
       }
     }
     return results
+  },
+}
+
+// ── Gain / take-profit detector ───────────────────────────────────────────────
+
+/**
+ * Fires `gain_alert` ("consider locking profit / trail the stop") when, on the
+ * fresh price, a position has either:
+ *   (a) reached its explicit take_profit target (if set), or
+ *   (b) an unrealized gain ≥ GAIN_ALERT_PCT.
+ *
+ * The dedup key embeds the 25%-gain band so crossing into a higher band re-fires
+ * promptly, while a position sitting in one band stays quiet (combined with the
+ * longer GAIN_COOLDOWN_MS applied in EventSource). Skips losers / flat / no-cost.
+ */
+export const gainAlertDetector: Detector = {
+  name: 'gain_alert',
+  event: 'gain_alert',
+
+  detect(ctx: DetectCtx): EventPayload[] {
+    const state = ctx.memory.loadPortfolioState()
+    if (!state) return []
+
+    const results: EventPayload[] = []
+    for (const pos of state.positions) {
+      if (!(pos.avg_cost > 0)) continue
+      const price = freshPrice(ctx, pos)
+      const gainPct = ((price - pos.avg_cost) / pos.avg_cost) * 100
+
+      const targetHit = pos.take_profit != null && pos.take_profit > 0 && price >= pos.take_profit
+      const bigGain = gainPct >= GAIN_ALERT_PCT
+      if (!targetHit && !bigGain) continue
+
+      const band = Math.floor(gainPct / 25) * 25 // 25/50/75/… band for dedup
+      const reason = targetHit
+        ? `已达止盈目标 ${pos.take_profit}（现价 ${price}）`
+        : `浮盈 +${gainPct.toFixed(1)}%（现价 ${price} / 成本 ${pos.avg_cost}）`
+      results.push({
+        event: 'gain_alert',
+        key: `gain_alert:${pos.code}:${targetHit ? 'tp' : band}`,
+        summary: `止盈提示：${pos.code} (${pos.name}) ${reason} — 考虑锁利或上移止损保护利润`,
+        data: {
+          code: pos.code,
+          name: pos.name,
+          price,
+          avg_cost: pos.avg_cost,
+          gain_pct: Number(gainPct.toFixed(1)),
+          take_profit: pos.take_profit ?? null,
+        },
+      })
+    }
+    return results
+  },
+}
+
+// ── Portfolio drawdown detector ───────────────────────────────────────────────
+
+/**
+ * Fires `drawdown` when total NAV has fallen ≥ DRAWDOWN_PCT from its peak
+ * (high-water mark). The HWM is supplied via ctx.navHighWater (read + ratcheted
+ * by EventSource from persistent kv); the detector itself stays pure — it only
+ * compares the two numbers. No HWM yet, or NAV at/above peak → no alert.
+ */
+export const drawdownDetector: Detector = {
+  name: 'drawdown',
+  event: 'drawdown',
+
+  detect(ctx: DetectCtx): EventPayload[] {
+    const state = ctx.memory.loadPortfolioState()
+    if (!state) return []
+    const nav = state.nav_usd
+    const hwm = ctx.navHighWater
+    if (!hwm || hwm <= 0 || !(nav > 0)) return []
+
+    const ddPct = ((hwm - nav) / hwm) * 100
+    if (ddPct < DRAWDOWN_PCT) return []
+
+    // Band the dedup key by 5% so a deepening drawdown re-alerts on new lows.
+    const band = Math.floor(ddPct / 5) * 5
+    return [{
+      event: 'drawdown',
+      key: `drawdown:${band}`,
+      summary: `组合回撤告警：总市值从高点 $${Math.round(hwm)} 回撤 ${ddPct.toFixed(1)}% 至 $${Math.round(nav)}（as_of: ${state.as_of}）`,
+      data: { nav_usd: nav, hwm_usd: hwm, drawdown_pct: Number(ddPct.toFixed(1)), as_of: state.as_of },
+    }]
   },
 }
 
@@ -156,6 +249,8 @@ export const thesisDecayDetector: Detector = {
 /** All built-in detectors in run order. */
 export const defaultDetectors: Detector[] = [
   stopHitDetector,
+  gainAlertDetector,
+  drawdownDetector,
   concentrationDetector,
   thesisDecayDetector,
 ]

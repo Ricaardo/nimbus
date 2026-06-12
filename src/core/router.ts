@@ -13,7 +13,7 @@
  * Pure function — no I/O, no side effects.  Fully unit-testable.
  */
 
-import { extractSymbols } from './symbol.js'
+import { extractSymbols, residualText } from './symbol.js'
 
 export type Tier = 'quote' | 'haiku' | 'sonnet' | 'opus'
 
@@ -56,6 +56,56 @@ function hasAny(content: string, words: string[]): boolean {
   return words.some(w => lower.includes(w.toLowerCase()))
 }
 
+/** Trivial filler that doesn't change a bare-ticker lookup into a question.
+ *  Longer phrases first so they're stripped before their single-char parts. */
+const QUOTE_FILLER = [
+  '查询', '查一下', '查下', '看一下', '看下', '报一下', '一下',
+  '多少钱', '多少', '现在', '现价', '股价', '价格', '行情', '报价',
+  '查', '的', '吗', '呢', '呀', '啊', '哦', '嘛', '咋样',
+]
+
+/** Common short English words that ALSO happen to be (or look like) US tickers
+ *  — e.g. ON, NO, ALL, ARE, IT, AI. When a bare all-caps message is only these,
+ *  it's almost certainly chit-chat ("OK", "NO", "ALL GOOD"), not a quote request,
+ *  so we must NOT hijack it to the L0 quote path. An explicit "ON 股价" still
+ *  routes to quote via the quote-keyword branch above. */
+const ENGLISH_STOPWORDS = new Set([
+  'A', 'I', 'AN', 'AS', 'AT', 'BE', 'BY', 'DO', 'GO', 'HA', 'HI', 'HM', 'HO', 'IF', 'IN', 'IS', 'IT',
+  'ME', 'MY', 'NO', 'OF', 'OH', 'OK', 'ON', 'OR', 'SO', 'TO', 'UP', 'US', 'WE', 'AI',
+  'ALL', 'AND', 'ANY', 'ARE', 'BAD', 'BUT', 'CAN', 'DAY', 'DID', 'FEW', 'FOR', 'GET', 'GOT', 'HAD',
+  'HAS', 'HER', 'HEY', 'HIM', 'HIS', 'HOW', 'ITS', 'LET', 'LOL', 'MAN', 'MAY', 'NEW', 'NOR', 'NOT',
+  'NOW', 'OFF', 'ONE', 'OUR', 'OUT', 'OWN', 'SEE', 'SHE', 'THE', 'TOO', 'TWO', 'USE', 'WAS', 'WAY',
+  'WHO', 'WHY', 'YES', 'YET', 'YOU',
+  'OKAY', 'THAT', 'THIS', 'WHAT', 'WHEN', 'WITH', 'YEAH', 'SURE', 'NICE', 'GOOD', 'COOL', 'DONE',
+  'THANKS', 'OMG', 'BRB', 'IDK', 'PLS', 'THX',
+])
+
+/** True when every uppercase token in the message is a common English word and
+ *  there is no numeric market code — i.e. all-caps chit-chat, not a ticker query.
+ *  Used to veto the bare-symbol fast path so "OK" / "NO" / "ALL" stay conversational. */
+function isAllCapsEnglish(content: string): boolean {
+  const tokens = content.match(/\b[A-Z]{1,6}\b/g) ?? []
+  if (tokens.length === 0) return false
+  if (/\d{4,6}/.test(content)) return false        // a numeric code = real symbol intent
+  return tokens.every(t => ENGLISH_STOPWORDS.has(t))
+}
+
+/** True when the message is essentially nothing but ticker(s) + trivial filler,
+ *  e.g. "NVDA" / "腾讯" / "查下 AAPL" — safe to drop straight to the L0 quote
+ *  path. Returns false the moment any real intent text survives ("NVDA 怎么样"). */
+function isBareSymbolQuery(content: string): boolean {
+  // A question mark means the user is asking something, not just pulling a price
+  // ("NVDA?" wants a view) — let it fall through to the agent.
+  if (/[?？]/.test(content)) return false
+  // All-caps English chit-chat ("OK" / "NO" / "ALL GOOD") → not a quote.
+  if (isAllCapsEnglish(content)) return false
+  let r = residualText(content).toLowerCase()
+  for (const f of QUOTE_FILLER) r = r.split(f.toLowerCase()).join('')
+  // strip whitespace + punctuation/symbols (Unicode-aware)
+  r = r.replace(/[\s\p{P}\p{S}]/gu, '')
+  return r.length === 0
+}
+
 // ── Classifier ────────────────────────────────────────────────────────────────
 
 /**
@@ -88,6 +138,14 @@ export function classify(content: string): ClassifyResult {
   // Guarded: only when no resolvable symbol (don't risk investment judgment).
   if (hasAny(content, CASUAL_WORDS) && extractSymbols(content).length === 0) {
     return { tier: 'haiku', symbols: [] }
+  }
+
+  // Bare ticker (no quote/depth keyword) — e.g. user just types "NVDA" / "腾讯".
+  // Only when nothing but symbol(s) + filler remains, so questions that merely
+  // mention a ticker ("NVDA 怎么样") still fall through to the agent.
+  const bareSymbols = extractSymbols(content)
+  if (bareSymbols.length > 0 && isBareSymbolQuery(content)) {
+    return { tier: 'quote', symbols: bareSymbols }
   }
 
   // Default: sonnet (chat, news, light questions, etc.)

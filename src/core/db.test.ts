@@ -60,10 +60,10 @@ describe('getSession / putSession', () => {
 
   test('different (channel, chatId) pairs are independent', () => {
     const db = openDb(':memory:')
-    db.putSession('discord', 'chat-A', { sdkSessionId: 'sess-discord' })
-    db.putSession('telegram', 'chat-A', { sdkSessionId: 'sess-telegram' })
-    expect(db.getSession('discord', 'chat-A')!.sdkSessionId).toBe('sess-discord')
-    expect(db.getSession('telegram', 'chat-A')!.sdkSessionId).toBe('sess-telegram')
+    db.putSession('discord', 'chat-A', { sdkSessionId: 'sess-dm' })
+    db.putSession('discord', 'chat-B', { sdkSessionId: 'sess-guild' })
+    expect(db.getSession('discord', 'chat-A')!.sdkSessionId).toBe('sess-dm')
+    expect(db.getSession('discord', 'chat-B')!.sdkSessionId).toBe('sess-guild')
     db.close()
   })
 
@@ -248,6 +248,23 @@ describe('jobs', () => {
 
     const job = db.getJob('close_review')
     expect(job!.lastStatus).toBe('error: timeout')
+    db.close()
+  })
+})
+
+describe('kv store', () => {
+  test('getKv returns null for unknown key', () => {
+    const db = openDb(':memory:')
+    expect(db.getKv('nope')).toBeNull()
+    db.close()
+  })
+
+  test('setKv then getKv round-trips, and upserts', () => {
+    const db = openDb(':memory:')
+    db.setKv('nav_hwm', '21000')
+    expect(db.getKv('nav_hwm')).toBe('21000')
+    db.setKv('nav_hwm', '22500')
+    expect(db.getKv('nav_hwm')).toBe('22500')
     db.close()
   })
 })

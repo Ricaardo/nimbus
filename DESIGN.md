@@ -233,7 +233,7 @@ async function dispatch(chatId: string, content: string, meta: Meta) {
 ```sql
 -- 渠道 ↔ Agent SDK 会话映射（核心）
 CREATE TABLE sessions (
-  channel        TEXT NOT NULL,          -- 'discord' | 'telegram'(future)
+  channel        TEXT NOT NULL,          -- 渠道标识,如 'discord'(可扩展新渠道)
   chat_id        TEXT NOT NULL,          -- Discord channel/DM id
   sdk_session_id TEXT,                   -- Agent SDK resume id
   cwd            TEXT,                   -- 该会话工作目录
@@ -352,7 +352,7 @@ launchd (com.nimbus.daemon, KeepAlive/RunAtLoad)
 - **M3 持久 + 审计**：SQLite 三表落地；重启后 resume 验证。
 - **M4 部署**：launchd→tmux supervisor；单消费者校验；7×24 稳定性观察。
 - **M5 日报**：Scheduler + jobs 表 → 早间体检/盘前/收盘推 DM。
-- **M6（可选）**：流式 edit 增量；channel 工具暴露给 Agent（§5.7）；扩 Telegram 渠道（连接层换 aiogram/telegraf，Dispatcher 以下全复用）。
+- **M6（可选）**：流式 edit 增量；channel 工具暴露给 Agent（§5.7）；扩展新渠道（实现 Channel 接口 + 连接层即可，Dispatcher 以下全复用）。
 
 ---
 
@@ -371,9 +371,9 @@ launchd (com.nimbus.daemon, KeepAlive/RunAtLoad)
 ### 13.1 三个稳定接口
 
 ```ts
-// 渠道适配器：Discord 先实现，TG/Slack 后续 drop-in
+// 渠道适配器：Discord 先实现，其他渠道(Slack 等)后续 drop-in
 interface Channel {
-  id: string                                   // 'discord' | 'telegram'
+  id: string                                   // 渠道 id,如 'discord'
   start(): Promise<void>
   onMessage(cb: (m: InboundMsg) => void): void
   send(chatId: string, text: string, opts?: SendOpts): Promise<string>  // → message id
@@ -466,8 +466,8 @@ interface ModuleContext {
 │   │   └── db.ts              (better-sqlite3: sessions/audit/jobs/...)
 │   ├── channels/             (★ 每渠道一个 adapter，实现统一 Channel 接口)
 │   │   ├── channel.ts         (interface: onMessage/send/edit/react/fetch...)
-│   │   ├── discord/           (搬 server.ts: connection/access/outbound)
-│   │   └── telegram/          (future: aiogram/telegraf 等价实现)
+│   │   └── discord/           (搬 server.ts: connection/access/outbound)
+│   │                          (future: 新渠道实现同一 Channel 接口即可 drop-in)
 │   ├── modules/              (★ 业务模块插件，注册到 Core；可独立增删)
 │   │   ├── module.ts          (interface: name/triggers/cron?/handle())
 │   │   ├── reports/           (日报: 早间体检/盘前/收盘)
@@ -487,7 +487,7 @@ interface ModuleContext {
 > 原文 §1-14 是规划。本节记录实际实现中超出/偏离原计划的部分，以及踩过的 SDK 坑。**新人改代码前必读本节。**
 
 ### 15.1 已实现里程碑（M0–M8，均 live）
-- **M0-M6**：连接层 / Agent SDK / per-chat 队列 / bun:sqlite / 流式 / 日报调度 / EventSource 告警 / Telegram —— 见 §3-§14。
+- **M0-M6**：连接层 / Agent SDK / per-chat 队列 / bun:sqlite / 流式 / 日报调度 / EventSource 告警 —— 见 §3-§14。（曾接 Telegram 渠道,已移除,只保留 Discord;Channel 接口仍支持再加新渠道。）
 - **M7 智能路由**（`core/router.ts` + `core/symbol.ts` + `modules/quote/`）：按问题分三档——
   - **L0 直连**：纯查行情 → 直接 spawn `~/.claude/skills/futuapi/scripts/quote/get_snapshot.py`（数组参 spawn 无注入；symbol 经 normalizeSymbol 限定 + 中文名 NAME_MAP），~1-2s，**不起 agent**。OpenD(11111) 挂则 fallback market-data。
   - **L1 Sonnet** `claude-sonnet-4-6`（默认/兜底）；**L2 Opus** `claude-opus-4-8`（深度）。bias-up：拿不准升档。
@@ -519,7 +519,7 @@ Nimbus = **基于 Claude Agent SDK 的常驻投顾编排层**。自己只做"渠
 
 ### 16.2 分层职责
 ```
-渠道层 channels/    Discord + Telegram adapter(统一 Channel 接口)
+渠道层 channels/    Discord adapter(统一 Channel 接口,可扩展新渠道)
    ↓ InboundMsg(带 userId → 身份感知)
 编排层 core/
    ├ dispatcher    ★中枢:身份隔离 → 意图分档 → per-chat 串行队列 →
@@ -582,20 +582,20 @@ DM → 渠道 gate(白名单) → dispatcher:
 > 506 测试绿、live 稳定运行后的框架层评估。诚实记录优点 + 真问题 + 建议,不空泛。
 
 ### 17.1 框架优点(经验证)
-- **分层清晰 + 解耦真**:渠道(Channel 接口)/ 编排(core)/ 模块(Module 接口)三层。Telegram 接入时 dispatcher 以下零改 = 解耦经实战验证。
+- **分层清晰 + 解耦真**:渠道(Channel 接口)/ 编排(core)/ 模块(Module 接口)三层。新渠道接入只需实现 Channel 接口,dispatcher 以下零改 = 解耦到位(曾接 Telegram 验证过此路径,后按需求收敛回 Discord 单渠道)。
 - **安全收口在一处**:所有 agent.run → 同一 `AgentRunnerImpl.run` → 同一 `canUseTool`(safety.ts)。红线(交易deny/账户隔离/paper闸)是**框架级单点收口**,不散落,难绕过。
 - **统一 Trigger 抽象**:message/cron/event 三类触发归一,EventSource/Scheduler/渠道都产 Trigger → dispatcher 统一路由。加触发源不改核心。
 - **错误兜底一致**:每个 cron 模块都有 try/catch;agent.run 有 stale-session 自愈 + 额度错误友好提示。失败不拖垮进程。
 - **能力靠继承不重造**:37 skill + MCP 经 SDK 继承,nimbus 只做编排——北极星守得住。
 
 ### 17.2 框架真问题(按严重度)
-1. **★dispatcher `#process` 是 250 行上帝方法**(最该改)。一个方法干了:身份隔离 / 记忆捕获 / 模块分发 / 意图分类 / L0 quote / 模型选择 / prompt 组装 / 占位+typing / 流式 / agent.run / 台账 / disclaimer / outbox / audit。**症状**:难读、难测局部、改一处怕碰别处(近期几个 bug 都在这附近)。**建议**:拆成 `#handleMemoryCapture` / `#handleQuote` / `#buildPrompt(isOwner)` / `#runConversation` / `#deliverFinal` 私有方法,#process 只做编排。有 506 测试守护,可渐进拆。
+1. **★dispatcher `#process` 是 250 行上帝方法**(最该改)。一个方法干了:身份隔离 / 记忆捕获 / 模块分发 / 意图分类 / L0 quote / 模型选择 / prompt 组装 / 占位+typing / 流式 / agent.run / 台账 / disclaimer / outbox / audit。**症状**:难读、难测局部、改一处怕碰别处(近期几个 bug 都在这附近)。**建议**:拆成 `#handleMemoryCapture` / `#handleQuote` / `#buildPrompt(isOwner)` / `#runConversation` / `#deliverFinal` 私有方法,#process 只做编排。有 500+ 测试守护,可渐进拆。
 2. **cron 模块重复模式**:reports/opportunity/reflection/portfolio-refresh 都是"buildContext + getSession(resume) + agent.run + putSession + send"。reports 有 runReport helper 但其他各自重复。**建议**:抽 `runAgentReport(ctx, {prompt, model, targetChat})` 共享 helper,去重 + 统一(如统一加 nowLine/disclaimer)。
 3. **DB 接口 12 方法偏胖**(违反接口隔离):getSession/putSession/audit/getJob/upsertJob/markJobRun/getCooldown/setCooldown/openDecisions?/recordDecision?/getUsageSummary?。模块只用其中几个。**建议(可选,低优先)**:拆 SessionStore/AuditLog/JobStore/MemoryStore/UsageStore 子接口;或保持(单实现下实用够用)。
 4. **module.ts 是契约大杂烩**:Channel 引用 + Detector/Trigger/Position/PortfolioState/AgentRunner/Safety/Memory/DB/ModuleContext/Module 全在一文件。**建议(可选)**:按域拆(types/portfolio.ts、types/agent.ts...);或保持(集中查阅方便)。
 
 ### 17.3 演进性评估(加东西容易吗)
-- **加渠道**:实现 Channel 接口 + registry.register → ✅ 易(Telegram 验证过)。
+- **加渠道**:实现 Channel 接口 + registry.register → ✅ 易(曾接 Telegram 验证过此路径)。
 - **加被动模块**(对话响应):写 Module + match → ✅ 易(quote/paper 是例)。
 - **加 cron/event 模块**:写 Module + cron/events + 注册 → ✅ 易(8 个 cron 都这么加的)。
 - **加数据源**:MCP 进 secrets/mcp.json 或 skill → ✅ 易(长桥这么加的)。

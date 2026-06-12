@@ -7,7 +7,7 @@ import { modelFor } from './models.js'
 import { detect as guardrailDetect } from '../modules/guardrail/index.js'
 import type { PermissionBroker } from './permission.js'
 import { maybeAppendDisclaimer } from './disclaimer.js'
-import { classify } from './router.js'
+import { classify, type Tier } from './router.js'
 import { recallMemories, rememberPreference, recordDecision, nowLine } from './memory.js'
 import { fetchQuotes as defaultFetchQuotes } from '../modules/quote/index.js'
 
@@ -156,7 +156,65 @@ export function formatAgentError(err: string): string {
     return `⚠️ Claude 订阅额度已用满${when}，深度分析暂不可用。\n` +
       `行情查询仍可用（不走额度）：直接发「NVDA 行情」「腾讯股价」这类即可。`
   }
-  return '⚠️ 处理出错，已记录'
+  if (/timeout|timed out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|network|fetch failed|socket hang up/i.test(err)) {
+    return '⚠️ 网络/上游暂时不稳，刚才那条没跑成。稍等几秒重发一次试试；行情查询（如「NVDA」）不受影响。'
+  }
+  return '⚠️ 处理出错，已记录。稍后重发一次试试；查行情（如「腾讯」）随时可用。'
+}
+
+// ── Local command fast-paths (help / 新话题 / 台账) ─────────────────────────────
+
+/** Normalize a message to a bare command token (strip leading slash + trim). */
+function commandOf(content: string): string {
+  return content.trim().replace(/^\/+/, '').trim().toLowerCase()
+}
+
+const HELP_CMDS = new Set(['help', '帮助', '菜单', '使用说明', '你能做什么', '能做什么', '怎么用', '?', '？'])
+const NEW_CMDS = new Set(['new', '新话题', '新对话', '重置', '重置会话', '重新开始', '清空', '清空上下文', '清除上下文', 'reset'])
+const LEDGER_CMDS = new Set(['我的建议', '台账', '决策台账', '我的台账', '决策记录', '建议台账', 'my calls'])
+const HWM_RESET_CMDS = new Set(['重置高水位', '重置回撤', '重置峰值', 'reset hwm', 'reset drawdown', 'reset peak'])
+
+/** Cici's capability card — concise, mobile-friendly, no tables. */
+export function helpCard(): string {
+  return [
+    '🌙 **Cici · 你的私人投资分析师**',
+    '',
+    '**直接问就行**，我自动分档：',
+    '• 查行情 — 发「NVDA」「腾讯」「00700」秒回报价（不耗额度）',
+    '• 深度 — 「NVDA 怎么看」「AAPL 估值」「我该减仓吗」走完整分析',
+    '• 闲聊/记事 — 随便聊；「记住 …」存长期偏好',
+    '',
+    '**指令**',
+    '• `帮助` — 这张卡',
+    '• `新话题` — 清空上下文重开（换标的时用）',
+    '• `我的建议` — 看决策台账（我给过的明确买卖建议）',
+    '• `重置高水位` — 出入金后重置回撤告警的峰值基准',
+    '',
+    '**红线**：我只给【标的/方向/数量/价格】建议，绝不替你下单。',
+  ].join('\n')
+}
+
+const DIR_LABEL: Record<string, string> = {
+  buy: '🟢 买入', long: '🟢 买入', add: '🟢 加仓',
+  sell: '🔴 卖出', short: '🔴 卖空', trim: '🟠 减仓', reduce: '🟠 减仓', close: '⚪ 清仓',
+  hold: '⚪ 持有', watch: '👀 观望',
+}
+
+/** Format the open-decision ledger for the "我的建议/台账" command. */
+export function formatLedger(
+  rows: Array<{ ts: number; symbol: string; direction: string | null; rationale: string | null }>,
+): string {
+  if (rows.length === 0) {
+    return '📋 台账还是空的 — 我还没给过明确的买卖建议。给你具体方向时会自动留痕，方便日后对照结果。'
+  }
+  const lines = [`📋 **决策台账** · 未结 ${rows.length} 条`, '']
+  for (const r of rows) {
+    const date = new Date(r.ts).toISOString().slice(0, 10)
+    const dir = r.direction ? (DIR_LABEL[r.direction.toLowerCase()] ?? r.direction) : ''
+    lines.push(`• **${r.symbol}** ${dir} · ${date}`)
+    if (r.rationale) lines.push(`　${r.rationale}`)
+  }
+  return lines.join('\n')
 }
 
 export class Dispatcher {
@@ -240,80 +298,122 @@ export class Dispatcher {
   }
 
   async #process(inbound: InboundMsg): Promise<void> {
-    const chatId = inbound.chatId
     // ★隐私隔离:只有主人本人能看持仓/资金/记忆,他人受限。
     const isOwner = OWNER_IDS.includes(inbound.userId)
 
-    // ── Memory capture fast-path (Phase 2) ─────────────────────────────────────
-    // "记住 X" → store a lasting preference. ONLY the owner can write memory.
-    const cap = /^\s*记住[：:，,]?\s*(.+)/s.exec(inbound.content)
-    if (cap && cap[1] && cap[1].trim().length >= 2) {
-      if (!isOwner) {
-        await this.#channels.send(inbound.channel, chatId, '🔒 仅主人本人可写入记忆。', { replyTo: inbound.messageId })
-        return
-      }
-      const pref = cap[1].trim()
-      rememberPreference(pref)
-      this.#db.audit({ channel: inbound.channel, chatId, user: inbound.user, kind: 'in', payload: `[mem-capture] ${pref}` })
-      await this.#channels.send(inbound.channel, chatId, `记住了 ✓ 「${pref.slice(0, 80)}」会长期生效。`, { replyTo: inbound.messageId })
-      return
-    }
-
-    // ── Module dispatch ───────────────────────────────────────────────────────
-    const mod = this.#modules.find(m => m.match?.(inbound) ?? false)
-    if (mod) {
-      await mod.handle({
-        trigger: { kind: 'message', payload: inbound },
-        channels: this.#channels,
-        agent: this.#agent,
-        db: this.#db,
-        memory: this.#memory,
-        safety: this.#safety,
-      })
-      return
-    }
+    // Fast paths (no agent, no quota) — each returns true once it handles the message.
+    if (await this.#tryMemoryCapture(inbound, isOwner)) return
+    if (await this.#tryCommand(inbound, isOwner)) return
+    if (await this.#tryModule(inbound)) return
 
     // ── Intent classification (M7) ────────────────────────────────────────────
     const { tier, symbols } = classify(inbound.content)
 
-    // L0 fast path: pure quote request with resolvable symbols.
-    // Does NOT invoke the agent — just shells out to futu/yfinance directly.
+    // L0 fast path: pure quote request with resolvable symbols (no agent).
     if (tier === 'quote' && symbols.length > 0) {
-      const quoteText = await this.#quoteFetcher(symbols)
-      const stateForQuoteAudit = this.#memory.loadPortfolioState()
-      const quoteAuditHeader = JSON.stringify({ src: 'quote', tier: 'L0', portfolio_as_of: stateForQuoteAudit?.as_of ?? null, event_key: null })
-      this.#db.audit({
-        channel: inbound.channel,
-        chatId,
-        user: inbound.user,
-        kind: 'in',
-        payload: `${quoteAuditHeader}\n${inbound.content}`,
-      })
-      this.#db.audit({
-        channel: inbound.channel,
-        chatId,
-        user: inbound.user,
-        kind: 'out',
-        payload: `${quoteAuditHeader}\n${quoteText}`,
-      })
-      await this.#channels.send(inbound.channel, chatId, quoteText, { replyTo: inbound.messageId })
+      await this.#handleQuote(inbound, symbols)
       return
     }
 
     // Tier 只选模型(成本档);思考深度交给 agent.ts 的 adaptive thinking 自行决定。
     const model = tier === 'opus' ? modelFor('opus') : tier === 'haiku' ? modelFor('haiku') : modelFor('sonnet')
+    await this.#runConversation(inbound, isOwner, tier, model)
+  }
 
-    const prior = this.#db.getSession(inbound.channel, chatId)?.sdkSessionId
+  /** "记住 X" → store a lasting preference (owner-only). Returns true if handled. */
+  async #tryMemoryCapture(inbound: InboundMsg, isOwner: boolean): Promise<boolean> {
+    const chatId = inbound.chatId
+    const cap = /^\s*记住[：:，,]?\s*(.+)/s.exec(inbound.content)
+    if (!(cap && cap[1] && cap[1].trim().length >= 2)) return false
+    if (!isOwner) {
+      await this.#channels.send(inbound.channel, chatId, '🔒 仅主人本人可写入记忆。', { replyTo: inbound.messageId })
+      return true
+    }
+    const pref = cap[1].trim()
+    rememberPreference(pref)
+    this.#db.audit({ channel: inbound.channel, chatId, user: inbound.user, kind: 'in', payload: `[mem-capture] ${pref}` })
+    await this.#channels.send(inbound.channel, chatId, `记住了 ✓ 「${pref.slice(0, 80)}」会长期生效。`, { replyTo: inbound.messageId })
+    return true
+  }
 
-    // ── Default conversation (agent pass-through) ─────────────────────────────
-    // ★隐私隔离:持仓画像/记忆/护栏只对主人本人注入;他人完全不注入。
-    // P0 省额度: 持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。
+  /** Local command fast-paths (帮助/新话题/台账) — no agent. Returns true if handled. */
+  async #tryCommand(inbound: InboundMsg, isOwner: boolean): Promise<boolean> {
+    const chatId = inbound.chatId
+    const command = commandOf(inbound.content)
+
+    // 帮助/菜单 → capability card (open to anyone — no private data).
+    if (HELP_CMDS.has(command)) {
+      await this.#channels.send(inbound.channel, chatId, helpCard(), { replyTo: inbound.messageId })
+      return true
+    }
+
+    // 新话题/重置 → drop the agent session so the next turn starts fresh.
+    if (NEW_CMDS.has(command)) {
+      this.#db.clearSession?.(inbound.channel, chatId)
+      await this.#channels.send(inbound.channel, chatId, '🆕 已开新话题，上下文已清空。问吧。', { replyTo: inbound.messageId })
+      return true
+    }
+
+    // 我的建议/台账 → decision ledger. ★Owner-only (主人的决策留痕属隐私).
+    if (LEDGER_CMDS.has(command)) {
+      if (!isOwner) {
+        await this.#channels.send(inbound.channel, chatId, '🔒 决策台账仅主人本人可见。', { replyTo: inbound.messageId })
+        return true
+      }
+      const rows = this.#db.openDecisions?.(20) ?? []
+      await this.#channels.send(inbound.channel, chatId, formatLedger(rows), { replyTo: inbound.messageId })
+      return true
+    }
+
+    // 重置高水位 → 把回撤基准的 NAV 峰值清零(下次 tick 自动以当前 NAV 重新做峰)。
+    // ★Owner-only。出入金后想重置回撤基准时用。
+    if (HWM_RESET_CMDS.has(command)) {
+      if (!isOwner) {
+        await this.#channels.send(inbound.channel, chatId, '🔒 仅主人本人可重置回撤基准。', { replyTo: inbound.messageId })
+        return true
+      }
+      this.#db.setKv?.('nav_hwm', '0') // 0 → 下个 tick nav>0 即棘轮回当前 NAV
+      await this.#channels.send(inbound.channel, chatId, '🔄 回撤基准已重置，下次刷新会以当前组合市值为新高点。', { replyTo: inbound.messageId })
+      return true
+    }
+    return false
+  }
+
+  /** Passive module match (e.g. paper). Returns true if a module handled it. */
+  async #tryModule(inbound: InboundMsg): Promise<boolean> {
+    const mod = this.#modules.find(m => m.match?.(inbound) ?? false)
+    if (!mod) return false
+    await mod.handle({
+      trigger: { kind: 'message', payload: inbound },
+      channels: this.#channels,
+      agent: this.#agent,
+      db: this.#db,
+      memory: this.#memory,
+      safety: this.#safety,
+    })
+    return true
+  }
+
+  /** L0 quote fast path — shells out to futu/yfinance directly, no agent. */
+  async #handleQuote(inbound: InboundMsg, symbols: string[]): Promise<void> {
+    const chatId = inbound.chatId
+    const quoteText = await this.#quoteFetcher(symbols)
+    const stateForQuoteAudit = this.#memory.loadPortfolioState()
+    const quoteAuditHeader = JSON.stringify({ src: 'quote', tier: 'L0', portfolio_as_of: stateForQuoteAudit?.as_of ?? null, event_key: null })
+    this.#db.audit({ channel: inbound.channel, chatId, user: inbound.user, kind: 'in', payload: `${quoteAuditHeader}\n${inbound.content}` })
+    this.#db.audit({ channel: inbound.channel, chatId, user: inbound.user, kind: 'out', payload: `${quoteAuditHeader}\n${quoteText}` })
+    await this.#channels.send(inbound.channel, chatId, quoteText, { replyTo: inbound.messageId })
+  }
+
+  /** Assemble the agent prompt: [now] [privacy-guard?] [context] [recall?] [guardrail?] --- [user].
+   *  ★隐私隔离:持仓画像/记忆/护栏只对主人本人注入;他人完全不注入。
+   *  P0 省额度:持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。 */
+  #buildPrompt(inbound: InboundMsg, isOwner: boolean, prior: string | undefined): string {
     const ctxPrefix = isOwner && !prior ? this.#memory.buildContext() : ''
     const guardrailInstruction = isOwner ? guardrailDetect(inbound.content) : null
     const recalled = isOwner ? recallMemories(inbound.content) : []
     const userLine = `[${inbound.user} @ ${inbound.ts}] ${inbound.content}`
 
-    // Build prompt: [now] [privacy-guard?] [context] [recall?] [guardrail?] [---] [user]
     const parts: string[] = [nowLine()] // 每轮注入当前北京时间(给 agent 时间概念)
     if (!isOwner) {
       parts.push(
@@ -326,7 +426,15 @@ export class Dispatcher {
     if (ctxPrefix) parts.push(ctxPrefix)
     if (recalled.length > 0) parts.push('【相关记忆（你过去说过/做过）】\n' + recalled.map(m => `• ${m}`).join('\n'))
     if (guardrailInstruction) parts.push(guardrailInstruction)
-    const prompt = parts.length > 0 ? `${parts.join('\n\n')}\n\n---\n\n${userLine}` : userLine
+    return `${parts.join('\n\n')}\n\n---\n\n${userLine}`
+  }
+
+  /** Full agent conversation: prompt build → placeholder/streaming → agent.run →
+   *  error handling → decision ledger + outbox → deliver (edit/chunk/send). */
+  async #runConversation(inbound: InboundMsg, isOwner: boolean, tier: Tier, model: string): Promise<void> {
+    const chatId = inbound.chatId
+    const prior = this.#db.getSession(inbound.channel, chatId)?.sdkSessionId
+    const prompt = this.#buildPrompt(inbound, isOwner, prior)
 
     // Audit inbound message (enriched with src header + tier)
     const stateForAudit = this.#memory.loadPortfolioState()
@@ -343,11 +451,17 @@ export class Dispatcher {
     let placeholderId: string | undefined
     let typingTimer: ReturnType<typeof setInterval> | undefined
 
+    // Tier-aware placeholder sets the right wait expectation up front.
+    const placeholderText =
+      tier === 'opus' ? '🔬 深度分析中（跑 skill + 真实持仓，约 30–90 秒）…'
+      : tier === 'haiku' ? '💬 稍等…'
+      : '🔍 正在看…'
+
     try {
       placeholderId = await this.#channels.send(
         inbound.channel,
         chatId,
-        '🔍 正在分析…',
+        placeholderText,
         { replyTo: inbound.messageId },
       )
 

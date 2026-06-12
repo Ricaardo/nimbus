@@ -26,17 +26,47 @@ const REFLECT_PROMPT = [
   '- <教训1>',
   '- <教训2>',
   '(没有值得记的就写"===LESSONS===" 后留空)',
+  '',
+  'C. 最后,对照上面【未结的建议】,把**已经有结果(兑现/止损/作废/明显走对走错)**的逐条结清,',
+  '   严格用这个机器格式输出(主人看不到,用于更新决策台账);没有可结清的就留空数组:',
+  '===CLOSE=== [{"id":<台账编号>,"outcome":"<一句话结果,如 兑现+12% / 止损-8% / 论点失效作废>"}]',
 ].join('\n')
 
-/** 从 agent 输出里抽 ===LESSONS=== 后的 bullet 行。 */
+/** 从 agent 输出里抽 ===LESSONS=== 后的 bullet 行(止于下一个 === 机器段)。 */
 export function parseLessons(text: string): string[] {
   const idx = text.indexOf('===LESSONS===')
   if (idx < 0) return []
   return text
     .slice(idx + '===LESSONS==='.length)
+    .split('===CLOSE===')[0]!
     .split('\n')
     .map(l => l.replace(/^[\s\-•*]+/, '').trim())
     .filter(l => l.length >= 4)
+}
+
+/** 从 agent 输出里抽 ===CLOSE=== 后的 JSON 数组 → 要结清的台账条目。
+ *  容错:解析失败 / 非数组 / 缺 id → 返回 []。 */
+export function parseClosures(text: string): Array<{ id: number; outcome: string }> {
+  const idx = text.indexOf('===CLOSE===')
+  if (idx < 0) return []
+  const blob = text.slice(idx + '===CLOSE==='.length).trim()
+  // 取第一个 [...] JSON 数组(后面可能跟别的文字)。
+  const m = blob.match(/\[[\s\S]*?\]/)
+  if (!m) return []
+  try {
+    const arr = JSON.parse(m[0]) as unknown
+    if (!Array.isArray(arr)) return []
+    const out: Array<{ id: number; outcome: string }> = []
+    for (const o of arr) {
+      const r = o as Record<string, unknown>
+      const id = typeof r['id'] === 'number' ? r['id'] : Number(r['id'])
+      if (!Number.isFinite(id)) continue
+      out.push({ id, outcome: typeof r['outcome'] === 'string' ? r['outcome'] : '' })
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
 const weeklyReflection: Module = {
@@ -74,8 +104,15 @@ const weeklyReflection: Module = {
     const wk = new Date().toISOString().slice(0, 10)
     lessons.forEach((l, i) => rememberMemory('lesson', l, `lesson:${wk}:${i}`, 'weekly-reflection'))
 
-    // 推人类报告(去掉 LESSONS 机器段)。
-    const human = text.split('===LESSONS===')[0]!.trim() || text
+    // 结清已有结果的台账条目(闭环问责:开了就要收尾,别让台账无限增长)。
+    // 只结清本次确实在未结集合里的 id,防误关。
+    const openIds = new Set(open.map(d => d.id))
+    for (const c of parseClosures(text)) {
+      if (openIds.has(c.id)) ctx.db.closeDecision?.(c.id, c.outcome || '已结清')
+    }
+
+    // 推人类报告(去掉 LESSONS / CLOSE 机器段)。
+    const human = text.split('===LESSONS===')[0]!.split('===CLOSE===')[0]!.trim() || text
     await ctx.channels.send('discord', REPORT_DM, human, {})
   },
 }

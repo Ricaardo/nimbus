@@ -43,7 +43,9 @@ export class DiscordChannel implements Channel {
       process.stderr.write(`nimbus: discord client error: ${err}\n`)
     })
 
-    client.once('ready', c => {
+    // 'clientReady' is the v15 name; 'ready' is deprecated. Cast to keep the
+    // typed overload happy across discord.js minor versions.
+    client.once('clientReady' as 'ready', c => {
       process.stderr.write(`nimbus: gateway connected as ${c.user.tag}\n`)
     })
 

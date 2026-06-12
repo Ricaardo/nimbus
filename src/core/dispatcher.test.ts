@@ -5,7 +5,7 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { Dispatcher, buildStreamingOnText, formatAgentError, extractDecisions } from './dispatcher.js'
+import { Dispatcher, buildStreamingOnText, formatAgentError, extractDecisions, helpCard, formatLedger } from './dispatcher.js'
 import type { QuoteFetcher } from './dispatcher.js'
 import { REPORT_DM, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL } from '../config.js'
 import type { ChannelRegistry, AgentRunner, Memory, Safety, DB, Module, ModuleContext, EventPayload } from '../modules/module.js'
@@ -188,8 +188,8 @@ describe('per-chat serial queue', () => {
     const { registry } = makeRegistry()
     const dispatcher = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
 
-    const p1 = dispatcher.dispatch(makeInbound({ chatId: 'chat-A', content: 'A' }))
-    const p2 = dispatcher.dispatch(makeInbound({ chatId: 'chat-B', content: 'B' }))
+    const p1 = dispatcher.dispatch(makeInbound({ chatId: 'chat-A', content: 'message one' }))
+    const p2 = dispatcher.dispatch(makeInbound({ chatId: 'chat-B', content: 'message two' }))
 
     await Promise.all([p1, p2])
 
@@ -213,7 +213,7 @@ describe('default conversation route', () => {
     expect(agentCalls).toHaveLength(1)
     // Placeholder send
     expect(calls).toHaveLength(1)
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     expect(calls[0].opts?.replyTo).toBe('msg-x')
     // Final text via edit
     expect(editCalls).toHaveLength(1)
@@ -270,7 +270,7 @@ describe('default conversation route', () => {
 
     // Placeholder was sent
     expect(calls).toHaveLength(1)
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     // Error text via edit on placeholder
     expect(editCalls).toHaveLength(1)
     expect(editCalls[0].msgId).toBe('ph-err')
@@ -468,7 +468,7 @@ describe('progress feedback', () => {
     await new Promise(r => setTimeout(r, 5))
 
     expect(calls.length).toBeGreaterThanOrEqual(1)
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     expect(order).toContain('agent-start')
 
     resolveAgent()
@@ -498,7 +498,7 @@ describe('progress feedback', () => {
 
     // placeholder send + at least 1 extra chunk send
     expect(calls.length).toBeGreaterThanOrEqual(2)
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     // edit for first chunk
     expect(editCalls.length).toBeGreaterThanOrEqual(1)
     expect(editCalls[0].msgId).toBe('ph-3')
@@ -513,7 +513,7 @@ describe('progress feedback', () => {
     const dispatcher = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
     await dispatcher.dispatch(makeInbound({ chatId: 'pf-err' }))
 
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     expect(editCalls[0].text).toContain('⚠️')
   })
 
@@ -552,7 +552,7 @@ describe('progress feedback', () => {
     await dispatcher.dispatch(makeInbound({ chatId: 'pf-edit-fallback' }))
 
     // placeholder was sent
-    expect(calls[0].text).toBe('🔍 正在分析…')
+    expect(calls[0].text).toBe('💬 稍等…')
     // edit was attempted (and threw)
     expect(editCalls).toHaveLength(0) // the registry throws before pushing
     // fallback: final answer sent as a new message
@@ -1154,7 +1154,7 @@ describe('Dispatcher streaming integration', () => {
 
     const registry: ChannelRegistry = {
       async send(_ch, _cid, text) {
-        if (text === '🔍 正在分析…') return 'ph-stream'
+        if (text.startsWith('🔍') || text.startsWith('🔬') || text.startsWith('💬')) return 'ph-stream'
         return 'other-id'
       },
       async edit(_ch, _cid, msgId, text) {
@@ -1342,7 +1342,13 @@ describe('formatAgentError', () => {
   })
 
   test('generic error → generic message', () => {
-    expect(formatAgentError('Error: boom')).toBe('⚠️ 处理出错，已记录')
+    expect(formatAgentError('Error: boom')).toContain('处理出错')
+  })
+
+  test('network error → retry hint + quote-still-works note', () => {
+    const msg = formatAgentError('Error: fetch failed (ETIMEDOUT)')
+    expect(msg).toContain('⚠️')
+    expect(msg).toContain('网络')
   })
 })
 
@@ -1394,5 +1400,124 @@ describe('privacy isolation by sender identity', () => {
     expect(calls[0].blockAccount).toBe(false)
     expect(calls[0].prompt).toContain('持仓摘要')
     expect(calls[0].prompt).not.toContain('不是主人本人')
+  })
+})
+
+// ── Local command fast-paths (help / 新话题 / 台账) ─────────────────────────────
+
+const OWNER_ID = '1086665220723855560'
+
+describe('helpCard / formatLedger (pure)', () => {
+  test('helpCard mentions key capabilities + 红线', () => {
+    const c = helpCard()
+    expect(c).toContain('Cici')
+    expect(c).toContain('新话题')
+    expect(c).toContain('我的建议')
+    expect(c).toContain('绝不替你下单')
+  })
+
+  test('formatLedger empty → friendly empty state', () => {
+    expect(formatLedger([])).toContain('台账还是空的')
+  })
+
+  test('formatLedger renders rows with symbol + direction label + date', () => {
+    const ts = Date.parse('2026-05-01T12:00:00Z')
+    const out = formatLedger([{ ts, symbol: 'NVDA', direction: 'buy', rationale: 'AI 需求强' }])
+    expect(out).toContain('NVDA')
+    expect(out).toContain('买入')
+    expect(out).toContain('2026-05-01')
+    expect(out).toContain('AI 需求强')
+  })
+})
+
+describe('command fast-paths', () => {
+  function agentSpy(): { agent: AgentRunner; calls: string[] } {
+    const calls: string[] = []
+    return { calls, agent: { async run({ prompt }) { calls.push(prompt); return { text: 'x' } } } }
+  }
+
+  test('帮助 → sends help card, no agent', async () => {
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '帮助', chatId: 'h-1' }))
+    expect(aCalls).toHaveLength(0)
+    expect(calls[0]!.text).toContain('Cici')
+  })
+
+  test('/help with leading slash also works', async () => {
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '/help', chatId: 'h-2' }))
+    expect(aCalls).toHaveLength(0)
+    expect(calls[0]!.text).toContain('Cici')
+  })
+
+  test('新话题 → clears session + confirms, no agent', async () => {
+    const cleared: Array<{ ch: string; chat: string }> = []
+    const db: DB = { ...nullDb, clearSession: (ch, chat) => { cleared.push({ ch, chat }) } }
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '新话题', chatId: 'n-1' }))
+    expect(aCalls).toHaveLength(0)
+    expect(cleared).toEqual([{ ch: 'discord', chat: 'n-1' }])
+    expect(calls[0]!.text).toContain('新话题')
+  })
+
+  test('我的建议 (owner) → sends ledger from openDecisions', async () => {
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.parse('2026-04-02T00:00:00Z'), symbol: 'AVGO', direction: 'sell', rationale: '估值高' }] }
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '台账', chatId: 'l-1', userId: OWNER_ID }))
+    expect(aCalls).toHaveLength(0)
+    expect(calls[0]!.text).toContain('AVGO')
+    expect(calls[0]!.text).toContain('卖出')
+  })
+
+  test('重置高水位 (owner) → clears nav_hwm to 0, confirms', async () => {
+    const kv: Record<string, string> = { nav_hwm: '25000' }
+    const db: DB = { ...nullDb, getKv: k => kv[k] ?? null, setKv: (k, v) => { kv[k] = v } }
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '重置高水位', chatId: 'hwm-1', userId: OWNER_ID }))
+    expect(aCalls).toHaveLength(0)
+    expect(kv['nav_hwm']).toBe('0')
+    expect(calls[0]!.text).toContain('回撤基准已重置')
+  })
+
+  test('重置高水位 (non-owner) → locked, hwm untouched', async () => {
+    const kv: Record<string, string> = { nav_hwm: '25000' }
+    const db: DB = { ...nullDb, getKv: k => kv[k] ?? null, setKv: (k, v) => { kv[k] = v } }
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '重置高水位', chatId: 'hwm-2', userId: 'stranger' }))
+    expect(aCalls).toHaveLength(0)
+    expect(kv['nav_hwm']).toBe('25000')
+    expect(calls[0]!.text).toContain('🔒')
+  })
+
+  test('我的建议 (non-owner) → locked, no ledger', async () => {
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.now(), symbol: 'AVGO', direction: 'sell', rationale: 'secret' }] }
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '我的建议', chatId: 'l-2', userId: 'stranger' }))
+    expect(aCalls).toHaveLength(0)
+    expect(calls[0]!.text).toContain('🔒')
+    expect(calls[0]!.text).not.toContain('AVGO')
+  })
+
+  test('bare ticker → quote path (not a command, not the agent)', async () => {
+    const { agent, calls: aCalls } = agentSpy()
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
+    await d.dispatch(makeInbound({ content: 'NVDA', chatId: 'bt-1' }))
+    expect(aCalls).toHaveLength(0)
+    expect(calls.find(c => c.text.includes('MOCK_QUOTE'))).toBeDefined()
   })
 })

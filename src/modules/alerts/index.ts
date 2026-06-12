@@ -33,6 +33,37 @@ function buildStopHitPrompt(summary: string): string {
   ].join('\n')
 }
 
+function buildGainAlertPrompt(summary: string): string {
+  return [
+    `【止盈提示 — 主动告警】${summary}`,
+    '',
+    '主人方向对了,现在的关键是**拿住利润、别坐过山车**。请评估:',
+    '1. 调用 `thesis-tracker` skill 复核论点:上涨是否兑现了原始逻辑?还有多少空间(给目标价/剩余 upside)?',
+    '2. 调用 `trade-execution` skill 给"保住利润"的方案,二选一或组合:',
+    '   - 上移止损到保本/锁定部分利润位(给具体止损价)',
+    '   - 分批止盈(给【标的/方向(卖出)/数量/参考价格】)',
+    '3. 一句话结论:继续持有搏更大空间 vs 落袋为安,理由是什么。',
+    '',
+    '⚠️ AI 绝不下单。给【标的/方向/数量/价格】让主人在 App 手动执行。',
+  ].join('\n')
+}
+
+function buildDrawdownPrompt(summary: string): string {
+  return [
+    `【组合回撤告警 — 主动告警】${summary}`,
+    '',
+    '组合整体从高点回撤,先别慌、也别硬扛。请评估:',
+    '1. 调用 `market-pulse` skill 判断:这是大盘系统性回撤(regime 转弱)还是个别持仓拖累?',
+    '2. 调用 `portfolio-manager` skill(拉真实持仓)定位回撤来源:哪几个标的贡献最大?是否触及各自止损?',
+    '3. 给出分层结论:',
+    '   - 系统性 → 是否降总仓位/对冲(给具体减仓标的+数量),还是这是加仓良机?',
+    '   - 个别标的 → 哪些论点已破该止损,哪些是错杀可留',
+    '4. 一句话:当前最该做的一个动作。',
+    '',
+    '⚠️ AI 绝不下单。给【标的/方向/数量/价格】让主人在 App 手动执行。',
+  ].join('\n')
+}
+
 function buildConcentrationPrompt(summary: string): string {
   return [
     `【集中度告警 — 主动告警】${summary}`,
@@ -71,7 +102,7 @@ function buildThesisDecayPrompt(summary: string): string {
 
 export const alertsModule: Module = {
   name: 'alerts',
-  events: ['stop_hit', 'concentration_breach', 'thesis_decay'],
+  events: ['stop_hit', 'gain_alert', 'drawdown', 'concentration_breach', 'thesis_decay'],
   targetChat: REPORT_DM,
 
   async handle(ctx: ModuleContext): Promise<void> {
@@ -87,6 +118,10 @@ export const alertsModule: Module = {
     let innerPrompt: string
     if (event === 'stop_hit') {
       innerPrompt = buildStopHitPrompt(summary)
+    } else if (event === 'gain_alert') {
+      innerPrompt = buildGainAlertPrompt(summary)
+    } else if (event === 'drawdown') {
+      innerPrompt = buildDrawdownPrompt(summary)
     } else if (event === 'concentration_breach') {
       innerPrompt = buildConcentrationPrompt(summary)
     } else {

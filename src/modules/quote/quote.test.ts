@@ -5,7 +5,7 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { fetchQuotes } from './index.js'
+import { fetchQuotes, fetchPriceMap } from './index.js'
 import type { SpawnFn, TcpCheckFn } from './index.js'
 import { EventEmitter } from 'events'
 import type { ChildProcess } from 'child_process'
@@ -163,6 +163,44 @@ describe('fetchQuotes — edge cases', () => {
     })
     const result = await fetchQuotes(['US.NVDA'], makeSpawn({ stdout: futuJson }), tcpOk)
     expect(result).toContain('-')
+  })
+})
+
+// ── fetchPriceMap (alert price probe) ─────────────────────────────────────────
+
+describe('fetchPriceMap', () => {
+  test('returns { code → last_price } map from futu snapshot', async () => {
+    const futuJson = JSON.stringify({
+      data: [
+        { code: 'US.NVDA', name: '英伟达', last_price: 145.5, prev_close: 140, volume: 1 },
+        { code: 'HK.00700', name: '腾讯', last_price: 380, prev_close: 375, volume: 1 },
+      ],
+    })
+    const map = await fetchPriceMap(['US.NVDA', 'HK.00700'], makeSpawn({ stdout: futuJson }), tcpOk)
+    expect(map.get('US.NVDA')).toBe(145.5)
+    expect(map.get('HK.00700')).toBe(380)
+  })
+
+  test('OpenD down → empty map (caller falls back to snapshot)', async () => {
+    const map = await fetchPriceMap(['US.NVDA'], makeSpawn({}), tcpDown)
+    expect(map.size).toBe(0)
+  })
+
+  test('drops non-positive / missing prices', async () => {
+    const futuJson = JSON.stringify({
+      data: [
+        { code: 'US.A', last_price: 0, prev_close: 1, volume: 1 },
+        { code: 'US.B', last_price: 12.3, prev_close: 12, volume: 1 },
+      ],
+    })
+    const map = await fetchPriceMap(['US.A', 'US.B'], makeSpawn({ stdout: futuJson }), tcpOk)
+    expect(map.has('US.A')).toBe(false)
+    expect(map.get('US.B')).toBe(12.3)
+  })
+
+  test('empty symbols → empty map, no spawn', async () => {
+    const map = await fetchPriceMap([], makeSpawn({}), tcpOk)
+    expect(map.size).toBe(0)
   })
 })
 

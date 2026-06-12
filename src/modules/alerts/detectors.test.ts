@@ -6,19 +6,19 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { stopHitDetector, concentrationDetector, thesisDecayDetector } from './detectors.js'
+import { stopHitDetector, gainAlertDetector, drawdownDetector, concentrationDetector, thesisDecayDetector } from './detectors.js'
 import type { DetectCtx, PortfolioState, Memory } from '../module.js'
-import { SINGLE_CONC_PCT } from '../../config.js'
+import { SINGLE_CONC_PCT, GAIN_ALERT_PCT, DRAWDOWN_PCT } from '../../config.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeCtx(state: PortfolioState | null): DetectCtx {
+function makeCtx(state: PortfolioState | null, prices?: Map<string, number>, navHighWater?: number): DetectCtx {
   const memory: Memory = {
     loadPortfolioState: () => state,
     riskProfile: () => '',
     buildContext: () => '',
   }
-  return { memory }
+  return { memory, ...(prices ? { prices } : {}), ...(navHighWater !== undefined ? { navHighWater } : {}) }
 }
 
 function basePosition(overrides: Partial<PortfolioState['positions'][0]> = {}): PortfolioState['positions'][0] {
@@ -137,6 +137,120 @@ describe('stopHitDetector', () => {
       stop_loss: 50.0,
       as_of: asOf,
     })
+  })
+
+  test('fresh price overrides snapshot — fires when intraday price breaks stop', () => {
+    // Snapshot price (60) is above stop (55) → would NOT fire on stale data.
+    const state = baseState({
+      positions: [basePosition({ code: 'US.NVDA', name: 'NVDA', price: 60.0, stop_loss: 55.0 })],
+    })
+    const fresh = new Map([['US.NVDA', 52.0]]) // intraday broke the stop
+    const result = stopHitDetector.detect(makeCtx(state, fresh))
+    expect(result).toHaveLength(1)
+    expect(result[0].summary).toContain('52')
+    expect(result[0].summary).toContain('实时价')
+    expect(result[0].data).toMatchObject({ price: 52.0 })
+  })
+
+  test('fresh price above stop suppresses a stale-snapshot breach', () => {
+    // Snapshot (50) below stop (55) but intraday recovered to 58 → no alert.
+    const state = baseState({
+      positions: [basePosition({ code: 'US.NVDA', price: 50.0, stop_loss: 55.0 })],
+    })
+    const fresh = new Map([['US.NVDA', 58.0]])
+    expect(stopHitDetector.detect(makeCtx(state, fresh))).toEqual([])
+  })
+})
+
+// ── gainAlertDetector ─────────────────────────────────────────────────────────
+
+describe('gainAlertDetector', () => {
+  test('returns [] when state is null', () => {
+    expect(gainAlertDetector.detect(makeCtx(null))).toEqual([])
+  })
+
+  test('does not fire for a small gain below threshold', () => {
+    const state = baseState({
+      positions: [basePosition({ code: 'AAA', avg_cost: 100, price: 100 + GAIN_ALERT_PCT - 5 })],
+    })
+    expect(gainAlertDetector.detect(makeCtx(state))).toEqual([])
+  })
+
+  test('fires when unrealized gain ≥ threshold', () => {
+    const state = baseState({
+      positions: [basePosition({ code: 'NVDA', name: 'Nvidia', avg_cost: 100, price: 145 })],
+    })
+    const result = gainAlertDetector.detect(makeCtx(state))
+    expect(result).toHaveLength(1)
+    expect(result[0].event).toBe('gain_alert')
+    expect(result[0].summary).toContain('+45')
+    expect(result[0].key).toBe('gain_alert:NVDA:25') // band floor(45/25)*25
+  })
+
+  test('uses fresh intraday price for the gain calc', () => {
+    const state = baseState({
+      positions: [basePosition({ code: 'US.NVDA', avg_cost: 100, price: 100 })], // flat on snapshot
+    })
+    const fresh = new Map([['US.NVDA', 160.0]]) // +60% intraday
+    const result = gainAlertDetector.detect(makeCtx(state, fresh))
+    expect(result).toHaveLength(1)
+    expect(result[0].key).toBe('gain_alert:US.NVDA:50')
+  })
+
+  test('explicit take_profit hit fires even below the % threshold', () => {
+    const state = baseState({
+      positions: [basePosition({ code: 'TGT', avg_cost: 100, price: 110, take_profit: 108 })],
+    })
+    const result = gainAlertDetector.detect(makeCtx(state))
+    expect(result).toHaveLength(1)
+    expect(result[0].key).toBe('gain_alert:TGT:tp')
+    expect(result[0].summary).toContain('止盈目标')
+  })
+
+  test('skips losers and zero-cost positions', () => {
+    const state = baseState({
+      positions: [
+        basePosition({ code: 'LOSS', avg_cost: 100, price: 70 }),
+        basePosition({ code: 'ZERO', avg_cost: 0, price: 50 }),
+      ],
+    })
+    expect(gainAlertDetector.detect(makeCtx(state))).toEqual([])
+  })
+})
+
+// ── drawdownDetector ──────────────────────────────────────────────────────────
+
+describe('drawdownDetector', () => {
+  test('returns [] when state is null', () => {
+    expect(drawdownDetector.detect(makeCtx(null, undefined, 20000))).toEqual([])
+  })
+
+  test('returns [] when no high-water mark yet (first observation)', () => {
+    const state = baseState({ nav_usd: 20000 })
+    expect(drawdownDetector.detect(makeCtx(state))).toEqual([])
+  })
+
+  test('returns [] when NAV is at/above peak', () => {
+    const state = baseState({ nav_usd: 21000 })
+    expect(drawdownDetector.detect(makeCtx(state, undefined, 20000))).toEqual([])
+  })
+
+  test('returns [] for a drawdown below threshold', () => {
+    const state = baseState({ nav_usd: 20000 * (1 - (DRAWDOWN_PCT - 2) / 100) })
+    expect(drawdownDetector.detect(makeCtx(state, undefined, 20000))).toEqual([])
+  })
+
+  test('fires when peak-to-current drawdown ≥ threshold', () => {
+    const hwm = 20000
+    const nav = hwm * (1 - (DRAWDOWN_PCT + 5) / 100) // ~15% drawdown
+    const state = baseState({ nav_usd: nav })
+    const result = drawdownDetector.detect(makeCtx(state, undefined, hwm))
+    expect(result).toHaveLength(1)
+    expect(result[0].event).toBe('drawdown')
+    expect(result[0].summary).toContain('回撤')
+    expect(result[0].data).toMatchObject({ hwm_usd: hwm })
+    // band = floor(15/5)*5 = 15
+    expect(result[0].key).toBe('drawdown:15')
   })
 })
 

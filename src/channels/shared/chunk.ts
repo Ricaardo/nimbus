@@ -1,4 +1,4 @@
-// channel-agnostic text chunking helper — shared across Discord, Telegram, etc.
+// channel-agnostic text chunking helper.
 
 /**
  * Split `text` into chunks of at most `limit` characters.

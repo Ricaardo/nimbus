@@ -3,7 +3,7 @@
  *
  * 用于结构化的自动推送(成本周报/健康/告警):标题条 + 颜色 + 字段,更醒目。
  * agent 自由文本对话/日报保持纯 markdown(embed description 有 4096 限,且会
- * 丢失 agent 的 markdown 美感)。Telegram 无 embed → 自动降级成文本。
+ * 丢失 agent 的 markdown 美感)。无 embed 支持的渠道 → 自动降级成文本。
  */
 
 import type { EmbedSpec, EmbedField } from '../channels/channel.js'

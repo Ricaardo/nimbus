@@ -20,6 +20,7 @@ export interface MemoryStore {
   getPersistent(): string[]
   recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void
   openDecisions(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }>
+  closeDecision(id: number, outcome: string): void
 }
 let store: MemoryStore | undefined
 export function setMemoryStore(s: MemoryStore): void { store = s }
@@ -30,6 +31,10 @@ export function recordDecision(d: { channel?: string; chatId?: string; symbol: s
 /** Open decisions for the weekly reflection to score. */
 export function openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }> {
   return store?.openDecisions(limit) ?? []
+}
+/** Resolve a ledger entry with an outcome (weekly reflection closes scored ones). */
+export function closeDecision(id: number, outcome: string): void {
+  store?.closeDecision(id, outcome)
 }
 /** Capture a lasting preference (e.g. user says "别教条" / "以后先说市场"). */
 export function rememberPreference(text: string, source = 'user'): void {
