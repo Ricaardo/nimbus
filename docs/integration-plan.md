@@ -30,7 +30,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 | 多资产读盘/选股/估值/研报 | ✅ skill 齐全 | — | 保留 |
 | 美股新闻(Benzinga) | ✅ `alpaca` MCP(get-news) | — | 直接用，无需加 |
 | 内部人交易 | ❌ 无 | ✅ Finnhub 免费可用 | **新增 skill §3.2** |
-| Serenity(白毛股神) | ❌ 无 | ✅ followserenity.com 200 | **新增 skill §3.1** |
+| Serenity(白毛股神) | ❌ 无 | ⚠️ followserenity 200 但无 API/RSC 难解析 | **暂缓** §3.1（websearch 兜底） |
 | 经典组合/政治跟单 | ⚠️ 仅 portfolio-manager | 小程序有现成清单 | **新增 skill §3.3** |
 | 期货/外汇/债券实时 | ⚠️ 偏弱(ROADMAP 自述) | ✅ yfinance 可用 | **强化 market-data §3.4** |
 | QDII 基金 | ❌ 无 | ✅ btcdca.me/akshare | 可选 §3.5 |
@@ -54,8 +54,11 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 
 > 统一约定：skill 放 `~/nimbus/skills/<name>/`，含 `SKILL.md`（frontmatter: name/description 决定触发）+ `scripts/`。脚本读 key 从环境（FMP/Finnhub 等已在用，见 stock-screener 的 fmp_client.py 模式）。
 
-### 3.1 `serenity-tracker` —— 白毛股神 Serenity 持仓观点 ✅
-- **数据源（实测 200）**：`https://www.followserenity.com/`（Thesis Tracker 静态页，~7MB，内嵌持仓/观点数据）。来源：本人 X `@aleabitoreddit`。
+### 3.1 `serenity-tracker` —— ⏸ 暂缓（无可靠可解析源）
+- **实测结论**：`followserenity.com` 返回 200 但是 7.3MB Next.js **RSC 流**，无 JSON 键（`"ticker"/"thesis"/"positions"` 命中 0），`/api/*` 全 308（无干净 API）。硬解析 RSC 太脆，违背「不上 vaporware」。
+- **兜底**：nimbus 现有 `websearch`/`research` 可按需答「白毛股神/Serenity 最近看好啥」（lookonchain 等有报道）。
+- **将来**：若你配 RSSHub/X API 拉 `@aleabitoreddit`，再建专用 skill；或用 `browser-use` 渲染抽取（重，暂不值）。
+- ~~原计划数据源：followserenity.com Thesis Tracker~~
 - **SKILL.md frontmatter**：
   ```yaml
   name: serenity-tracker
