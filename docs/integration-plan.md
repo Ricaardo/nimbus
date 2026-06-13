@@ -34,7 +34,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 | 经典组合/政治跟单 | ⚠️ 仅 portfolio-manager | 小程序有现成清单 | **新增 skill §3.3** |
 | 期货/外汇/债券实时 | ⚠️ 偏弱(ROADMAP 自述) | ✅ yfinance 可用 | **强化 market-data §3.4** |
 | QDII 基金 | ❌ 无 | ✅ btcdca.me/akshare | 可选 §3.5 |
-| 国会交易 | ❌ 无 | ❌ **无免费源**(Finnhub 付费/公共站已挂) | **暂缓**，见 §3.6 |
+| 国会交易 | ❌ 无 | ✅ QuiverQuant `/beta/live/congresstrading` 免费 | **✅ 已建 `congress-tracker`** §3.6 |
 | 实时新闻 firehose | ❌(仅 on-demand) | news 已有 | **数据桥 §4** |
 
 ---
@@ -72,11 +72,12 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 - **脚本** `scripts/insider.py`：传 symbol → 拉近 N 月 → 汇总净增减持 + 重大单 → 表格。
 - **联动**：与 `institutional-flow-tracker`(13F) 互补（一个内部人、一个机构）。
 
-### 3.3 `lazy-portfolios` —— 经典组合 + 政治跟单 ✅
-- **数据来源**：迁移 `~/btcdca-miniprogram/data/portfolios.js`（20+ 套：60/40 / 全天候 / 永久 / 三基金 / 目标日期 / Pinwheel / Merriman / 人民币 QDII + **佩洛西跟单 / 特朗普信托**）。组合权重是静态策展数据，直接拷成 `scripts/portfolios.json`。
-- **偏离/再平衡**：复用 guanfu `allocate` 思路（或调 `btc-guanfu`/`portfolio-manager` skill 算当前权重 vs 目标）。
-- **SKILL.md**：`description: 经典懒人组合(全天候/永久/三基金/Pinwheel/Merriman)+政治跟单(佩洛西/特朗普信托)的配置、权重、再平衡参考。问「经典组合/懒人配置/全天候/佩洛西跟单/政治跟单」触发。`
-- **注**：政治跟单原 `btcdca.me/api/v2/political-portfolios` 已 404 → 用迁移的静态清单 + 标注「估算/非实时」。
+### 3.3 经典组合 —— ⚙️ 静态模板，无需 API/无需迁移小程序
+- **结论修正**：经典组合（60/40 / 全天候 / 永久 / 三基金 / Pinwheel / Merriman …）就是**静态权重模板**，不需要任何 API。偏离/再平衡直接用 **futu/yfinance 报价**（nimbus 已有）算当前权重 vs 目标。
+- **不迁移小程序**：guanfu `allocate` 已定义 5 套（60/40/全天候/永久/巴菲特/全球）；如需更多，把权重定义补进 `portfolio-manager` skill 即可（纯小数据）。
+- **特朗普信托**：Trump 不在国会、无披露 API（小程序那份是估算策展）→ 跳过，不做。
+
+### 3.3b `congress-tracker` —— 国会议员交易 ✅ 已建（见 §3.6）
 
 ### 3.4 强化 `market-data` —— 期货/外汇/债券 ✅
 - nimbus ROADMAP 自述「债券/外汇/期货实时数据偏弱」。
@@ -86,9 +87,13 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 ### 3.5 （可选）`qdii-funds` —— QDII 基金
 - 仅在你实际配 QDII 时做。**数据源（实测 200）**：`https://btcdca.me/us-fund-holdings/api/funds`（第三方，兜底 akshare 场内基金）。输出关键指标/经理/持仓/费率/排序。
 
-### 3.6 国会交易 —— ⛔ 暂缓（无免费源）
-- 实测：Finnhub congressional = **付费**；housestockwatcher / senate-stock-watcher 公共数据**已挂(000/403)**；btcdca.me political-portfolios **404**。
-- 结论：**当前无可靠免费源**。选项：① 付费 Quiver Quant；② 等公共源恢复。**不写成可执行 skill**，先在本文件挂账。
+### 3.6 `congress-tracker` —— 国会议员交易 ✅ 已建
+- **数据源（实测可用、免费、无 key）**：QuiverQuant `/beta/live/congresstrading` —— 最新 ~1000 条众议院披露，字段全（议员/党派/日期/标的/买卖/金额区间/相对 SPY 超额收益）。
+  - ⚠️ UA 含 bot 标记会被 WAF 401 → 脚本用纯浏览器 UA + 重试 + 快照兜底。
+  - 参议院端点 401（付费）→ 仅众议院。Finnhub congress 付费、housestockwatcher/senate-watcher 公共源已挂 → QuiverQuant 是当前唯一免费 live 源。
+- **落地**：`~/.claude/skills/congress-tracker/`（生效）+ vendored `~/nimbus/skills/congress-tracker/`。
+  - `scripts/congress.py [--rep Pelosi] [--ticker NVDA] [--top N]`，实测拉到真实数据。
+- **触发**：「国会交易/佩洛西/谁在买X/政客炒股/congress trading」。NOT for: 13F→institutional-flow-tracker；内部人→insider-tracker。
 
 ---
 
