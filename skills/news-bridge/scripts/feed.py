@@ -31,13 +31,17 @@ def show_breaking(tickers, hours):
         except Exception: continue
         ts = x.get("epoch") or 0
         if ts and ts < cutoff: continue
-        if tickers and not (set(t.upper() for t in x.get("tickers", [])) & tickers): continue
+        if tickers:
+            # 只扫 标题+译文(含 DeepSeek "标的:X" 和括号 ticker)；不用 tickers 数组(finnhub 多标污染)
+            hay = ((x.get("title") or "") + " " + (x.get("zh") or "")).upper()
+            if not any(t in hay for t in tickers): continue
         rows.append(x)
     rows = rows[-25:]
     print(f"📰 突发 feed（近{hours}h，{len(rows)} 条）")
     for x in rows:
-        tk = ",".join(x.get("tickers", [])) or "-"
-        print(f"  [{x.get('ts','?')[:16]}] {x.get('source','?')} {x.get('impact','')} {tk}: {x.get('zh') or x.get('title','')}"[:160])
+        zh = x.get("zh") or x.get("title", "")
+        # zh 即 DeepSeek "利好/利空 | 板块 | 标的 | 影响"，已含方向，不再叠加空 impact
+        print(f"  [{x.get('ts','?')[:16]}] {x.get('source','?')}: {zh}"[:170])
 
 
 def show_13f():
