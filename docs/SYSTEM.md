@@ -44,7 +44,12 @@
 - cron 模块：opportunity(机会引擎) · reports(日报) · alerts(止损/集中度/decay) · portfolio-refresh(futu+IBKR真仓) · reflection(周复盘) · costReport · health。
 - 安全：trade-guard hook + canUseTool deny + IBKR 连接器下单工具 deny → **AI 不下单**。
 
-### 2.2 skill 层（40+，~/.claude/skills 生效 + ~/nimbus-stack/nimbus/skills vendored）
+### 2.2 skill 层（42 投资 skill，vendored 进项目）
+
+**加载机制（关键，曾因搬家踩坑）**：daemon 的 agent 经 SDK `settingSources:['project','local']` 从**项目自带** `.claude/skills` 加载，**不是直接读全局 ~/.claude/skills**。
+- `~/nimbus-stack/nimbus/.claude/skills` 是**软链 → `../skills`**（项目根的 `skills/`，42 个投资 skill，随项目 git 版本化）。
+- 全局 `~/.claude/skills`（52 个，含 browser-use/github/tmux/weather 等非投资 skill）是**同步源**：`scripts/sync-skills.sh` 把其中已 vendored 的投资 skill 拷进项目（只收投资 skill，不引入元/工具 skill）。
+- ⚠️ **软链 dangling = agent 零 skill（静默降级，bot 照跑但没投资能力）**。搬家/改路径后必查（见 §5.2）。软链用相对 `../skills`、hook 用 `$CLAUDE_PROJECT_DIR` 防再踩。
 - **引擎封装**：btc-guanfu(=guanfu) · ah-screener(=A/H选股) + us-screener(=美股选股)，二者同一 equity-screener 数仓。
 - **本轮新增/重构 7 个**：congress-tracker(国会) · insider-tracker(内部人) · short-interest(做空) · analyst-ratings(评级) · serenity-tracker(白毛股神) · news-bridge(news数据桥) · futu-anomaly(资金/技术/衍生品三维异动 3→1)。
 - 分析：research · valuation · market-pulse · sector-analyst · technical-analysis · us-stock-analysis · options-strategy-advisor · institutional-flow-tracker · event-calendar · portfolio-manager · trade-execution · trade-journal · thesis-tracker · value/macro-perspective(大师视角) …
@@ -131,11 +136,20 @@ nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d)
 - nimbus 日志 `~/nimbus-stack/nimbus/logs/nimbus.{stdout,stderr}.log`；health cron 每 20 分自检。
 - news 日志 `~/nimbus-stack/news/logs/runtime.*.log`；`/metrics`(Prometheus)；source_health → 飞书告警。
 - 数据桥 `~/nimbus-stack/nimbus/workspace/feed/` 文件时间戳应每日更新。
+- **skill 加载自检**（搬家/改路径后必跑，防 §2.2 软链 dangling 导致 agent 零 skill）：
+  ```bash
+  test -e ~/nimbus-stack/nimbus/.claude/skills/research && \
+    echo "✓ skills 加载正常($(ls ~/nimbus-stack/nimbus/.claude/skills | wc -l) 个)" || \
+    echo "✗ skills 软链 dangling — agent 无投资能力，修: ln -sfn ../skills ~/nimbus-stack/nimbus/.claude/skills"
+  ```
+- **下单安全闸自检**：`test -x ~/nimbus-stack/nimbus/.claude/hooks/trade-guard.sh`（settings.json 用 `$CLAUDE_PROJECT_DIR` 引用，搬家自愈）。
 
 ### 5.3 常见故障 → 处理
 | 症状 | 原因 | 处理 |
 |---|---|---|
 | nimbus 不回消息 | 进程挂/Discord token | 看 stderr.log → 重启 tmux session |
+| **回复像没 skill 能力**(不触发 research/估值/选股,只会聊天) | `.claude/skills` 软链 dangling(搬家遗留) | `ln -sfn ../skills .claude/skills` 重指；§5.2 自检 |
+| agent.run 报 "Usage credits required for 1M context" | 模型解析到付费 [1m] 变体 | models.ts 已 `pick()` 避开 [1m]；确认 config fallback 用标准全名(`claude-sonnet-4-6`/`claude-opus-4-8`) |
 | 行情/持仓查不到 | OpenD 掉线 | 重启 OpenD；查 11111 端口 |
 | 异动 -12104 | futu 无异动数据权限 | 需开通 futu 数据订阅(可选) |
 | news 某源超时(fed/bwe) | 慢服务器 TLS | 健康监控自动重试,非阻断 |
@@ -150,7 +164,7 @@ nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d)
 - 弱依赖(挂了降级不崩)：news feed · 各免费第三方源(快照兜底)。
 
 ### 5.5 演进
-- 新增能力 = 加 skill(放 ~/.claude/skills/，写清 description+NOT-for)，nimbus 自动加载。
+- 新增能力 = 加 skill(放 ~/.claude/skills/，写清 description+NOT-for) → **跑 `bash scripts/sync-skills.sh` 同步进项目 `skills/`**（只收已 vendored 的投资 skill）→ git commit。daemon 下次 agent.run 即生效（SDK 每次 query 读 FS，无需重启）。
 - guanfu/ah-screener 各自独立升级，nimbus 经 skill 复用，无需改 nimbus。
 - 周期性：`/memory-consolidate` 整理记忆；reflection 自动复盘进化。
 

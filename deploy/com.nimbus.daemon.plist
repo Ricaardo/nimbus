@@ -5,7 +5,7 @@
   com.nimbus.daemon.plist — launchd agent for Nimbus Discord bot.
 
   INSTALL (manual — run once, after confirming single-consumer rule):
-    cp ~/nimbus/deploy/com.nimbus.daemon.plist ~/Library/LaunchAgents/
+    cp ~/nimbus-stack/nimbus/deploy/com.nimbus.daemon.plist ~/Library/LaunchAgents/
     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.daemon.plist
 
   RELOAD after code change:
@@ -33,7 +33,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/x/nimbus/scripts/nimbus-daemon.sh</string>
+    <string>/Users/x/nimbus-stack/nimbus/scripts/nimbus-daemon.sh</string>
   </array>
 
   <key>KeepAlive</key>
@@ -43,10 +43,10 @@
   <true/>
 
   <key>StandardOutPath</key>
-  <string>/Users/x/nimbus/logs/daemon.out.log</string>
+  <string>/Users/x/nimbus-stack/nimbus/logs/daemon.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/x/nimbus/logs/daemon.err.log</string>
+  <string>/Users/x/nimbus-stack/nimbus/logs/daemon.err.log</string>
 
   <key>EnvironmentVariables</key>
   <dict>
@@ -56,6 +56,6 @@
   </dict>
 
   <key>WorkingDirectory</key>
-  <string>/Users/x/nimbus</string>
+  <string>/Users/x/nimbus-stack/nimbus</string>
 </dict>
 </plist>

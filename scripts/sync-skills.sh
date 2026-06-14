@@ -9,7 +9,7 @@
 set -euo pipefail
 
 SRC="$HOME/.claude/skills"
-DST="$HOME/nimbus/skills"
+DST="$HOME/nimbus-stack/nimbus/skills"
 synced=0 skipped=0
 
 for d in "$DST"/*/; do
@@ -30,4 +30,4 @@ done
 
 echo ""
 echo "同步完成:$synced 个,跳过 $skipped 个。"
-echo "提交:cd ~/nimbus && git add skills && git commit -m 'sync skills from ~/.claude'"
+echo "提交:cd ~/nimbus-stack/nimbus && git add skills && git commit -m 'sync skills from ~/.claude'"
