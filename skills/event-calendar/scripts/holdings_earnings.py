@@ -16,8 +16,9 @@ import sys
 import time
 
 HOME = os.path.expanduser("~")
-STATE = f"{HOME}/.claude/skills/references/state/portfolio_state.json"
-CACHE = f"{HOME}/.claude/skills/references/state/earnings_cache.json"
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
+STATE = f"{_SKILLS}/references/state/portfolio_state.json"
+CACHE = f"{_SKILLS}/references/state/earnings_cache.json"
 CACHE_TTL_DAYS = 3
 TODAY = dt.date.today()
 

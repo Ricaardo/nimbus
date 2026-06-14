@@ -17,7 +17,8 @@ import os
 
 TODAY = dt.date.today()
 MKT = {"a": "A", "hk": "HK", "us": "US", "A": "A", "HK": "HK", "US": "US"}
-_AH = os.path.expanduser("~/.claude/skills/ah-screener/scripts")
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含,不依赖 ~/.claude
+_AH = f"{_SKILLS}/ah-screener/scripts"
 _SCREENER = f"{_AH}/screener.py"
 _PIPELINE = f"{_AH}/value_pipeline.py"
 

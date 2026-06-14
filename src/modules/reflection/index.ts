@@ -8,14 +8,14 @@
 
 import type { Module, ModuleContext } from '../module.js'
 import { nowLine, rememberMemory } from '../../core/memory.js'
-import { REPORT_DM, REFLECTION_CRON } from '../../config.js'
+import { REPORT_DM, REFLECTION_CRON, SKILLS_ROOT } from '../../config.js'
 import { modelFor } from '../../core/models.js'
 
 const REFLECT_PROMPT = [
   '【每周反思 — 自进化,从真实数据学,只学行为不自创策略】请执行:',
   '',
   '1. 用 `trade-journal` skill(review + stats 模式)复盘本周交易:成交了吗?走 8 类错误 taxonomy。',
-  '2. 可跑 `python3 ~/.claude/skills/trade-journal/scripts/behavior_monitor.py` 看近期行为体检(周转率/纪律破线)。',
+  '2. 可跑 `python3 ' + SKILLS_ROOT + '/trade-journal/scripts/behavior_monitor.py` 看近期行为体检(周转率/纪律破线)。',
   '3. 用 `thesis-tracker` 核对持仓论点本周有无变化/decay。',
   '4. 提炼:**本周主人做对了什么、做错了什么、重复出现的执行弱点、有效的打法**。',
   '',

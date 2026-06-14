@@ -12,7 +12,7 @@
 
 import type { Module, ModuleContext } from '../module.js'
 import { nowLine } from '../../core/memory.js'
-import { REPORT_DM, MORNING_CRON, PREMARKET_CRON, CLOSE_CRON } from '../../config.js'
+import { REPORT_DM, MORNING_CRON, PREMARKET_CRON, CLOSE_CRON, SKILLS_ROOT } from '../../config.js'
 import { modelFor } from '../../core/models.js'
 
 // ── Shared helper ─────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ const premarketReport: Module = {
     const prompt = [
       '【盘前持仓扫描 — 自动日报】美股即将开盘，请执行盘前持仓检查：',
       '',
-      '1. 调用 futu 真实持仓（`python3 ~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`）获取最新仓位快照。',
+      '1. 调用 futu 真实持仓（`python3 ' + SKILLS_ROOT + '/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`）获取最新仓位快照。',
       '2. 对每个美股持仓：用 `market-data` skill 查最新报价，核对是否触及或接近止损位。',
       '3. 用 `news-dashboard` skill（stock模式，针对主要持仓代码）拉最新消息，标注是否有催化剂。',
       '4. 调用 `event-calendar` skill 检查今日财报/Fed讲话/宏观数据发布，评估对持仓的潜在冲击。',

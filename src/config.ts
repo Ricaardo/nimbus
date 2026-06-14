@@ -10,6 +10,10 @@ export const DB_PATH = join(DATA_DIR, 'state.db')
 export const LOG_DIR = join(PROJECT_ROOT, 'logs')
 /** Agent drops charts/files here; dispatcher auto-sends them to the chat. */
 export const OUTBOX_DIR = join(DATA_DIR, 'outbox')
+/** Vendored 投资 skill 根（自包含，不依赖 ~/.claude/skills）。 */
+export const SKILLS_ROOT = join(PROJECT_ROOT, 'skills')
+/** 运行态 state 根（portfolio_state / ibkr_positions / 缓存）。 */
+export const STATE_ROOT = join(SKILLS_ROOT, 'references', 'state')
 
 // ── Discord / channel config ──────────────────────────────────────────────────
 export const REPORT_DM = '1484554871800725624'
@@ -35,7 +39,7 @@ export const PAPER_MAX_ORDER_USD = Number(process.env.NIMBUS_PAPER_MAX_USD ?? '2
 export const DAILY_COST_BUDGET_USD = 5
 
 // ── Portfolio state ───────────────────────────────────────────────────────────
-export const PORTFOLIO_STATE_PATH = '/Users/x/.claude/skills/references/state/portfolio_state.json'
+export const PORTFOLIO_STATE_PATH = join(STATE_ROOT, 'portfolio_state.json')
 
 // ── Safety / trade guard ──────────────────────────────────────────────────────
 /** Leverage-ETF ban end date (ISO date, exclusive — i.e., ban lifts after this day). */
@@ -64,10 +68,10 @@ export const OPEND_HOST = '127.0.0.1'
 export const OPEND_PORT = 11111
 
 /** Absolute path to futu get_snapshot.py script. */
-export const FUTU_SNAPSHOT_SCRIPT = '/Users/x/.claude/skills/futuapi/scripts/quote/get_snapshot.py'
+export const FUTU_SNAPSHOT_SCRIPT = join(SKILLS_ROOT, 'futuapi/scripts/quote/get_snapshot.py')
 
 /** Absolute path to yfinance fallback quote script. */
-export const MARKET_DATA_QUOTE_SCRIPT = '/Users/x/.claude/skills/market-data/scripts/quote.py'
+export const MARKET_DATA_QUOTE_SCRIPT = join(SKILLS_ROOT, 'market-data/scripts/quote.py')
 
 /** Timeout for L0 quote subprocess calls (ms). */
 export const QUOTE_TIMEOUT_MS = 10_000
@@ -92,9 +96,9 @@ export const COST_REPORT_CRON = '30 8 * * 1'
 /** 健康自愈检查 — 每 20 分钟,异常才推(冷却内静默)。 */
 export const HEALTH_CRON = '*/20 * * * *'
 /** IBKR positions cache file (agent writes via connector; portfolio_state.py reads it). */
-export const IBKR_POSITIONS_FILE = '/Users/x/.claude/skills/references/state/ibkr_positions.json'
+export const IBKR_POSITIONS_FILE = join(STATE_ROOT, 'ibkr_positions.json')
 /** L1 portfolio_state.py generator (pulls futu + reads ibkr_positions.json → writes state). */
-export const PORTFOLIO_STATE_GEN = '/Users/x/.claude/skills/portfolio-manager/scripts/portfolio_state.py'
+export const PORTFOLIO_STATE_GEN = join(SKILLS_ROOT, 'portfolio-manager/scripts/portfolio_state.py')
 
 // ── Alert / EventSource config ────────────────────────────────────────────────
 /** How often the EventSource polls detectors (ms). */
@@ -145,7 +149,7 @@ export const STREAM_EDIT_INTERVAL_MS = 1500
 export const STREAM_EDIT_MIN_CHARS = 60
 
 // ── Discord state dir ─────────────────────────────────────────────────────────
-export const STATE_DIR = process.env.DISCORD_STATE_DIR ?? join(homedir(), '.claude', 'channels', 'discord')
+export const STATE_DIR = process.env.DISCORD_STATE_DIR ?? join(PROJECT_ROOT, 'secrets', 'discord')
 export const ACCESS_FILE = join(STATE_DIR, 'access.json')
 export const ENV_FILE = join(STATE_DIR, '.env')
 export const INBOX_DIR = join(STATE_DIR, 'inbox')

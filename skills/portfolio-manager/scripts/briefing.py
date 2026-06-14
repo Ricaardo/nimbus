@@ -25,11 +25,12 @@ import sys
 import yaml
 
 HOME = os.path.expanduser("~")
-THESES_DIR = f"{HOME}/.claude/skills/thesis-tracker/reports/theses"
-PM_SCRIPTS = f"{HOME}/.claude/skills/portfolio-manager/scripts"
-TJ_SCRIPTS = f"{HOME}/.claude/skills/trade-journal/scripts"
-MP_SCRIPTS = f"{HOME}/.claude/skills/market-pulse/scripts"
-EC_SCRIPTS = f"{HOME}/.claude/skills/event-calendar/scripts"
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
+THESES_DIR = f"{_SKILLS}/thesis-tracker/reports/theses"
+PM_SCRIPTS = f"{_SKILLS}/portfolio-manager/scripts"
+TJ_SCRIPTS = f"{_SKILLS}/trade-journal/scripts"
+MP_SCRIPTS = f"{_SKILLS}/market-pulse/scripts"
+EC_SCRIPTS = f"{_SKILLS}/event-calendar/scripts"
 
 
 def _load(mod_name, path):

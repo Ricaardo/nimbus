@@ -42,7 +42,7 @@ def main() -> int:
                     "After generating, save the image to the target path and run:",
                     "",
                     "```bash",
-                    f"python3 /Users/x/.claude/skills/square-bot/bot/scripts/attach_asset.py --draft {path} --asset {target}",
+                    f"python3 {Path(__file__).resolve().parent}/attach_asset.py --draft {path} --asset {target}",
                     "```",
                 ]
             ),

@@ -26,10 +26,11 @@ import sys
 import yaml
 
 HOME = os.path.expanduser("~")
-FUTU_PF = f"{HOME}/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py"
-THESES_DIR = f"{HOME}/.claude/skills/thesis-tracker/reports/theses"
-TRADES_DIR = f"{HOME}/.claude/skills/trade-journal/reports/trades"
-STATE_DIR = f"{HOME}/.claude/skills/references/state"
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
+FUTU_PF = f"{_SKILLS}/futuapi/scripts/trade/get_all_portfolios.py"
+THESES_DIR = f"{_SKILLS}/thesis-tracker/reports/theses"
+TRADES_DIR = f"{_SKILLS}/trade-journal/reports/trades"
+STATE_DIR = f"{_SKILLS}/references/state"
 IBKR_FILE = f"{STATE_DIR}/ibkr_positions.json"
 OUT_FILE = f"{STATE_DIR}/portfolio_state.json"
 

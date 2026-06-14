@@ -20,7 +20,8 @@ import subprocess
 import sys
 
 HOME = os.path.expanduser("~")
-FUTU_FILTER = f"{HOME}/.claude/skills/futuapi/scripts/quote/get_stock_filter.py"
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
+FUTU_FILTER = f"{_SKILLS}/futuapi/scripts/quote/get_stock_filter.py"
 AH_ROOT = f"{HOME}/nimbus-stack/equity-screener"
 AH_DB = f"{AH_ROOT}/data/ah_screener.duckdb"      # HK + A
 US_DB = f"{AH_ROOT}/data/us_screener.duckdb"      # US

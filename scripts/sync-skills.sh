@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # sync-skills.sh — 从 ~/.claude/skills 同步已 fork 的投资 skill 到项目,防漂移。
 #
+# ⚠️ 解耦后基本废弃(见 docs/decouple-from-cc.md):项目 skills/ 已是唯一真相源,
+#    脚本内部路径都改成 __file__ 相对、不再依赖 ~/.claude/skills。删除 ~/.claude/skills
+#    后本脚本 SRC 不存在即空跑。仅当你仍在 ~/.claude/skills 编辑、想拉回项目时才用。
+#
 # 只同步 nimbus/skills 里**已存在**的 skill(不引入非投资 skill)。
 # 排除重二进制(node_modules/venv/.git)+ references 的 state/(运行时数据,
 # 由刷新作业维护,不该被定义同步覆盖)。

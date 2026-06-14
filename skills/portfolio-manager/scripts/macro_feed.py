@@ -21,7 +21,8 @@ import os
 import urllib.request
 
 HOME = os.path.expanduser("~")
-CACHE = f"{HOME}/.claude/skills/references/state/macro_cache.json"
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
+CACHE = f"{_SKILLS}/references/state/macro_cache.json"
 TODAY = dt.date.today()
 API = ("https://api.stlouisfed.org/fred/series/observations"
        "?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit=1")

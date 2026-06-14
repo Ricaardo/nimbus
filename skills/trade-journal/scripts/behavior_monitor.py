@@ -24,8 +24,10 @@ import re
 import subprocess
 import sys
 
+_SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含,不依赖 ~/.claude
+
 FUTU_SCRIPT = os.path.expanduser(
-    "~/.claude/skills/futuapi/scripts/trade/get_history_order_fill_list.py"
+    f"{_SKILLS}/futuapi/scripts/trade/get_history_order_fill_list.py"
 )
 
 # 3x / 杠杆 ETF 监控名单（与 leverage-etf-warn.sh 保持一致）
@@ -48,7 +50,7 @@ FX_USD = {"US": 1.0, "HK": 1 / 7.80, "CN": 1 / 7.20, "SG": 1 / 1.35, "JP": 1 / 1
 
 
 PORTFOLIO_SCRIPT = os.path.expanduser(
-    "~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py")
+    f"{_SKILLS}/futuapi/scripts/trade/get_all_portfolios.py")
 DEFAULT_NAV = 23700      # 回退值（futu 主 ~$22K + IBKR ~$1.4K）
 IBKR_USD = 1400          # IBKR 小号近似（futu 不含），并入总 NAV
 
