@@ -58,7 +58,11 @@
 - 26 源：bwenews(ws)/trump.fm/bwe-tradfi/kobeissi/mms/kitco/finnhub/WSJ/Fed/BWE官方RSS + A股扫描×6 + 市场速览 + 观复 + 13F(11基金) + 宏观。
 - DeepSeek 翻译(外文→中文替换正文)+ 报告 pro 解读；多渠道推送(微信/Discord)。
 - **filefeed 渠道** → 写 `~/nimbus-stack/nimbus/workspace/feed/` 供 nimbus 读。
-- A股数据分层(质量优先)：**报价/日线/财务三表/估值 → Longbridge MCP(持牌·最稳，已接 nimbus)**；**龙虎榜/资金流明细/涨停梯队/大宗/北向 → akshare(独家，别的源都没有)**。akshare 是爬虫聚合(东财偶断)，仅承担这些独家扫描；A股 报价不再依赖它。baostock 实测被 Surge 代理黑洞(裸 socket :10030)+无实时，已弃用。国内期货：无(不需要)。
+- A股/HK 数据分层(质量优先)：
+  - **news 实时报价**：market service 适配器按优先级 **futu OpenD(持牌级·已在线, prio1) 主源 → 出错自动回退 akshare(prio5) → yahoo**；akshare 已非报价主源，仅兜底。
+  - **bot/skill 层质量数据**(报价/日线/财务三表/估值)：nimbus 用 **Longbridge MCP**(持牌·最稳，远程 HTTP `openapi.longbridge.com/mcp`)；Go 侧无 longport 凭证故 news 不直连 Longbridge。
+  - **A股独家扫描**(龙虎榜/资金流/涨停梯队/大宗/北向)：只能 akshare(别的源都没有)；news 推送 + equity-screener 数仓(`update-exclusives`)都用它。akshare 爬虫(东财偶断)只承担独家扫描+报价兜底。
+  - baostock 实测被 Surge 代理黑洞(裸 socket :10030)+无实时，已弃用。国内期货：无(不需要)。
 
 ### 2.5 数据桥（news → nimbus）
 - news filefeed 写 `breaking.jsonl`(实时新闻+译文+简评+tickers) + edgar 写 `13f-latest.json`。
