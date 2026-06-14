@@ -1,6 +1,6 @@
 ---
 name: serenity-tracker
-description: 追踪「白毛股神」Serenity(@aleabitoreddit)的持仓观点/Thesis Tracker——AI 半导体供应链「瓶颈理论」选股（CPO/光通信/存储/太空等）。解析 followserenity.com 公开页(532+ thesis，含标的/收益/逻辑/conviction)。当用户问「白毛股神/Serenity/瓶颈理论/他看好什么/aleabitoreddit/SIVE AXTI 之类他的票」时触发。可按标的筛。NOT for: 个股深度分析→us-stock-analysis；通用价值选股→ah-stock-screener。⚠️自述战绩、未审计、非真实13F、非投资建议。
+description: 追踪「白毛股神」Serenity(@aleabitoreddit)的持仓观点/Thesis Tracker——AI 半导体供应链「瓶颈理论」选股（CPO/光通信/存储/太空等）。解析 followserenity.com 公开页(532+ thesis，含标的/收益/逻辑/conviction)。当用户问「白毛股神/Serenity/瓶颈理论/他看好什么/aleabitoreddit/SIVE AXTI 之类他的票」时触发。可按标的筛。NOT for: 个股深度分析→us-stock-analysis；通用价值选股→ah-screener。⚠️自述战绩、未审计、非真实13F、非投资建议。
 ---
 
 # Serenity Tracker — 白毛股神持仓观点

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-idea_feed.py — 选股 idea 接入（消费 ah-stock-screener 已产出的候选）
+idea_feed.py — 选股 idea 接入（消费 ah-screener 已产出的候选）
 
-ah-stock-screener(/Users/x/ah-stock-screener) 是成熟的 A/H/US 三市筛选器，
+ah-screener(/Users/x/nimbus-stack/equity-screener) 是成熟的 A/H/US 三市筛选器，
 定时 launchd 跑出每日报告。本适配器**只读**其 latest 报告，把 top_actions /
 core_candidates 接进投顾日报，填补"找标的"空白。不重跑筛选、不触网。
 
@@ -17,7 +17,7 @@ import os
 
 TODAY = dt.date.today()
 MKT = {"a": "A", "hk": "HK", "us": "US", "A": "A", "HK": "HK", "US": "US"}
-_AH = os.path.expanduser("~/.claude/skills/ah-stock-screener/scripts")
+_AH = os.path.expanduser("~/.claude/skills/ah-screener/scripts")
 _SCREENER = f"{_AH}/screener.py"
 _PIPELINE = f"{_AH}/value_pipeline.py"
 
@@ -30,7 +30,7 @@ def _load_mod(path, name):
 
 
 def _load_report():
-    """经 ah-stock-screener skill 读最新报告 dict；skill/项目缺失 → None(降级)。"""
+    """经 ah-screener skill 读最新报告 dict；skill/项目缺失 → None(降级)。"""
     try:
         return _load_mod(_SCREENER, "screener").load_report()
     except Exception:
@@ -123,7 +123,7 @@ def render(r, holdings=None, two=None):
     if r["core_candidates"]:
         cc = " · ".join(f"{c['name']}({c['symbol']})" for c in r["core_candidates"][:5])
         L.append(f"  核心池：{cc}")
-    L.append("  > 来自 ah-stock-screener，深度分析切 us-stock-analysis / research")
+    L.append("  > 来自 ah-screener，深度分析切 us-stock-analysis / research")
     return "\n".join(L)
 
 

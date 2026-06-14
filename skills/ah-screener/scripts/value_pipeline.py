@@ -21,7 +21,7 @@ import sys
 
 HOME = os.path.expanduser("~")
 FUTU_FILTER = f"{HOME}/.claude/skills/futuapi/scripts/quote/get_stock_filter.py"
-AH_ROOT = f"{HOME}/ah-stock-screener"
+AH_ROOT = f"{HOME}/nimbus-stack/equity-screener"
 AH_DB = f"{AH_ROOT}/data/ah_screener.duckdb"      # HK + A
 US_DB = f"{AH_ROOT}/data/us_screener.duckdb"      # US
 VENV_PY = f"{AH_ROOT}/.venv/bin/python"

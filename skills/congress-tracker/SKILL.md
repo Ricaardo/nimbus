@@ -1,6 +1,6 @@
 ---
 name: congress-tracker
-description: 追踪美国国会议员（众议院）股票交易披露——谁在买卖什么。数据来自 QuiverQuant 免费 live 端点（披露滞后数日，非实时）。当用户问「国会交易/议员持仓/佩洛西/Pelosi/谁在买X/国会谁动了NVDA/congress trading/政客炒股」时触发。可按议员名或标的筛选。NOT for: 13F 机构持仓→institutional-flow-tracker；内部人(高管)交易→insider-tracker；普通选股→ah-stock-screener。仅信息参考，非投资建议。
+description: 追踪美国国会议员（众议院）股票交易披露——谁在买卖什么。数据来自 QuiverQuant 免费 live 端点（披露滞后数日，非实时）。当用户问「国会交易/议员持仓/佩洛西/Pelosi/谁在买X/国会谁动了NVDA/congress trading/政客炒股」时触发。可按议员名或标的筛选。NOT for: 13F 机构持仓→institutional-flow-tracker；内部人(高管)交易→insider-tracker；普通选股→ah-screener。仅信息参考，非投资建议。
 ---
 
 # Congress Tracker — 国会议员交易跟踪

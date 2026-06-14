@@ -18,3 +18,4 @@ skills/**/*.db-wal
 skills/**/*.db-shm
 skills/**/__pycache__/
 skills/**/*.pyc
+workspace/

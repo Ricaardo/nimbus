@@ -25,11 +25,11 @@
      │ =btc-guanfu  │  │ =skill      │  │ /futu MCP  │  │ A股扫描+DeepSeek│
      └─────────────┘  └─────────────┘  └───────────┘  └───────┬────────┘
                                                        filefeed │
-                                          ~/nimbus/workspace/feed/*.json
+                                          ~/nimbus-stack/nimbus/workspace/feed/*.json
                                           (breaking.jsonl + 13f-latest.json)
 
    外部数据源(机会性,不依赖): trump.fm · followserenity.com · QuiverQuant(国会) ·
-   Finnhub(内部人/评级) · FINRA(做空) · FMP(基本面) · FRED(宏观) · akshare(A股)
+   Finnhub(内部人/评级) · FINRA(做空) · FMP(基本面) · FRED(宏观) · Longbridge(A股/港股持牌) · akshare(A股独家扫描)
 ```
 
 **分工**：guanfu 算时机/配置、ah-screener 选标的、news 实时 feed、**nimbus 编排+投顾+对话+推送**、小程序展示。
@@ -38,27 +38,27 @@
 
 ## 2. 组件详解
 
-### 2.1 nimbus（中枢，~/nimbus，分支 master）
+### 2.1 nimbus（中枢，~/nimbus-stack/nimbus，分支 master）
 - TS/Bun，Claude Agent SDK，复用 ~/.claude 的订阅鉴权/skill/MCP/记忆。
 - 渠道：Discord(Cici#8105) 常驻 + TG。L0(futu行情秒回)/Haiku(闲聊)/Sonnet(轻分析)/Opus(深度全skill)。
 - cron 模块：opportunity(机会引擎) · reports(日报) · alerts(止损/集中度/decay) · portfolio-refresh(futu+IBKR真仓) · reflection(周复盘) · costReport · health。
 - 安全：trade-guard hook + canUseTool deny + IBKR 连接器下单工具 deny → **AI 不下单**。
 
-### 2.2 skill 层（40+，~/.claude/skills 生效 + ~/nimbus/skills vendored）
-- **引擎封装**：btc-guanfu(=guanfu) · ah-stock-screener(=选股引擎)。
+### 2.2 skill 层（40+，~/.claude/skills 生效 + ~/nimbus-stack/nimbus/skills vendored）
+- **引擎封装**：btc-guanfu(=guanfu) · ah-screener(=A/H选股) + us-screener(=美股选股)，二者同一 equity-screener 数仓。
 - **本轮新增/重构 7 个**：congress-tracker(国会) · insider-tracker(内部人) · short-interest(做空) · analyst-ratings(评级) · serenity-tracker(白毛股神) · news-bridge(news数据桥) · futu-anomaly(资金/技术/衍生品三维异动 3→1)。
 - 分析：research · valuation · market-pulse · sector-analyst · technical-analysis · us-stock-analysis · options-strategy-advisor · institutional-flow-tracker · event-calendar · portfolio-manager · trade-execution · trade-journal · thesis-tracker · value/macro-perspective(大师视角) …
 - 数据：futuapi · market-data · news-dashboard · cmc/longbridge/alpaca MCP。
 
 ### 2.3 引擎（独立仓库，被 nimbus 以 skill 复用，不内嵌不重写）
-- **guanfu**(~/guanfu, Go)：BTC/QQQ/SPY/Gold/任意美股 8域指标 + kNN前向收益 + 可靠性标注 + claim校准 + 经典组合(60/40/全天候/永久/巴菲特/全球)偏离。
-- **ah-stock-screener**(~/ah-stock-screener, Py+DuckDB)：A/H/US 多因子价值选股 + 风险闸 + 大师框架 + 回测，每日 launchd 自动跑。
+- **guanfu**(~/nimbus-stack/guanfu, Go)：BTC/QQQ/SPY/Gold/任意美股 8域指标 + kNN前向收益 + 可靠性标注 + claim校准 + 经典组合(60/40/全天候/永久/巴菲特/全球)偏离。
+- **equity-screener**(~/nimbus-stack/equity-screener, Py+DuckDB, 原 ah-stock-screener)：A/H/US 多因子价值选股数仓 + 风险闸 + 大师框架 + 回测，每日 launchd 自动跑。A/H 与 US 各自独立包/DB/CLI/报告，分别暴露为 `ah-screener` / `us-screener` 两 skill。
 
-### 2.4 news（~/news, Go, 分支 main）实时 feed 管道
+### 2.4 news（~/nimbus-stack/news, Go, 分支 main）实时 feed 管道
 - 26 源：bwenews(ws)/trump.fm/bwe-tradfi/kobeissi/mms/kitco/finnhub/WSJ/Fed/BWE官方RSS + A股扫描×6 + 市场速览 + 观复 + 13F(11基金) + 宏观。
 - DeepSeek 翻译(外文→中文替换正文)+ 报告 pro 解读；多渠道推送(微信/Discord)。
-- **filefeed 渠道** → 写 `~/nimbus/workspace/feed/` 供 nimbus 读。
-- A股：akshare(龙虎榜/资金流/涨停/大宗/扫描) + futu。**akshare 爬虫不稳(东财偶断)，盘后日线可用，实时受限**。国内期货：无(不需要)。
+- **filefeed 渠道** → 写 `~/nimbus-stack/nimbus/workspace/feed/` 供 nimbus 读。
+- A股数据分层(质量优先)：**报价/日线/财务三表/估值 → Longbridge MCP(持牌·最稳，已接 nimbus)**；**龙虎榜/资金流明细/涨停梯队/大宗/北向 → akshare(独家，别的源都没有)**。akshare 是爬虫聚合(东财偶断)，仅承担这些独家扫描；A股 报价不再依赖它。baostock 实测被 Surge 代理黑洞(裸 socket :10030)+无实时，已弃用。国内期货：无(不需要)。
 
 ### 2.5 数据桥（news → nimbus）
 - news filefeed 写 `breaking.jsonl`(实时新闻+译文+简评+tickers) + edgar 写 `13f-latest.json`。
@@ -97,8 +97,10 @@
 | FRED | 宏观 | ✅ env |
 | Tavily / CMC | 搜索 / crypto | ✅ env |
 | futu OpenD | 行情/持仓/异动(异动需数据权限,现 -12104) | 常驻 + 代理 |
+| Longbridge MCP | **A股/港股/美股 报价+日线+财务三表+估值(持牌·最稳)** | ✅ secrets/mcp.json |
 | QuiverQuant / FINRA / followserenity / trump.fm | 国会/做空/白毛股神/Trump | 免费无 key |
-| akshare | A股 | 免费(爬虫不稳) |
+| akshare | A股 独家扫描(龙虎榜/资金流/涨停/大宗/北向) | 免费(爬虫,仅扫描用) |
+| baostock | ~~A股日线+财务~~ | ❌ 弃用(被 Surge 代理黑洞,裸 socket :10030) |
 | Schwab/嘉信 | — | ❌ 未配(不需要) |
 | ibkr-pipeline(ib_insync) | — | ❌ 不建(AI不下单,行情已够) |
 
@@ -111,10 +113,10 @@
 # nimbus(投顾中枢): tmux 常驻
 tmux attach -t nimbus              # 看实时
 tmux kill-session -t nimbus        # 停
-tmux new-session -d -s nimbus -c ~/nimbus 'exec bun run src/main.ts >> ~/nimbus/logs/nimbus.stdout.log 2>> ~/nimbus/logs/nimbus.stderr.log'   # 起
+tmux new-session -d -s nimbus -c ~/nimbus-stack/nimbus 'exec bun run src/main.ts >> ~/nimbus-stack/nimbus/logs/nimbus.stdout.log 2>> ~/nimbus-stack/nimbus/logs/nimbus.stderr.log'   # 起
 
 # news(实时feed): 二进制
-cd ~/news && go build -o bin/platform ./cmd/platform
+cd ~/nimbus-stack/news && go build -o bin/platform ./cmd/platform
 pkill -f 'bin/platform -config'; set -a; source .env; set +a
 nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d).log 2>&1 &
 
@@ -122,9 +124,9 @@ nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d)
 ```
 
 ### 5.2 监控
-- nimbus 日志 `~/nimbus/logs/nimbus.{stdout,stderr}.log`；health cron 每 20 分自检。
-- news 日志 `~/news/logs/runtime.*.log`；`/metrics`(Prometheus)；source_health → 飞书告警。
-- 数据桥 `~/nimbus/workspace/feed/` 文件时间戳应每日更新。
+- nimbus 日志 `~/nimbus-stack/nimbus/logs/nimbus.{stdout,stderr}.log`；health cron 每 20 分自检。
+- news 日志 `~/nimbus-stack/news/logs/runtime.*.log`；`/metrics`(Prometheus)；source_health → 飞书告警。
+- 数据桥 `~/nimbus-stack/nimbus/workspace/feed/` 文件时间戳应每日更新。
 
 ### 5.3 常见故障 → 处理
 | 症状 | 原因 | 处理 |
@@ -133,12 +135,13 @@ nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d)
 | 行情/持仓查不到 | OpenD 掉线 | 重启 OpenD；查 11111 端口 |
 | 异动 -12104 | futu 无异动数据权限 | 需开通 futu 数据订阅(可选) |
 | news 某源超时(fed/bwe) | 慢服务器 TLS | 健康监控自动重试,非阻断 |
-| A股数据空 | akshare/东财断连 | 爬虫通病,下个周期自恢复;频繁则换 IP |
+| A股报价/财务空 | — | 走 Longbridge MCP(持牌稳定),不受 akshare 影响 |
+| A股扫描空(龙虎榜等) | akshare/东财断连 | 爬虫通病,下周期自恢复;仅影响独家扫描,非报价 |
 | 数据桥无 breaking | news 挂/无新闻 | 查 news 进程;feed 是兜底,nimbus 不受影响 |
 | 额度告警 | Opus 用量 | 看 costReport;闲聊降档 Haiku |
 
 ### 5.4 Key 轮换 / 依赖
-- key 在 shell 环境(用户 profile) + `~/nimbus/secrets/mcp.json`；轮换后重启对应进程。
+- key 在 shell 环境(用户 profile) + `~/nimbus-stack/nimbus/secrets/mcp.json`；轮换后重启对应进程。
 - 强依赖：Claude 订阅登录(发动机) · futu OpenD(行情/持仓) · Surge 代理(墙内)。
 - 弱依赖(挂了降级不崩)：news feed · 各免费第三方源(快照兜底)。
 

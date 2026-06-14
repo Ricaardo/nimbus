@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""news→nimbus 数据桥读取器。读 ~/nimbus/workspace/feed/ 下 news 平台落盘的结构化数据：
+"""news→nimbus 数据桥读取器。读 ~/nimbus-stack/nimbus/workspace/feed/ 下 news 平台落盘的结构化数据：
   13f-latest.json     机构 13F 当前持仓/变动
   ashare-candidates.json  A 股扫描候选
   breaking.jsonl      实时突发(trump/bwe/finnhub，近 24h，append)
@@ -9,7 +9,7 @@
 import argparse, json, os, sys, time
 from datetime import datetime, timezone
 
-FEED = os.path.expanduser("~/nimbus/workspace/feed")
+FEED = os.path.expanduser("~/nimbus-stack/nimbus/workspace/feed")
 
 
 def load_json(name):

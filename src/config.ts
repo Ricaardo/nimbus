@@ -3,7 +3,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 
 // ── Nimbus workspace / data paths ─────────────────────────────────────────────
-export const PROJECT_ROOT = '/Users/x/nimbus'
+export const PROJECT_ROOT = '/Users/x/nimbus-stack/nimbus'
 export const WORKSPACE = join(PROJECT_ROOT, 'workspace')
 export const DATA_DIR = join(PROJECT_ROOT, 'data')
 export const DB_PATH = join(DATA_DIR, 'state.db')

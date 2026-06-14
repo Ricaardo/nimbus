@@ -20,7 +20,7 @@ unset ANTHROPIC_API_KEY
 # that has the `futu` package (homebrew python3 lacks it → quote scripts fail).
 export PATH="$HOME/miniforge3/bin:$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
-NIMBUS_DIR="$HOME/nimbus"
+NIMBUS_DIR="$HOME/nimbus-stack/nimbus"
 LOG_DIR="$NIMBUS_DIR/logs"
 SESSION="nimbus"
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-screener.py — ah-stock-screener 项目的 skill 封装（薄接口）
+screener.py — equity-screener 项目的 A/H skill 封装（薄接口）
 
-项目本体（900MB DuckDB + 自建多因子模型 + 回测）在 ~/ah-stock-screener，自带 venv/CLI/launchd。
-本封装让它成为可发现、可调用的 skill：读候选、给报告路径、（可选）触发重跑。
-读为主、安全；重跑命令重且会动 DB，谨慎。
+数仓本体（DuckDB ah_screener.duckdb + 自建多因子模型 + 回测）在
+~/nimbus-stack/equity-screener，自带 venv/CLI/launchd。本封装让它的 A/H 选股成为
+可发现、可调用的 skill：读候选、给报告路径。读为主、安全。美股见 us-screener。
 
 用法：
-  python3 screener.py candidates [--top 8] [--decision core_candidate]   # 看今日候选
+  python3 screener.py candidates [--top 8] [--decision core_candidate]   # 看今日 A/H 候选
   python3 screener.py report-path                                        # 最新报告绝对路径
   python3 screener.py status                                             # 项目可用性/报告新鲜度
 库用法：from screener import latest_report_path, load_report
@@ -17,11 +17,11 @@ import datetime as dt
 import json
 import os
 
-PROJECT_ROOT = os.path.expanduser("~/ah-stock-screener")  # 本 skill = 这个项目的唯一接口点
+PROJECT_ROOT = os.path.expanduser("~/nimbus-stack/equity-screener")  # A/H 数仓本体
 REPORT_LATEST = os.path.join(PROJECT_ROOT, "reports", "ah-screening-report-latest.json")
 VENV_PY = os.path.join(PROJECT_ROOT, ".venv", "bin", "python")
 TODAY = dt.date.today()
-MKT = {"a": "A", "hk": "HK", "us": "US"}
+MKT = {"a": "A", "hk": "HK"}
 
 
 def latest_report_path():
@@ -78,7 +78,7 @@ def top_candidates(top=8, decision=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="ah-stock-screener skill 封装")
+    ap = argparse.ArgumentParser(description="ah-screener (A/H) skill 封装")
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("candidates")
     c.add_argument("--top", type=int, default=8)
@@ -97,7 +97,7 @@ def main():
         if not r:
             print("(无候选 —— 项目未跑或报告缺失)")
             return
-        print(f"ah-screener 候选（{r['report_date']}）：")
+        print(f"ah-screener A/H 候选（{r['report_date']}）：")
         for x in r["candidates"]:
             print(f"  · [{x['market']}] {x['name']}({x['symbol']}) 分{x['score']}")
 
