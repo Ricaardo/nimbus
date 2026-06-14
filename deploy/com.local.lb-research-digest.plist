@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.local.lb-research-digest.plist — 每日盘前 longbridge 机构评级/一致预期摘要 → discord.
+
+  每周一至周五 21:00（北京时间，约美股盘前）跑 scripts/lb-research-digest.sh：
+  headless `claude -p` 调 longbridge MCP 拉 NVDA/AAPL/MSFT 的 institution_rating
+  + consensus，生成中文摘要，POST 到 news 的 discord webhook（文本频道）。
+
+  注意：launchd 用系统本地时间（北京 CST）。美东夏令时美股 9:30 开盘 = 北京 21:30，
+  故 21:00 ≈ 开盘前 30 分；冬令时会再早些。要改时间调 StartCalendarInterval。
+
+  INSTALL:
+    cp ~/nimbus-stack/nimbus/deploy/com.local.lb-research-digest.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.local.lb-research-digest.plist
+  手动触发一次：launchctl kickstart gui/$(id -u)/com.local.lb-research-digest
+  卸载：launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.local.lb-research-digest.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.lb-research-digest</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/x/nimbus-stack/nimbus/scripts/lb-research-digest.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/lb-research-digest.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/lb-research-digest.err.log</string>
+</dict>
+</plist>
