@@ -52,6 +52,38 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
+# ── 也接进 news-feed（news→nimbus 数据桥）──
+# 按 filefeed 的 JSONL schema 追加一行（O_APPEND，与 platform 自身写入同语义）。
+FEED="$ROOT/nimbus/workspace/feed/breaking.jsonl"
+if [ -d "$(dirname "$FEED")" ]; then
+  if printf '%s' "$DIGEST" | python3 -c '
+import json, sys, time
+from datetime import datetime, timezone
+digest = sys.stdin.read().strip()
+title = next((l for l in digest.splitlines() if l.strip()), "盘前机构观点")
+title = title.replace("**", "").replace("📊", "").strip() or "盘前机构观点"
+rec = {
+    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "epoch": int(time.time()),
+    "source": "机构观点",
+    "title": title,
+    "zh": digest,
+    "tickers": ["NVDA", "AAPL", "MSFT"],
+}
+print(json.dumps(rec, ensure_ascii=False))
+' >> "$FEED"; then
+    log "appended to news-feed"
+  else
+    log "WARN news-feed append failed"
+  fi
+fi
+
+# ── 推 discord（SKIP_DISCORD=1 可跳过，仅写 feed，便于测试）──
+if [ "${SKIP_DISCORD:-0}" = "1" ]; then
+  log "SKIP_DISCORD ok (feed only)"
+  exit 0
+fi
+
 # 复用 news 的 discord webhook（普通文本频道）
 WEBHOOK="$(grep -E '^DISCORD_WEBHOOK_1=' "$ROOT/news/.env" | cut -d= -f2-)"
 if [ -z "$WEBHOOK" ]; then
