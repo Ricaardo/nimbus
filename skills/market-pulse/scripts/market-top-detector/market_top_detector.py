@@ -342,6 +342,13 @@ def main():
     if effective_vix_term is None:
         print("  Auto-detecting VIX term structure...", end=" ", flush=True)
         vix_term_auto = client.get_vix_term_structure()
+        if not vix_term_auto:
+            # FMP ^VIX3M 已付费失效 → 回退 Cboe 官方免费源
+            try:
+                from cboe_vix import get_vix_term_structure as _cboe_vix
+                vix_term_auto = _cboe_vix()
+            except Exception:  # noqa: BLE001
+                vix_term_auto = None
         if vix_term_auto:
             effective_vix_term = vix_term_auto["classification"]
             print(f"OK ({effective_vix_term}, ratio={vix_term_auto['ratio']})")

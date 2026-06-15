@@ -11,11 +11,22 @@ This skill tracks institutional investor activity through 13F SEC filings to ide
 
 **Key Insight:** Institutional investors (hedge funds, pension funds, mutual funds) manage trillions of dollars and conduct extensive research. Their collective buying/selling patterns often precede significant price movements by 1-3 quarters.
 
+## ⚠️ 数据源现状（2026-06 更新）
+
+FMP **v3 已下线**,免费档**不再提供逐机构持仓明细**（`institutional-holder` 付费）。因此:
+
+- **个股机构信号 → 用免费版** `scripts/analyze_institutional_free.py`(Finviz 机构持股%/季度买卖方向% + FMP-stable 简介,全免费）:
+  ```bash
+  python3 scripts/analyze_institutional_free.py NVDA          # 文本
+  python3 scripts/analyze_institutional_free.py AAPL --json
+  ```
+- **跨大师"谁在买同一只票"的 13F 共识 → 用** `news/scripts/superinvestors.py`(SEC EDGAR,免费,Grand Portfolio + 新进/加/减/清仓）。
+- **旧脚本** `analyze_single_stock.py` / `track_institutional_flow.py` 基于已失效的 FMP v3,**已弃用**(逐机构明细为付费数据,免费档无法恢复)。
+
 ## Prerequisites
 
-- **FMP API Key:** Set `FMP_API_KEY` environment variable or pass `--api-key` to scripts
-- **Python 3.8+:** Required for running analysis scripts
-- **Dependencies:** `pip install requests` (scripts handle missing dependencies gracefully)
+- **免费路径无需 key**(Finviz + SEC EDGAR);`analyze_institutional_free.py` 的简介增强可选 `FMP_API_KEY`。
+- **Python 3.8+** + `pip install requests`。
 
 ## When to Use This Skill
 

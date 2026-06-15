@@ -1,15 +1,62 @@
 #!/usr/bin/env python3
-"""news→nimbus 数据桥读取器。读 ~/nimbus-stack/nimbus/workspace/feed/ 下 news 平台落盘的结构化数据：
-  13f-latest.json     机构 13F 当前持仓/变动
-  ashare-candidates.json  A 股扫描候选
-  breaking.jsonl      实时突发(trump/bwe/finnhub，近 24h，append)
-让 nimbus 投顾能基于 news 的 feed 推理。
-用法: feed.py [13f|ashare|breaking|all] [--tickers NVDA,AAPL] [--hours 24]
+"""news→nimbus 数据桥读取器。两种取数方式：
+  (A) 文件桥 ~/nimbus-stack/nimbus/workspace/feed/：13f-latest.json / ashare-candidates.json /
+      breaking.jsonl（高频突发）。
+  (B) HTTP API（news 平台 :8081）：store 捕获【全部源】(与 sink 无关) →
+      可列出所有源并按源拉取最新消息。env NEWS_API 可覆盖基址。
+让 nimbus 投顾能基于 news 的全部数据源推理。
+
+用法:
+  feed.py all                          文件桥(突发+13F+A股) + API 可用源清单
+  feed.py sources                      列出 store 内全部源及条数(API)
+  feed.py source vix-term --limit 3    取指定源最新 N 条(API)
+  feed.py breaking --tickers NVDA,AAPL --hours 12
 """
-import argparse, json, os, sys, time
+import argparse, json, os, sys, time, urllib.request, urllib.parse
 from datetime import datetime, timezone
 
 FEED = os.path.expanduser("~/nimbus-stack/nimbus/workspace/feed")
+NEWS_API = os.environ.get("NEWS_API", "http://localhost:8081")
+
+
+def api_get(path):
+    try:
+        with urllib.request.urlopen(f"{NEWS_API}{path}", timeout=8) as r:
+            return json.load(r)
+    except Exception:
+        return None
+
+
+def show_sources():
+    """列出 store 内全部源 + 条数(让投顾知道有哪些可取)。"""
+    d = api_get("/api/news?limit=1000")
+    if not d:
+        print("（news API 不可达；平台未运行?）"); return
+    import collections
+    c = collections.Counter((m.get("source") or "?") for m in (d.get("messages") or []))
+    print(f"🗂 news 全部数据源（store 内 {d.get('count',0)} 条 / {len(c)} 源）")
+    for s, n in c.most_common():
+        print(f"  {n:3d}  {s}")
+
+
+def show_source(name, limit):
+    """取指定源最新 N 条。"""
+    d = api_get(f"/api/news?source={urllib.parse.quote(name)}&limit={limit}")
+    if d is None:
+        print("（news API 不可达；平台未运行?）"); return
+    msgs = d.get("messages") or []
+    if not msgs:
+        print(f"（源 {name} 暂无数据；用 `feed.py sources` 看可用源）"); return
+    print(f"📡 {name}（最新 {len(msgs)} 条）")
+    for m in msgs:
+        ts = (m.get("create_time") or m.get("publish_time") or "")[:16]
+        title = (m.get("title") or "").strip()
+        body = (m.get("content") or "").strip().replace("\n", " ")
+        print(f"  [{ts}] {title}"[:160])
+        if body and body != title:
+            print(f"        {body}"[:200])
+
+
 
 
 def load_json(name):
@@ -63,16 +110,32 @@ def show_ashare():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", nargs="?", default="all", choices=["13f", "ashare", "breaking", "all"])
+    ap.add_argument("what", nargs="?", default="all",
+                    choices=["13f", "ashare", "breaking", "all", "sources", "source"])
+    ap.add_argument("--source", default="", help="source 模式下的源名(或位置参数后跟源名)")
+    ap.add_argument("--limit", type=int, default=5)
     ap.add_argument("--tickers", default="")
     ap.add_argument("--hours", type=int, default=24)
-    a = ap.parse_args()
+    # 允许 `feed.py source vix-term` 这种位置写法
+    a, extra = ap.parse_known_args()
+    if a.what == "source" and not a.source and extra:
+        a.source = extra[0]
+
+    if a.what == "sources":
+        show_sources(); return
+    if a.what == "source":
+        if not a.source:
+            print("用法: feed.py source <源名> [--limit N];先 `feed.py sources` 看可用源"); return
+        show_source(a.source, a.limit); return
+
     tickers = {t.strip().upper() for t in a.tickers.split(",") if t.strip()}
     if not os.path.isdir(FEED):
         print(f"feed 目录不存在: {FEED}"); return
     if a.what in ("breaking", "all"): show_breaking(tickers, a.hours)
     if a.what in ("13f", "all"): show_13f()
     if a.what in ("ashare", "all"): show_ashare()
+    if a.what == "all":
+        print(); show_sources()  # API 可用源清单,投顾可据此 `feed.py source <名>` 深取
 
 
 if __name__ == "__main__":

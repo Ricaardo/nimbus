@@ -37,7 +37,7 @@ from calculators.relative_strength_calculator import (
 from calculators.trend_template_calculator import calculate_trend_template
 from calculators.vcp_pattern_calculator import calculate_vcp_pattern
 from calculators.volume_pattern_calculator import calculate_volume_pattern
-from fmp_client import FMPClient
+from alpaca_source import AlpacaSource
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import calculate_composite_score
 
@@ -48,7 +48,11 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--api-key", help="FMP API key (defaults to FMP_API_KEY environment variable)"
+        "--api-key", help="(unused) kept for compatibility; Alpaca uses APCA_API_KEY_ID/SECRET env"
+    )
+    parser.add_argument(
+        "--universe-limit", type=int, default=None,
+        help="Cap universe size (default: all tradable US equities on major exchanges)",
     )
     parser.add_argument(
         "--max-candidates",
@@ -405,10 +409,10 @@ def main():
     print("=" * 70)
     print()
 
-    # Initialize FMP client
+    # Initialize Alpaca data source (universe + bulk bars; free IEX feed)
     try:
-        client = FMPClient(api_key=args.api_key)
-        print("FMP API client initialized")
+        client = AlpacaSource(api_key=args.api_key)
+        print("Alpaca data source initialized")
     except ValueError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
@@ -426,14 +430,14 @@ def main():
         universe_desc = f"Custom ({len(symbols)} stocks)"
         print(f"  Using custom universe: {len(symbols)} stocks")
     else:
-        print("  Fetching S&P 500 constituents...", end=" ", flush=True)
-        constituents = client.get_sp500_constituents()
+        print("  Fetching US equity universe (Alpaca)...", end=" ", flush=True)
+        constituents = client.get_sp500_constituents(limit=args.universe_limit)
         if not constituents:
             print("FAILED")
-            print("ERROR: Unable to fetch S&P 500 constituents", file=sys.stderr)
+            print("ERROR: Unable to fetch universe from Alpaca", file=sys.stderr)
             sys.exit(1)
         symbols = [c["symbol"] for c in constituents]
-        universe_desc = f"S&P 500 ({len(symbols)} stocks)"
+        universe_desc = f"US equities ({len(symbols)} stocks)"
         print(f"OK ({len(symbols)} stocks)")
 
     # Build sector/name lookup
