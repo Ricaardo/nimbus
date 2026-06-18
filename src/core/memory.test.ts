@@ -86,14 +86,16 @@ describe('loadPortfolioState function', () => {
 import { riskProfile } from './memory.js'
 
 describe('riskProfile', () => {
-  test('mentions fully-invested / low cash', () => {
+  test('defers to live snapshot instead of hardcoding position state', () => {
     const profile = riskProfile()
-    expect(profile).toMatch(/满仓|<10%/)
+    // Must NOT bake in a stale snapshot — point to the live 【持仓摘要】 instead.
+    expect(profile).toContain('持仓摘要')
+    expect(profile).not.toMatch(/几乎满仓|现金<10%|44%|港股~47%/)
   })
 
-  test('mentions semiconductor concentration', () => {
+  test('mandates a clear decision stance (not fence-sitting)', () => {
     const profile = riskProfile()
-    expect(profile).toMatch(/半导体|44%/)
+    expect(profile).toMatch(/决策意见|敢给立场|买\/卖\/观望/)
   })
 
   test('mentions counter-trend weaknesses', () => {
@@ -113,9 +115,11 @@ import { buildContext } from './memory.js'
 import { LEVERAGE_BAN_UNTIL } from '../config.js'
 
 describe('buildContext', () => {
-  test('contains risk profile keywords', () => {
+  test('contains risk profile section', () => {
     const ctx = buildContext()
-    expect(ctx).toMatch(/满仓|<10%/)
+    expect(ctx).toContain('【主人画像 · 你的使命】')
+    // No stale hardcoded snapshot leaks into context.
+    expect(ctx).not.toMatch(/几乎满仓|现金<10%/)
   })
 
   test('contains behaviour rules section', () => {

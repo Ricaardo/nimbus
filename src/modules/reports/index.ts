@@ -109,7 +109,7 @@ const closeReport: Module = {
       '1. 调用 `trade-journal` skill（daily review模式）：今日有成交吗？如有，走8类错误taxonomy分析。',
       '2. 用 `market-pulse` skill 评估今日市场变化：MHS有无显著位移？板块轮动信号？',
       '3. 调用 `thesis-tracker` skill：今日价格变动是否影响现有论点的有效性？需要更新吗？',
-      '4. 用 `sector-analyst` skill 做半导体板块（主人44%集中度）的日终分析：趋势强度/量能/催化剂。',
+      '4. 先看实时持仓摘要确认主人当前的重仓板块，再用 `sector-analyst` skill 对该板块做日终分析：趋势强度/量能/催化剂。',
       '5. 总结：今日做对了什么 / 做错了什么 / 明日预案（止损价/加仓条件/观察标的）。',
       '',
       '复盘原则：先肯定方向判断对的地方，再拆执行（入场点/工具选择/止损时机）。',

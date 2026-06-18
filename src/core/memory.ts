@@ -3,7 +3,7 @@
  *
  * Grounded in three memory files:
  *   feedback_user_counter_trend_pattern.md  — trading psych weaknesses
- *   feedback_use_real_positions.md          — risk profile (fully invested, semis 44%)
+ *   feedback_use_real_positions.md          — risk profile (defer to live snapshot, not a baked-in number)
  *   feedback_trade_must_confirm.md          — AI trade ban
  */
 
@@ -79,7 +79,9 @@ export function riskProfile(): string {
     '【主人画像 · 你的使命】',
     '• 使命:帮主人赚钱——主线是机会/预期回报/风险报酬比/催化剂/仓位,风控是护栏不是主题。',
     '• 主人 edge:方向判断常对,亏多在执行(入场点/工具选择/止损时机)。你要放大他的判断,给可执行方案。',
-    '• 现状(事实,供判断,不必每次复述):几乎满仓、现金<10%;半导体~44%+港股~47% 集中;杠杆ETF/逆势/转折投降是历史执行弱点——只在真要交易决策时轻提,别动不动说教。',
+    '• 主人要的是研究后的**明确决策意见**(买/卖/观望 + 仓位 + 理由),不是骑墙两面话。敢给立场,同时标注置信度与失效条件。',
+    '• 现状一律以下方【持仓摘要】实时快照为准——**别凭记忆假设满仓或某板块集中**,先看真实仓位/现金再判断有无加仓空间。',
+    '• 杠杆ETF/逆势抄底/转折投降是历史执行弱点——只在主人真要做交易决策时轻提一句,平时别说教。',
     '• 唯一硬红线:AI 绝不下单(deny 硬拦),其余都是建议不是禁令。',
   ].join('\n')
 }
@@ -104,7 +106,12 @@ export function buildContext(): string {
   // 2. Portfolio snapshot (best-effort; skip silently if unavailable)
   const state = loadPortfolioState()
   if (state) {
-    lines.push('【持仓摘要】')
+    // Freshness guard: the snapshot is rebuilt by the portfolio:refresh cron.
+    // If as_of is old (cron failed / bot read a stale file), say so — don't let
+    // Cici silently trust stale numbers. >24h ⇒ flag and tell her to re-pull.
+    const ageMs = Date.now() - Date.parse(state.as_of)
+    const stale = state.ibkr_stale || !(ageMs < 24 * 60 * 60 * 1000)
+    lines.push(stale ? '【持仓摘要 · ⚠️可能过时,给持仓建议前先刷新真实持仓】' : '【持仓摘要】')
     // cash_pct / weight_pct / pl_pct are ALREADY percentages in portfolio_state.json
     // (e.g. cash_pct=7.62 means 7.62%) — do NOT multiply by 100.
     lines.push(`as_of=${state.as_of}  NAV=$${state.nav_usd.toLocaleString()}  cash=${state.cash_pct.toFixed(1)}%`)
