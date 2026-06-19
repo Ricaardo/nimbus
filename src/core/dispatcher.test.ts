@@ -4,7 +4,7 @@
  * All tests use mock channels + mock agent; no real SDK or network calls.
  */
 
-import { describe, test, expect } from 'bun:test'
+import { describe, test, expect, afterEach } from 'bun:test'
 import { Dispatcher, buildStreamingOnText, formatAgentError, extractDecisions, helpCard, formatLedger } from './dispatcher.js'
 import type { QuoteFetcher } from './dispatcher.js'
 import { REPORT_DM, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL } from '../config.js'
@@ -1333,6 +1333,203 @@ describe('M7: audit header includes tier + model', () => {
   })
 })
 
+// ── Phase 1: tier-aware mcpAllow and haiku context suppression ───────────────
+
+describe('Phase 1: tier-aware mcpAllow', () => {
+  /** Capture the mcpAllow passed to agent.run. */
+  function makeMcpCapture() {
+    const captured: Array<{ tier: string; mcpAllow?: readonly string[] }> = []
+    const agent: AgentRunner = {
+      async run(o) {
+        // tier is not passed here directly; we record mcpAllow
+        captured.push({ tier: '', mcpAllow: o.mcpAllow })
+        return { text: 'ok' }
+      },
+    }
+    return { agent, captured }
+  }
+
+  test('haiku tier → mcpAllow is []', async () => {
+    const { agent, captured } = makeMcpCapture()
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
+    await d.dispatch(makeInbound({ content: '你好', chatId: 'mcp-haiku' }))
+    expect(captured).toHaveLength(1)
+    expect(captured[0]!.mcpAllow).toEqual([])
+  })
+
+  test('sonnet tier → mcpAllow is ["tavily"]', async () => {
+    const { agent, captured } = makeMcpCapture()
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
+    // 今天市场新闻 → sonnet
+    await d.dispatch(makeInbound({ content: '今天有什么市场新闻', chatId: 'mcp-sonnet' }))
+    expect(captured).toHaveLength(1)
+    expect(captured[0]!.mcpAllow).toEqual(['tavily'])
+  })
+
+  test('opus tier → mcpAllow is ["tavily","alpaca"]', async () => {
+    const { agent, captured } = makeMcpCapture()
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
+    // 深度分析 → opus
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'mcp-opus' }))
+    expect(captured).toHaveLength(1)
+    expect(captured[0]!.mcpAllow).toEqual(['tavily', 'alpaca'])
+  })
+})
+
+describe('Phase 1: haiku tier suppresses buildContext', () => {
+  const CONTEXT_MARKER = '【主人画像'
+
+  /** Memory that returns a recognizable marker in buildContext. */
+  const richMemory: Memory = {
+    loadPortfolioState: () => null,
+    riskProfile: () => '',
+    buildContext: () => `${CONTEXT_MARKER}】\n• NVDA 44%`,
+  }
+
+  test('haiku (闲聊) — prompt does NOT contain buildContext marker', async () => {
+    const prompts: string[] = []
+    const agent: AgentRunner = { async run(o) { prompts.push(o.prompt); return { text: 'ok' } } }
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, richMemory, passSafety, mockQuoteFetcher)
+    await d.dispatch(makeInbound({ content: '你好', chatId: 'ctx-haiku', userId: '1086665220723855560' }))
+    expect(prompts).toHaveLength(1)
+    expect(prompts[0]).not.toContain(CONTEXT_MARKER)
+  })
+
+  test('sonnet (分析) — first turn prompt DOES contain buildContext marker', async () => {
+    const prompts: string[] = []
+    const agent: AgentRunner = { async run(o) { prompts.push(o.prompt); return { sessionId: 's1', text: 'ok' } } }
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, richMemory, passSafety, mockQuoteFetcher)
+    await d.dispatch(makeInbound({ content: '今天有什么市场新闻', chatId: 'ctx-sonnet', userId: '1086665220723855560' }))
+    expect(prompts).toHaveLength(1)
+    expect(prompts[0]).toContain(CONTEXT_MARKER)
+  })
+
+  test('opus (深度) — first turn prompt DOES contain buildContext marker', async () => {
+    const prompts: string[] = []
+    const agent: AgentRunner = { async run(o) { prompts.push(o.prompt); return { sessionId: 's1', text: 'ok' } } }
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, richMemory, passSafety, mockQuoteFetcher)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'ctx-opus', userId: '1086665220723855560' }))
+    expect(prompts).toHaveLength(1)
+    expect(prompts[0]).toContain(CONTEXT_MARKER)
+  })
+
+  test('haiku — resume is preserved (闲聊连续性)', async () => {
+    const runCalls: Array<{ resume?: string }> = []
+    const agent: AgentRunner = {
+      async run(o) {
+        runCalls.push({ resume: o.resume })
+        return { sessionId: 'h-ses', text: 'ok' }
+      },
+    }
+    const { registry } = makeRegistry()
+    const { db } = makeTrackingDb()
+    const d = new Dispatcher([], registry, agent, db, richMemory, passSafety, mockQuoteFetcher)
+    // First turn
+    await d.dispatch(makeInbound({ content: '你好', chatId: 'haiku-resume' }))
+    // Second turn
+    await d.dispatch(makeInbound({ content: '再问一个', chatId: 'haiku-resume' }))
+    expect(runCalls).toHaveLength(2)
+    expect(runCalls[0]!.resume).toBeUndefined()
+    expect(runCalls[1]!.resume).toBe('h-ses') // resume preserved on haiku
+  })
+})
+
+describe('Phase 0-2: reports / opportunity no putSession', () => {
+  test('reports runReport does not call putSession', async () => {
+    const { reportModules } = await import('../modules/reports/index.js')
+    const mod = reportModules.find(m => m.name === 'report:morning')!
+    const putSessionCalls: unknown[] = []
+    const db: DB = {
+      ...nullDb,
+      putSession: (...args) => { putSessionCalls.push(args) },
+    }
+    const agent: AgentRunner = {
+      async run() { return { sessionId: 'rep-ses', text: 'report text' } },
+    }
+    const channels: ChannelRegistry = {
+      async send() { return 'msg-id' },
+      async edit() {},
+      async sendTyping() {},
+    }
+    const ctx = {
+      trigger: { kind: 'cron' as const, job: 'report:morning' },
+      channels,
+      agent,
+      db,
+      memory: passMemory,
+      safety: passSafety,
+    }
+    await mod.handle(ctx)
+    expect(putSessionCalls).toHaveLength(0)
+  })
+
+  test('reports runReport does not call getSession (no resume)', async () => {
+    const { reportModules } = await import('../modules/reports/index.js')
+    const mod = reportModules.find(m => m.name === 'report:morning')!
+    const getSessionCalls: unknown[] = []
+    const db: DB = {
+      ...nullDb,
+      getSession: (...args) => { getSessionCalls.push(args); return null },
+    }
+    const agent: AgentRunner = {
+      async run(o) {
+        // Must not have resume set
+        expect(o.resume).toBeUndefined()
+        return { sessionId: 'rep-ses', text: 'text' }
+      },
+    }
+    const channels: ChannelRegistry = {
+      async send() { return 'msg-id' },
+      async edit() {},
+      async sendTyping() {},
+    }
+    const ctx = {
+      trigger: { kind: 'cron' as const, job: 'report:morning' },
+      channels,
+      agent,
+      db,
+      memory: passMemory,
+      safety: passSafety,
+    }
+    await mod.handle(ctx)
+    expect(getSessionCalls).toHaveLength(0)
+  })
+
+  test('opportunity scan does not call putSession', async () => {
+    const { opportunityModules } = await import('../modules/opportunity/index.js')
+    const mod = opportunityModules.find(m => m.name === 'opportunity:scan')!
+    const putSessionCalls: unknown[] = []
+    const db: DB = {
+      ...nullDb,
+      putSession: (...args) => { putSessionCalls.push(args) },
+    }
+    const agent: AgentRunner = {
+      async run() { return { sessionId: 'opp-ses', text: 'opportunity text' } },
+    }
+    const channels: ChannelRegistry = {
+      async send() { return 'msg-id' },
+      async edit() {},
+      async sendTyping() {},
+    }
+    const ctx = {
+      trigger: { kind: 'cron' as const, job: 'opportunity:scan' },
+      channels,
+      agent,
+      db,
+      memory: passMemory,
+      safety: passSafety,
+    }
+    await mod.handle(ctx)
+    expect(putSessionCalls).toHaveLength(0)
+  })
+})
+
 describe('formatAgentError', () => {
   test('session limit → clear quota message with reset time + L0 hint', () => {
     const msg = formatAgentError("Claude Code returned an error result: You've hit your session limit · resets 2am (Asia/Shanghai)")
@@ -1467,7 +1664,7 @@ describe('command fast-paths', () => {
   })
 
   test('我的建议 (owner) → sends ledger from openDecisions', async () => {
-    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.parse('2026-04-02T00:00:00Z'), symbol: 'AVGO', direction: 'sell', rationale: '估值高' }] }
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.parse('2026-04-02T00:00:00Z'), symbol: 'AVGO', direction: 'sell', rationale: '估值高', confidence: null }] }
     const { agent, calls: aCalls } = agentSpy()
     const { registry, calls } = makeRegistry()
     const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
@@ -1502,7 +1699,7 @@ describe('command fast-paths', () => {
   })
 
   test('我的建议 (non-owner) → locked, no ledger', async () => {
-    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.now(), symbol: 'AVGO', direction: 'sell', rationale: 'secret' }] }
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.now(), symbol: 'AVGO', direction: 'sell', rationale: 'secret', confidence: null }] }
     const { agent, calls: aCalls } = agentSpy()
     const { registry, calls } = makeRegistry()
     const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
@@ -1519,5 +1716,307 @@ describe('command fast-paths', () => {
     await d.dispatch(makeInbound({ content: 'NVDA', chatId: 'bt-1' }))
     expect(aCalls).toHaveLength(0)
     expect(calls.find(c => c.text.includes('MOCK_QUOTE'))).toBeDefined()
+  })
+})
+
+// ── Phase 3: budget degrade gate ─────────────────────────────────────────────
+
+/** Helper: build a DB stub with a getTodayCost override. */
+function makeDbWithCost(todayCost: number): DB & { getTodayCost: () => number } {
+  return {
+    ...nullDb,
+    getTodayCost: () => todayCost,
+  }
+}
+
+describe('Phase 3: budget degrade gate — level 2 blocks opus/sonnet', () => {
+  // DAILY_COST_BUDGET_USD=5; level 2 kicks in at cost >= 5
+  const budgetExceededCost = 5.5
+
+  test('level 2: opus request is blocked — no agent.run, sends budget message', async () => {
+    const agentCalls: string[] = []
+    const agent: AgentRunner = {
+      async run({ prompt }) { agentCalls.push(prompt); return { text: 'deep analysis' } },
+    }
+    const { registry, calls } = makeRegistry()
+    const db = makeDbWithCost(budgetExceededCost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'bud-opus-l2' }))
+
+    // Agent must NOT have been called
+    expect(agentCalls).toHaveLength(0)
+    // A budget message was sent
+    const budgetMsg = calls.find(c => c.text.includes('额度已达上限'))
+    expect(budgetMsg).toBeDefined()
+    expect(budgetMsg?.text).toContain('行情查询')
+  })
+
+  test('level 2: sonnet request is blocked — no agent.run, sends budget message', async () => {
+    const agentCalls: string[] = []
+    const agent: AgentRunner = {
+      async run({ prompt }) { agentCalls.push(prompt); return { text: 'reply' } },
+    }
+    const { registry, calls } = makeRegistry()
+    const db = makeDbWithCost(budgetExceededCost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    // 今天有什么市场新闻 → sonnet tier
+    await d.dispatch(makeInbound({ content: '今天有什么市场新闻', chatId: 'bud-sonnet-l2' }))
+
+    expect(agentCalls).toHaveLength(0)
+    const budgetMsg = calls.find(c => c.text.includes('额度已达上限'))
+    expect(budgetMsg).toBeDefined()
+  })
+
+  test('level 2: haiku request still runs (not blocked)', async () => {
+    const agentCalls: string[] = []
+    const agent: AgentRunner = {
+      async run({ prompt }) { agentCalls.push(prompt); return { text: 'hi' } },
+    }
+    const { registry } = makeRegistry()
+    const db = makeDbWithCost(budgetExceededCost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    // 你好 → haiku tier
+    await d.dispatch(makeInbound({ content: '你好', chatId: 'bud-haiku-l2' }))
+
+    // Agent should still run
+    expect(agentCalls).toHaveLength(1)
+  })
+
+  test('level 2: L0 quote is NEVER affected (handled before gate)', async () => {
+    const agentCalls: string[] = []
+    const agent: AgentRunner = {
+      async run({ prompt }) { agentCalls.push(prompt); return { text: 'agent reply' } },
+    }
+    const { registry, calls } = makeRegistry()
+    const db = makeDbWithCost(budgetExceededCost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    // NVDA 现价 → quote tier with symbol → L0 fast path
+    await d.dispatch(makeInbound({ content: 'NVDA 现价多少', chatId: 'bud-quote-l2' }))
+
+    // Agent should NOT run (L0 handles it), and quote result should appear
+    expect(agentCalls).toHaveLength(0)
+    const quoteMsg = calls.find(c => c.text.includes('MOCK_QUOTE'))
+    expect(quoteMsg).toBeDefined()
+  })
+
+  test('level 2: blocked request is audited (kind=out)', async () => {
+    const agent: AgentRunner = {
+      async run() { return { text: 'should not run' } },
+    }
+    const { registry } = makeRegistry()
+    const { db: trackingDb, auditRows } = makeTrackingDb()
+    const dbWithCost = { ...trackingDb, getTodayCost: () => budgetExceededCost }
+    const d = new Dispatcher([], registry, agent, dbWithCost, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatch(makeInbound({ content: 'NVDA 估值分析', chatId: 'bud-audit-l2' }))
+
+    const outRow = auditRows.find(r => r.kind === 'out')
+    expect(outRow).toBeDefined()
+    expect(outRow?.payload).toContain('budget_blocked')
+  })
+})
+
+describe('Phase 3: budget degrade gate — level 1 downgrades tier', () => {
+  // L1 threshold at cost >= 4.0 (budget=5, ratio=0.8)
+  const level1Cost = 4.5
+
+  test('level 1: opus request uses sonnet model (downgraded)', async () => {
+    const agentCalls: Array<{ model?: string }> = []
+    const agent: AgentRunner = {
+      async run({ model }) { agentCalls.push({ model }); return { text: 'reply' } },
+    }
+    const { registry } = makeRegistry()
+    const db = makeDbWithCost(level1Cost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    // 深度分析 → opus tier → should be downgraded to sonnet
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'bud-l1-opus' }))
+
+    expect(agentCalls).toHaveLength(1)
+    expect(agentCalls[0]!.model).toBe(SONNET_MODEL)
+  })
+
+  test('level 1: downgraded response includes degrade notice', async () => {
+    const agent: AgentRunner = {
+      async run() { return { text: 'analysis result' } },
+    }
+    const { registry, editCalls } = makeRegistry({ sendIds: ['ph-l1'] })
+    const db = makeDbWithCost(level1Cost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'bud-l1-notice' }))
+
+    const finalText = editCalls[0]?.text ?? ''
+    expect(finalText).toContain('省额度模式')
+  })
+
+  test('level 1: haiku tier remains haiku (no further downgrade)', async () => {
+    const agentCalls: Array<{ model?: string }> = []
+    const agent: AgentRunner = {
+      async run({ model }) { agentCalls.push({ model }); return { text: 'hi' } },
+    }
+    const { registry } = makeRegistry()
+    const db = makeDbWithCost(level1Cost)
+    const d = new Dispatcher([], registry, agent, db, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatch(makeInbound({ content: '你好', chatId: 'bud-l1-haiku' }))
+
+    expect(agentCalls).toHaveLength(1)
+    expect(agentCalls[0]!.model).toBe(HAIKU_MODEL)
+  })
+})
+
+describe('Phase 3: budget degrade gate — alert events bypass gate', () => {
+  // Even at level 2 cost, dispatchEvent must not be gated
+  const budgetExceededCost = 5.5
+
+  test('dispatchEvent at level 2 still triggers alert module', async () => {
+    const handled: string[] = []
+    const alertMod: Module = {
+      name: 'alerts',
+      events: ['stop_hit', 'concentration_breach', 'thesis_decay'],
+      targetChat: REPORT_DM,
+      async handle(ctx: ModuleContext) {
+        if (ctx.trigger.kind === 'event') handled.push(ctx.trigger.event)
+      },
+    }
+    const { registry } = makeRegistry()
+    const db = makeDbWithCost(budgetExceededCost)
+    const d = new Dispatcher([alertMod], registry, makeAgent({}), db, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatchEvent({ event: 'stop_hit', key: 'stop_hit:AVGO', summary: 'AVGO 止损' }, REPORT_DM)
+
+    expect(handled).toHaveLength(1)
+    expect(handled[0]).toBe('stop_hit')
+  })
+})
+
+describe('Phase 3: budget degrade gate — getTodayCost absent (stubDb)', () => {
+  test('DB without getTodayCost → level=0, normal flow', async () => {
+    const agentCalls: Array<{ model?: string }> = []
+    const agent: AgentRunner = {
+      async run({ model }) { agentCalls.push({ model }); return { text: 'ok' } },
+    }
+    const { registry } = makeRegistry()
+    // nullDb does NOT have getTodayCost → optional chain returns 0 → level 0
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
+
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'bud-stub-db' }))
+
+    // Should run with opus model (no degradation)
+    expect(agentCalls).toHaveLength(1)
+    expect(agentCalls[0]!.model).toBe(OPUS_MODEL)
+  })
+})
+
+// ── 知识层召回:隐私边界 + 弱依赖(Tier 2) ──────────────────────────────────────
+describe('knowledge recall — 隐私边界 + 弱依赖', () => {
+  const realFetch = globalThis.fetch
+  let searchCalls: number
+  let ingestCalls: Array<Record<string, unknown>>
+  // 受控 fetch:记录 /search 与 /ingest 调用,/search 返回一条高分结果,/ingest 记录 body 后回 ok。
+  function installFetch(opts: { searchThrows?: boolean } = {}): void {
+    searchCalls = 0
+    ingestCalls = []
+    // @ts-expect-error — 测试替身
+    globalThis.fetch = async (url: string, init?: { body?: string }) => {
+      const u = String(url)
+      if (u.includes('/search')) {
+        searchCalls++
+        if (opts.searchThrows) throw new Error('kb down')
+        return { ok: true, json: async () => ({ results: [
+          { artifact_id: 1, kind: 'thesis', ticker: 'NVDA', title: 'NVDA 旧论点', created_at: 1781835681, source_path: null, score: 0.6, snippet: 'CUDA 护城河' },
+        ] }) }
+      }
+      if (u.includes('/ingest')) {
+        ingestCalls.push(init?.body ? JSON.parse(init.body) : {})
+      }
+      return { ok: true, json: async () => ({ artifact_id: 1, chunks: 1, ok: true }) }
+    }
+  }
+  afterEach(() => { globalThis.fetch = realFetch })
+
+  // 长分析回复(≥400字,含 NVDA)→ 触发自动入库;短回复/无标的不触发。
+  const LONG_NVDA = '对 NVDA 的深度分析。' + '数据中心 GPU 需求强劲,CUDA 软件生态构成护城河。'.repeat(20)
+
+  test('主人 + 分析档 → 注入历史研究召回块', async () => {
+    installFetch()
+    const agentCalls: Array<{ prompt: string }> = []
+    const agent = makeAgent({ result: { text: 'x' }, calls: agentCalls })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'kb-owner', userId: OWNER_ID }))
+    expect(searchCalls).toBe(1)
+    expect(agentCalls[0]!.prompt).toContain('历史研究召回')
+    expect(agentCalls[0]!.prompt).toContain('CUDA 护城河')
+  })
+
+  test('非主人 → 不召回(不调 kbSearch,隐私边界)', async () => {
+    installFetch()
+    const agentCalls: Array<{ prompt: string }> = []
+    const agent = makeAgent({ result: { text: 'x' }, calls: agentCalls })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'kb-other', userId: 'uid-stranger' }))
+    expect(searchCalls).toBe(0)
+    expect(agentCalls[0]!.prompt).not.toContain('历史研究召回')
+  })
+
+  test('haiku 闲聊 → 不召回(省 sidecar 调用)', async () => {
+    installFetch()
+    const agentCalls: Array<{ prompt: string }> = []
+    const agent = makeAgent({ result: { text: 'x' }, calls: agentCalls })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: '你好啊', chatId: 'kb-haiku', userId: OWNER_ID }))
+    expect(searchCalls).toBe(0)
+  })
+
+  test('sidecar 挂了 → 消息照常处理(弱依赖不阻断)', async () => {
+    installFetch({ searchThrows: true })
+    const agentCalls: Array<{ prompt: string }> = []
+    const agent = makeAgent({ result: { text: 'x' }, calls: agentCalls })
+    const { registry, calls } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'kb-down', userId: OWNER_ID }))
+    // kbSearch 抛错被吞 → agent 仍跑、回复仍发出
+    expect(agentCalls).toHaveLength(1)
+    expect(calls.length).toBeGreaterThan(0)
+  })
+
+  // ── 自动入库写路径(隐私敏感:主人内容才进持久库) ──────────────────────────
+  test('主人 + 分析档 + 长回复带标的 → 自动入库(kind=analysis,body=clean)', async () => {
+    installFetch()
+    const agent = makeAgent({ result: { text: LONG_NVDA }, calls: [] })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'ing-owner', userId: OWNER_ID }))
+    await new Promise(r => setTimeout(r, 20)) // 自动入库是 fire-and-forget(void),等微任务 flush
+    expect(ingestCalls).toHaveLength(1)
+    expect(ingestCalls[0]!.kind).toBe('analysis')
+    expect(String(ingestCalls[0]!.ticker)).toContain('NVDA') // 归一形式 US.NVDA
+    expect(String(ingestCalls[0]!.body)).toContain('护城河')
+  })
+
+  test('非主人 + 长回复 → 不入库(他人内容绝不进持久库)', async () => {
+    installFetch()
+    const agent = makeAgent({ result: { text: LONG_NVDA }, calls: [] })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 深度分析', chatId: 'ing-other', userId: 'uid-stranger' }))
+    expect(ingestCalls).toHaveLength(0)
+  })
+
+  test('主人但短回复 → 不入库(滤掉查行情/闲聊)', async () => {
+    installFetch()
+    const agent = makeAgent({ result: { text: 'NVDA 现价 $210' }, calls: [] })
+    const { registry } = makeRegistry()
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    await d.dispatch(makeInbound({ content: 'NVDA 多少钱', chatId: 'ing-short', userId: OWNER_ID }))
+    expect(ingestCalls).toHaveLength(0)
   })
 })

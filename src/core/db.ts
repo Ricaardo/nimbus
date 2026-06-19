@@ -124,6 +124,8 @@ class SqliteDB implements DB {
       )
     `)
     this.#db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_slug ON memories(slug) WHERE slug IS NOT NULL')
+    // 命中率闭环(Tier 3b):记录建议时的研究置信度,周复盘对照结果评校准。
+    try { this.#db.run('ALTER TABLE decisions ADD COLUMN confidence TEXT') } catch { /* column exists */ }
   }
 
   getSession(channel: string, chatId: string): { sdkSessionId?: string; model?: string; cwd?: string } | null {
@@ -304,17 +306,17 @@ class SqliteDB implements DB {
 
   // ── Decision ledger (可问责) ───────────────────────────────────────────────
 
-  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void {
+  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void {
     this.#db
-      .prepare('INSERT INTO decisions (ts, channel, chat_id, symbol, direction, rationale, status) VALUES (?, ?, ?, ?, ?, ?, \'open\')')
-      .run(Date.now(), d.channel ?? null, d.chatId ?? null, d.symbol.toUpperCase(), d.direction ?? null, d.rationale ?? null)
+      .prepare('INSERT INTO decisions (ts, channel, chat_id, symbol, direction, rationale, confidence, status) VALUES (?, ?, ?, ?, ?, ?, ?, \'open\')')
+      .run(Date.now(), d.channel ?? null, d.chatId ?? null, d.symbol.toUpperCase(), d.direction ?? null, d.rationale ?? null, d.confidence ?? null)
   }
 
   /** Open decisions (newest first) for the weekly reflection to score. */
-  openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }> {
+  openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }> {
     return this.#db
-      .prepare<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }, [number]>(
-        "SELECT id, ts, symbol, direction, rationale FROM decisions WHERE status='open' ORDER BY id DESC LIMIT ?",
+      .prepare<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }, [number]>(
+        "SELECT id, ts, symbol, direction, rationale, confidence FROM decisions WHERE status='open' ORDER BY id DESC LIMIT ?",
       )
       .all(limit)
   }

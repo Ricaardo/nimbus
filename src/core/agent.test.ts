@@ -19,8 +19,9 @@ import type {
   SDKResultSuccess,
 } from '@anthropic-ai/claude-agent-sdk'
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import { AgentRunnerImpl, assertSubscriptionMode } from './agent.js'
+import { AgentRunnerImpl, assertSubscriptionMode, filterMcp } from './agent.js'
 import { canUseTool } from './safety.js'
+import { MCP_DEFAULT_ALLOW } from '../config.js'
 
 // ── Helpers to build fake SDK messages (including stream_event) ──────────────
 
@@ -326,6 +327,46 @@ describe('AgentRunnerImpl — options wiring via injected queryFn', () => {
     expect(opts?.['canUseTool']).toBe(canUseTool)
   })
 
+  test('mcpAllow [] → options omit mcpServers entirely (zero-MCP haiku path)', async () => {
+    const { mockQuery, getCaptured } = makeMockQuery([
+      makeInit(SESSION),
+      makeResult(SESSION, 'ok'),
+    ])
+    const runner = new AgentRunnerImpl(mockQuery)
+    await runner.run({ prompt: 'hello', mcpAllow: [] })
+    const opts = getCaptured()?.options as Record<string, unknown> | undefined
+    // Empty allow-list MUST mean zero MCP, NOT a fallthrough to MCP_DEFAULT_ALLOW.
+    expect(Object.keys(opts!)).not.toContain('mcpServers')
+  })
+
+  test('default mcpAllow (omitted) never injects longbridge/cmc-mcp/futu-stock', async () => {
+    const { mockQuery, getCaptured } = makeMockQuery([
+      makeInit(SESSION),
+      makeResult(SESSION, 'ok'),
+    ])
+    const runner = new AgentRunnerImpl(mockQuery)
+    await runner.run({ prompt: 'hello' }) // no mcpAllow → MCP_DEFAULT_ALLOW
+    const opts = getCaptured()?.options as Record<string, unknown> | undefined
+    const servers = (opts?.['mcpServers'] ?? {}) as Record<string, unknown>
+    for (const banned of ['longbridge', 'cmc-mcp', 'futu-stock']) {
+      expect(Object.keys(servers)).not.toContain(banned)
+    }
+  })
+
+  test('mcpAllow [tavily] → injected mcpServers is a subset of the allow-list', async () => {
+    const { mockQuery, getCaptured } = makeMockQuery([
+      makeInit(SESSION),
+      makeResult(SESSION, 'ok'),
+    ])
+    const runner = new AgentRunnerImpl(mockQuery)
+    await runner.run({ prompt: 'hello', mcpAllow: ['tavily'] })
+    const opts = getCaptured()?.options as Record<string, unknown> | undefined
+    // Robust to whether 'tavily' actually exists in the local MCP config:
+    // if any servers are injected, their keys must be within the allow-list.
+    const servers = (opts?.['mcpServers'] ?? {}) as Record<string, unknown>
+    for (const k of Object.keys(servers)) expect(['tavily']).toContain(k)
+  })
+
   test('options contain no API key fields', async () => {
     const { mockQuery, getCaptured } = makeMockQuery([
       makeInit(SESSION),
@@ -502,6 +543,57 @@ function makeMockQueryWithPartial(messages: SDKMessage[]) {
   }
   return { mockQuery: mockQuery as any }
 }
+
+// ── filterMcp — Phase 0-1 MCP whitelist ──────────────────────────────────────
+
+describe('filterMcp', () => {
+  const ALL = {
+    tavily: { type: 'sse', url: 'http://tavily' },
+    alpaca: { type: 'sse', url: 'http://alpaca' },
+    longbridge: { type: 'sse', url: 'http://lb' },
+    'cmc-mcp': { type: 'sse', url: 'http://cmc' },
+    'futu-stock': { type: 'sse', url: 'http://futu' },
+  }
+
+  test('returns only allowed keys when all are present', () => {
+    const result = filterMcp(ALL, ['tavily', 'alpaca'])
+    expect(Object.keys(result).sort()).toEqual(['alpaca', 'tavily'])
+    expect(result['tavily']).toBe(ALL.tavily)
+    expect(result['alpaca']).toBe(ALL.alpaca)
+  })
+
+  test('empty allow list returns empty object', () => {
+    const result = filterMcp(ALL, [])
+    expect(Object.keys(result)).toHaveLength(0)
+  })
+
+  test('allow list key absent in all map is silently skipped', () => {
+    const result = filterMcp(ALL, ['tavily', 'nonexistent'])
+    expect(Object.keys(result)).toEqual(['tavily'])
+  })
+
+  test('MCP_DEFAULT_ALLOW contains tavily and alpaca', () => {
+    expect(MCP_DEFAULT_ALLOW).toContain('tavily')
+    expect(MCP_DEFAULT_ALLOW).toContain('alpaca')
+  })
+
+  test('MCP_DEFAULT_ALLOW does not contain longbridge, cmc-mcp, or futu-stock', () => {
+    expect(MCP_DEFAULT_ALLOW).not.toContain('longbridge')
+    expect(MCP_DEFAULT_ALLOW).not.toContain('cmc-mcp')
+    expect(MCP_DEFAULT_ALLOW).not.toContain('futu-stock')
+  })
+
+  test('filtering with [longbridge] returns only longbridge', () => {
+    const result = filterMcp(ALL, ['longbridge'])
+    expect(Object.keys(result)).toEqual(['longbridge'])
+  })
+
+  test('does not mutate the original all map', () => {
+    const snapshot = { ...ALL }
+    filterMcp(ALL, ['tavily'])
+    expect(Object.keys(ALL)).toEqual(Object.keys(snapshot))
+  })
+})
 
 describe('stale session retry', () => {
   test('No conversation found → retries once without resume, succeeds', async () => {

@@ -146,3 +146,11 @@ trade-journal weekly/monthly（统计 + 教训）
 - ✅ 开仓 → 用户感受："AI 像严格的 risk officer，逼我答完才让买"
 - ✅ 平仓 → 用户感受："AI 立刻问我学到了什么"
 - ✅ 周末 → 用户主动找 AI 周报（不是反过来）
+
+## 📚 入知识库（周报/复盘产出后）
+
+周报或行为复盘成稿后入库（kind=journal），让执行弱点/有效打法被未来对话语义召回：
+
+```bash
+bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind journal --title "周复盘 2026-06-21" --file <report.md>
+```

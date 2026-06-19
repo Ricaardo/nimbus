@@ -9,7 +9,10 @@ import type { PermissionBroker } from './permission.js'
 import { maybeAppendDisclaimer } from './disclaimer.js'
 import { classify, type Tier } from './router.js'
 import { recallMemories, rememberPreference, recordDecision, nowLine } from './memory.js'
+import { kbSearch, formatRecall, kbIngest } from './knowledge.js'
+import { extractSymbols } from './symbol.js'
 import { fetchQuotes as defaultFetchQuotes } from '../modules/quote/index.js'
+import { degradeLevel, applyDegrade } from './budget.js'
 
 /** Injectable quote fetcher — defaults to real fetchQuotes; override in tests. */
 export type QuoteFetcher = (symbols: string[]) => Promise<string>
@@ -118,12 +121,12 @@ const stubSafety: Safety = {
  */
 /** Parse a trailing ===DECISION=== JSON block (one or array) → ledger rows,
  *  and return the text with the block stripped (so users don't see machine JSON). */
-export function extractDecisions(text: string): { clean: string; decisions: Array<{ symbol: string; direction?: string; rationale?: string }> } {
+export function extractDecisions(text: string): { clean: string; decisions: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string }> } {
   const idx = text.indexOf('===DECISION===')
   if (idx < 0) return { clean: text, decisions: [] }
   const clean = text.slice(0, idx).trimEnd()
   const blob = text.slice(idx + '===DECISION==='.length).trim()
-  const out: Array<{ symbol: string; direction?: string; rationale?: string }> = []
+  const out: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string }> = []
   try {
     const parsed = JSON.parse(blob) as unknown
     const arr = Array.isArray(parsed) ? parsed : [parsed]
@@ -131,10 +134,13 @@ export function extractDecisions(text: string): { clean: string; decisions: Arra
       const o = d as Record<string, unknown>
       const symbol = typeof o['symbol'] === 'string' ? (o['symbol'] as string) : ''
       if (!symbol) continue
+      // confidence 可为字符串(高/中/低)或数字(0~1) → 统一存字符串,供命中率闭环评校准。
+      const conf = o['confidence']
       out.push({
         symbol,
         direction: typeof o['direction'] === 'string' ? (o['direction'] as string) : undefined,
         rationale: typeof o['rationale'] === 'string' ? (o['rationale'] as string) : undefined,
+        confidence: typeof conf === 'string' ? conf : typeof conf === 'number' ? String(conf) : undefined,
       })
     }
   } catch { /* malformed → just strip, store nothing */ }
@@ -310,14 +316,31 @@ export class Dispatcher {
     const { tier, symbols } = classify(inbound.content)
 
     // L0 fast path: pure quote request with resolvable symbols (no agent).
+    // ★ Must run BEFORE the budget gate — L0 quotes are never affected by budget.
     if (tier === 'quote' && symbols.length > 0) {
       await this.#handleQuote(inbound, symbols)
       return
     }
 
+    // ── Budget degrade gate (Phase 3) ─────────────────────────────────────────
+    // Only applied to interactive #process; dispatchEvent/runCron are not gated.
+    const todayCost = (this.#db as { getTodayCost?: () => number }).getTodayCost?.() ?? 0
+    const level = degradeLevel(todayCost)
+    const { tier: effTier, blocked } = applyDegrade(tier, level)
+
+    if (blocked) {
+      // Level 2: deep analysis paused — short-circuit without calling agent.
+      const blockedMsg = '⚠️ 今日额度已达上限，深度分析暂停至明日；行情查询（如「NVDA」）仍可用。'
+      const auditHeader = JSON.stringify({ src: 'budget_blocked', tier, level, portfolio_as_of: null, event_key: null })
+      this.#db.audit({ channel: inbound.channel, chatId: inbound.chatId, user: inbound.user, kind: 'out', payload: `${auditHeader}\n${blockedMsg}` })
+      await this.#channels.send(inbound.channel, inbound.chatId, blockedMsg, { replyTo: inbound.messageId })
+      return
+    }
+
     // Tier 只选模型(成本档);思考深度交给 agent.ts 的 adaptive thinking 自行决定。
-    const model = tier === 'opus' ? modelFor('opus') : tier === 'haiku' ? modelFor('haiku') : modelFor('sonnet')
-    await this.#runConversation(inbound, isOwner, tier, model)
+    const model = effTier === 'opus' ? modelFor('opus') : effTier === 'haiku' ? modelFor('haiku') : modelFor('sonnet')
+    const degraded = effTier !== tier
+    await this.#runConversation(inbound, isOwner, effTier, model, degraded)
   }
 
   /** "记住 X" → store a lasting preference (owner-only). Returns true if handled. */
@@ -407,11 +430,16 @@ export class Dispatcher {
 
   /** Assemble the agent prompt: [now] [privacy-guard?] [context] [recall?] [guardrail?] --- [user].
    *  ★隐私隔离:持仓画像/记忆/护栏只对主人本人注入;他人完全不注入。
-   *  P0 省额度:持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。 */
-  #buildPrompt(inbound: InboundMsg, isOwner: boolean, prior: string | undefined): string {
-    const ctxPrefix = isOwner && !prior ? this.#memory.buildContext() : ''
+   *  P0 省额度:持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。
+   *  Phase 1: haiku tier 永不注入 buildContext(闲聊不需要持仓画像)。 */
+  async #buildPrompt(inbound: InboundMsg, isOwner: boolean, prior: string | undefined, tier: Tier): Promise<string> {
+    // haiku = 闲聊/问候,不需要持仓画像,永不注入 buildContext。
+    const ctxPrefix = isOwner && !prior && tier !== 'haiku' ? this.#memory.buildContext() : ''
     const guardrailInstruction = isOwner ? guardrailDetect(inbound.content) : null
     const recalled = isOwner ? recallMemories(inbound.content) : []
+    // 知识层语义召回:只对主人 + 分析档(sonnet/opus,闲聊 haiku 跳过省 sidecar 调用)。
+    // 弱依赖:sidecar 挂了返回 [] 不阻塞。
+    const kb = isOwner && tier !== 'haiku' ? await kbSearch(inbound.content) : []
     const userLine = `[${inbound.user} @ ${inbound.ts}] ${inbound.content}`
 
     const parts: string[] = [nowLine()] // 每轮注入当前北京时间(给 agent 时间概念)
@@ -425,16 +453,18 @@ export class Dispatcher {
     }
     if (ctxPrefix) parts.push(ctxPrefix)
     if (recalled.length > 0) parts.push('【相关记忆（你过去说过/做过）】\n' + recalled.map(m => `• ${m}`).join('\n'))
+    const kbBlock = formatRecall(kb)
+    if (kbBlock) parts.push(kbBlock)
     if (guardrailInstruction) parts.push(guardrailInstruction)
     return `${parts.join('\n\n')}\n\n---\n\n${userLine}`
   }
 
   /** Full agent conversation: prompt build → placeholder/streaming → agent.run →
    *  error handling → decision ledger + outbox → deliver (edit/chunk/send). */
-  async #runConversation(inbound: InboundMsg, isOwner: boolean, tier: Tier, model: string): Promise<void> {
+  async #runConversation(inbound: InboundMsg, isOwner: boolean, tier: Tier, model: string, degraded = false): Promise<void> {
     const chatId = inbound.chatId
     const prior = this.#db.getSession(inbound.channel, chatId)?.sdkSessionId
-    const prompt = this.#buildPrompt(inbound, isOwner, prior)
+    const prompt = await this.#buildPrompt(inbound, isOwner, prior, tier)
 
     // Audit inbound message (enriched with src header + tier)
     const stateForAudit = this.#memory.loadPortfolioState()
@@ -509,6 +539,13 @@ export class Dispatcher {
           }
         : undefined
 
+      // Phase 1: 按 tier 注入不同 MCP 白名单(省工具定义 token)。
+      // haiku=闲聊:零 MCP,最省。sonnet=分析:tavily。opus=深度:tavily+alpaca。
+      const mcpAllow: readonly string[] =
+        tier === 'haiku' ? [] :
+        tier === 'sonnet' ? ['tavily'] :
+        /* opus */ ['tavily', 'alpaca']
+
       const result = await this.#agent.run({
         prompt,
         resume: prior,
@@ -516,6 +553,7 @@ export class Dispatcher {
         onText: streamOnText,
         approver,
         blockAccount: !isOwner, // 非本人:禁查账户/持仓工具
+        mcpAllow,
       })
       sessionId = result.sessionId
       text = result.text
@@ -553,15 +591,35 @@ export class Dispatcher {
 
     // Decision ledger: strip + record any ===DECISION=== block the agent appended.
     // ★只记录主人本人的决策(他人对话不进台账/记忆)。
+    // ★所有主人专属的写入(决策台账 + 知识库自动入库)统一收在这一个 isOwner 闸下,
+    //  防未来编辑让两处 owner 检查 desync 而泄露他人内容。
     const { clean, decisions } = extractDecisions(text || '(no response)')
     if (isOwner) {
       for (const d of decisions) {
-        recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale })
+        recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale, confidence: d.confidence })
+      }
+
+      // 知识层自动入库:把主人在分析档(sonnet/opus)产出的实质分析沉淀为可召回资产,
+      // 让知识库从真实使用里被动生长(不靠 agent 自觉跑 kb-ingest)。弱依赖,fire-and-forget。
+      const body = clean.trim()
+      const symbols = extractSymbols(`${inbound.content} ${body}`)
+      // 只沉淀:分析档(非闲聊 haiku) + 够长 + 带标的(滤掉查行情/无标的杂问)。
+      if (tier !== 'haiku' && body.length >= 400 && symbols.length > 0) {
+        const date = new Date().toISOString().slice(0, 10)
+        void kbIngest({
+          kind: 'analysis',
+          ticker: symbols[0],
+          title: `对话分析 ${symbols.slice(0, 3).join('/')} ${date}`,
+          source_path: `chat:${inbound.channel}:${chatId}:${turnStart}`,
+          body,
+          meta: { tier, model, symbols, source: 'conversation' },
+        })
       }
     }
     const rawText = clean || '(no response)'
-    // Apply disclaimer post-processing
-    const finalText = maybeAppendDisclaimer(rawText)
+    // Apply disclaimer post-processing; append degrade notice when model was downgraded.
+    const withDegrade = degraded ? `${rawText}\n\n_(省额度模式：已用更轻量模型)_` : rawText
+    const finalText = maybeAppendDisclaimer(withDegrade)
 
     // Audit outbound message (enriched with src header + tier)
     const outAuditHeader = JSON.stringify({ src: 'message', tier, model, portfolio_as_of: stateForAudit?.as_of ?? null, event_key: null })

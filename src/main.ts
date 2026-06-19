@@ -17,6 +17,7 @@ import { reportModules } from './modules/reports/index.js'
 import { portfolioRefreshModules } from './modules/portfolio-refresh/index.js'
 import { opportunityModules } from './modules/opportunity/index.js'
 import { reflectionModules } from './modules/reflection/index.js'
+import { disclosureTrackerModules } from './modules/disclosure-tracker/index.js'
 import { costReportModules } from './modules/ops/cost-report.js'
 import { healthModules } from './modules/ops/health.js'
 import { paperModules } from './modules/paper/index.js'
@@ -71,7 +72,7 @@ const registry = new SimpleRegistry()
 registry.register(discordChannel)
 
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
-const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...costReportModules, ...healthModules, ...alertModules]
+const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...costReportModules, ...healthModules, ...alertModules]
 
 // Human-in-the-loop approval: ASK-listed ops (publish/send/destructive) prompt
 // the user over their chat and wait for `y/n <code>` before the agent proceeds.
@@ -89,7 +90,7 @@ const dispatcher = new Dispatcher(
 )
 
 // ── Scheduler ──────────────────────────────────────────────────────────────────
-const cronModules = [...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...costReportModules, ...healthModules]
+const cronModules = [...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...costReportModules, ...healthModules]
 const scheduler = new Scheduler(dispatcher, db)
 for (const mod of cronModules) {
   scheduler.register(mod)

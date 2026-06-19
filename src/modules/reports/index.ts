@@ -23,25 +23,18 @@ async function runReport(ctx: ModuleContext, prompt: string): Promise<void> {
   const ctxPrefix = ctx.memory.buildContext()
   const fullPrompt = `${nowLine()}\n${ctxPrefix}\n\n---\n\n${prompt}`
 
-  const prior = ctx.db.getSession('discord', REPORT_DM)?.sdkSessionId
-
+  // 报告每次全新 session — 不 resume 也不 putSession。
+  // REPORT_DM 同时是主人日常对话 DM，resume 会污染主人的对话上下文。
   let text = ''
-  let sessionId: string | undefined
   try {
     const result = await ctx.agent.run({
       prompt: fullPrompt,
-      resume: prior,
       model: modelFor('sonnet'),
     })
     text = result.text
-    sessionId = result.sessionId
   } catch (err) {
     await ctx.channels.send('discord', REPORT_DM, `⚠️ 日报生成出错：${err}`, {})
     return
-  }
-
-  if (sessionId) {
-    ctx.db.putSession('discord', REPORT_DM, { sdkSessionId: sessionId })
   }
 
   if (text) {

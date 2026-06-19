@@ -77,6 +77,14 @@
 ### 2.6 btcdca 小程序（~/btcdca-miniprogram, 微信前端）
 - 资产估值/QDII/懒人组合/Serenity观察。独立前端，连第三方(btcdca.me 非自有)+本地快照兜底。
 
+### 2.7 知识层 / RAG（Investment Research OS 升级，2026-06）
+- **目的**：终结"每次分析冷启动"——把研究报告/thesis/周复盘/filing 做语义检索，分析前自动召回历史判断。详见 [research-os-upgrade-plan.md](research-os-upgrade-plan.md)。
+- **kb-server sidecar**（`scripts/kb-server.py`，launchd `com.nimbus.kb-server`，`127.0.0.1:6901`）：持有 fastembed 多语言模型(中英混排)+ `data/knowledge.db`(sqlite-vec 向量库)。为什么放 Python：bun:sqlite 默认禁用扩展加载，sqlite-vec 在 Python 零摩擦。
+- **Bun 侧** `src/core/knowledge.ts`：薄 HTTP 客户端(`kbSearch`/`kbIngest`)。**弱依赖**——sidecar 挂了召回返回空、bot 照常跑(health 模块每 20 分自检告警)。
+- **消费**：`dispatcher.#buildPrompt` 对主人 + 分析档(sonnet/opus)自动注入"历史研究召回"块；闲聊(haiku)跳过省调用。
+- **生产**：reflection 周复盘整篇入库；research/thesis-tracker/trade-journal skill 产出后调 `scripts/kb-ingest.ts` 入库(带 confidence/risk_score 进 meta，供前瞻验证)。历史回填 `bun run scripts/kb-ingest.ts backfill`。
+- 独立 venv `.venv-kb`(fastembed/sqlite-vec/fastapi)；模型 `paraphrase-multilingual-MiniLM-L12-v2`(384 维，运行时探测)。
+
 ---
 
 ## 3. 自发运转（cron 时刻表，CST）
@@ -108,11 +116,24 @@
 | Tavily / CMC | 搜索 / crypto | ✅ env |
 | futu OpenD | 行情/持仓/异动(异动需数据权限,现 -12104) | 常驻 + 代理 |
 | Longbridge MCP | **A股/港股/美股 报价+日线+财务三表+估值(持牌·最稳)** | ✅ secrets/mcp.json |
+| OpenBB(本地 MCP) | **美股基本面/SEC filings/transcripts/宏观 的免费聚合 fallback** | `.venv-openbb` + mcp.json(stdio) |
 | QuiverQuant / FINRA / followserenity / trump.fm | 国会/做空/白毛股神/Trump | 免费无 key |
 | akshare | A股 独家扫描(龙虎榜/资金流/涨停/大宗/北向) | 免费(爬虫,仅扫描用) |
 | baostock | ~~A股日线+财务~~ | ❌ 弃用(被 Surge 代理黑洞,裸 socket :10030) |
 | Schwab/嘉信 | — | ❌ 未配(不需要) |
 | ibkr-pipeline(ib_insync) | — | ❌ 不建(AI不下单,行情已够) |
+
+### 4.1 数据源优先级 doctrine（单一真相源，防 source drift）
+| 数据类 | 主源 | 回退1 | 回退2 |
+|---|---|---|---|
+| A/H 报价·财务·估值 | Longbridge MCP(持牌) | futu OpenD | akshare(仅兜底) |
+| A股独家扫描(龙虎榜/北向/涨停/大宗) | akshare | — | — |
+| 美股报价·基本面 | FMP / Finnhub / futu | **OpenBB** | — |
+| 美股 SEC/filings/transcripts | SEC EDGAR(直) | **OpenBB** | — |
+| 宏观 | FRED | **OpenBB**(多源聚合) | World Bank |
+| crypto | cmc-mcp | — | — |
+
+> OpenBB 价值在多源聚合 + filings/transcripts 统一接口(喂知识层 §2.7)，但 A/H 弱、无 A股独家扫描 → **不进 A/H 主链路、不替换持牌源**。
 
 ---
 
@@ -131,6 +152,12 @@ pkill -f 'bin/platform -config'; set -a; source .env; set +a
 nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d).log 2>&1 &
 
 # 依赖: futu OpenD 常驻 + Surge 代理(墙内 gateway)
+
+# kb-server(知识层 RAG sidecar): launchd 托管,常驻
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.kb-server.plist  # 装
+launchctl kickstart -k gui/$(id -u)/com.nimbus.kb-server                            # 重启
+curl -s localhost:6901/health                                                       # 健康
+# 弱依赖:挂了历史召回降级,bot 不崩;health cron 每 20 分自检告警
 ```
 
 ### 5.2 监控

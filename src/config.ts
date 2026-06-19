@@ -33,10 +33,35 @@ export const PAPER_TRADING = process.env.NIMBUS_PAPER_TRADING === '1'
 /** 单笔模拟单上限(USD,指纹失效时的兜底)。 */
 export const PAPER_MAX_ORDER_USD = Number(process.env.NIMBUS_PAPER_MAX_USD ?? '20000')
 
-// ── Usage / budget (Phase 1 省额度) ───────────────────────────────────────────
-/** Advisory daily cost budget (USD). Over this → stderr warning (not a hard block;
- *  never suppresses red-line alerts). Tune to taste. */
+// ── MCP whitelist (Phase 0-1 成本优化) ───────────────────────────────────────
+/**
+ * 默认挂载的 MCP server 白名单(普通对话/报告用)。
+ * longbridge/cmc/futu-stock 默认不挂:
+ *   - longbridge: skills 走 python,仅 paper 模块需要(定向 ['longbridge'])
+ *   - cmc/futu-stock: 无常规对话需要
+ * 省每次调用 ~50-70K token 工具定义。
+ */
+export const MCP_DEFAULT_ALLOW = ['tavily', 'alpaca'] as const
+
+// ── Usage / budget (Phase 1 省额度 / Phase 3 硬预算闸) ───────────────────────
+/**
+ * Daily cost budget tiers (USD):
+ *   level 0 — normal:      cost < DAILY_COST_BUDGET_USD * BUDGET_L1_RATIO
+ *   level 1 — downgrade:   cost >= DAILY_COST_BUDGET_USD * BUDGET_L1_RATIO
+ *               opus→sonnet, sonnet→haiku (still runs, lighter model)
+ *   level 2 — pause deep:  cost >= DAILY_COST_BUDGET_USD
+ *               opus/sonnet blocked; haiku/quote unaffected
+ * Red-line alerts (dispatchEvent/runCron) are NEVER subject to this gate.
+ * L0 quote fast-path is also NEVER affected (handled before gate runs).
+ */
+/** Advisory daily cost budget (USD). Level 2 (深度暂停) threshold. */
 export const DAILY_COST_BUDGET_USD = 5
+
+/** Level 1 (降档) ratio: cost >= budget * this → downgrade tier. Default 0.8. */
+export const BUDGET_L1_RATIO = Number(process.env.NIMBUS_BUDGET_L1_RATIO ?? '0.8')
+
+/** Whether the budget degrade gate is enabled. Set NIMBUS_BUDGET_DEGRADE=false to disable. */
+export const BUDGET_DEGRADE_ENABLED = process.env.NIMBUS_BUDGET_DEGRADE !== 'false'
 
 // ── Portfolio state ───────────────────────────────────────────────────────────
 export const PORTFOLIO_STATE_PATH = join(STATE_ROOT, 'portfolio_state.json')
@@ -81,6 +106,11 @@ export const QUOTE_TIMEOUT_MS = 10_000
  *  which lacks futu → L0 quotes fail. Override via NIMBUS_PYTHON env. */
 export const PYTHON_BIN = process.env.NIMBUS_PYTHON ?? `${homedir()}/miniforge3/bin/python3`
 
+/** 知识层 (RAG) sidecar — scripts/kb-server.py(fastembed + sqlite-vec)。
+ *  弱依赖:挂了 recall 优雅返回空,bot 照常运转。 */
+export const KB_BASE_URL = process.env.NIMBUS_KB_URL ?? 'http://127.0.0.1:6901'
+export const KB_DB_PATH = join(DATA_DIR, 'knowledge.db')
+
 /** Asia/Shanghai cron schedules for the three daily report jobs. */
 export const MORNING_CRON = '0 8 * * *'    // 08:00 CST — morning check
 export const PREMARKET_CRON = '0 21 * * *'  // 21:00 CST — US pre-market (day before)
@@ -93,6 +123,9 @@ export const OPPORTUNITY_CRON = '0 9 * * 1-5'
 export const REFLECTION_CRON = '0 21 * * 0'
 /** 成本周报 — 周一 08:30 CST,汇总上周各模型用量/成本/缓存命中。 */
 export const COST_REPORT_CRON = '30 8 * * 1'
+
+/** 披露追踪(Tier 4):每周一 07:00 CST,追踪持仓/观察名单的财报+SEC 文件 → 入知识库。 */
+export const DISCLOSURE_CRON = '0 7 * * 1'
 /** 健康自愈检查 — 每 20 分钟,异常才推(冷却内静默)。 */
 export const HEALTH_CRON = '*/20 * * * *'
 /** IBKR positions cache file (agent writes via connector; portfolio_state.py reads it). */

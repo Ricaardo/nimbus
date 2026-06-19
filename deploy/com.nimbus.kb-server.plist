@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.nimbus.kb-server.plist — launchd agent for the Nimbus knowledge-layer
+  sidecar (RAG: fastembed + sqlite-vec over data/knowledge.db).
+
+  INSTALL (run once):
+    cp ~/nimbus-stack/nimbus/deploy/com.nimbus.kb-server.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.kb-server.plist
+
+  RELOAD after code change:
+    launchctl kickstart -k gui/$(id -u)/com.nimbus.kb-server
+
+  UNLOAD:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.kb-server.plist
+
+  HEALTH:  curl -s localhost:6901/health
+
+  NOTE: Uses the dedicated .venv-kb interpreter (fastembed/sqlite-vec/fastapi).
+        Weak dependency — if this is down, nimbus recall degrades gracefully
+        (kbSearch returns []), the bot keeps running.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nimbus.kb-server</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/x/nimbus-stack/nimbus/.venv-kb/bin/python</string>
+    <string>/Users/x/nimbus-stack/nimbus/scripts/kb-server.py</string>
+  </array>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/kb-server.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/kb-server.log</string>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/x/nimbus-stack/nimbus</string>
+</dict>
+</plist>

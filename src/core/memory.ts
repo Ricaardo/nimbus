@@ -18,18 +18,18 @@ export interface MemoryStore {
   remember(m: { kind: string; text: string; source?: string; slug?: string }): void
   recall(query: string, limit?: number): string[]
   getPersistent(): string[]
-  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void
-  openDecisions(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }>
+  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void
+  openDecisions(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }>
   closeDecision(id: number, outcome: string): void
 }
 let store: MemoryStore | undefined
 export function setMemoryStore(s: MemoryStore): void { store = s }
 /** Record an explicit trade recommendation in the decision ledger (可问责). */
-export function recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void {
+export function recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void {
   store?.recordDecision(d)
 }
 /** Open decisions for the weekly reflection to score. */
-export function openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }> {
+export function openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }> {
   return store?.openDecisions(limit) ?? []
 }
 /** Resolve a ledger entry with an outcome (weekly reflection closes scored ones). */

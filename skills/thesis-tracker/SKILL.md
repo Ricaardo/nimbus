@@ -257,3 +257,13 @@ thesis_vs_price:
 | CEO/CFO 突然离职 | 强制重审 | 管理团队变化 = thesis 可能已变 |
 
 **AI 行为**：上述任何事件发生时，主动触发 thesis review + 建议 trade-journal 记录。
+
+## 📚 入知识库（thesis 创建/重大更新后必做）
+
+新建 thesis 或里程碑式更新后，入库（kind=thesis），让未来对该标的的分析自动召回历史论点与 decay 轨迹：
+
+```bash
+bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind thesis --ticker CRCL --title "CRCL 多头论点" --file <thesis.md>
+```
+
+弱依赖，失败不阻塞主流程。

@@ -19,3 +19,8 @@ skills/**/*.db-shm
 skills/**/__pycache__/
 skills/**/*.pyc
 workspace/
+
+# Python venvs (kb-server sidecar / OpenBB) — 环境artifact,勿提交
+.venv-kb/
+.venv-openbb/
+.venv/

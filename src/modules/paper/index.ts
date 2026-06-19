@@ -60,7 +60,7 @@ const paperTrade: Module = {
     // ── Step 1: 指纹验证(同一流程内,每次下单前) ──────────────────────────────
     let vtext = ''
     try {
-      const r = await ctx.agent.run({ prompt: VERIFY_PROMPT, model: modelFor('haiku'), effort: 'low' })
+      const r = await ctx.agent.run({ prompt: VERIFY_PROMPT, model: modelFor('haiku'), effort: 'low', mcpAllow: ['longbridge'] })
       vtext = r.text
     } catch (err) {
       await reply(`⚠️ 模拟盘验证出错,已中止下单:${err}`); return
@@ -96,6 +96,7 @@ const paperTrade: Module = {
         prompt: orderPrompt,
         model: modelFor('sonnet'),
         allowPaperTrade: true, // ★唯一放行长桥模拟盘下单的地方
+        mcpAllow: ['longbridge'], // 下单需要长桥 MCP
       })
       otext = r.text
     } catch (err) {

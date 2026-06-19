@@ -8,6 +8,7 @@
 
 import type { Module, ModuleContext } from '../module.js'
 import { nowLine, rememberMemory } from '../../core/memory.js'
+import { kbIngest } from '../../core/knowledge.js'
 import { REPORT_DM, REFLECTION_CRON, SKILLS_ROOT } from '../../config.js'
 import { modelFor } from '../../core/models.js'
 
@@ -81,8 +82,8 @@ const weeklyReflection: Module = {
     // Surface open decisions so reflection can score past recommendations.
     const open = ctx.db.openDecisions?.(30) ?? []
     const ledger = open.length > 0
-      ? '\n【本周/近期未结的建议(对照结果,该兑现/止损/作废的指出来)】\n' +
-        open.map(d => `  #${d.id} ${d.symbol} ${d.direction ?? ''} — ${d.rationale ?? ''}`).join('\n')
+      ? '\n【本周/近期未结的建议(对照结果,该兑现/止损/作废的指出来;有[置信]标注的,评一下当初置信度校准得准不准——高置信却错/低置信却对都值得记)】\n' +
+        open.map(d => `  #${d.id} ${d.symbol} ${d.direction ?? ''}${d.confidence ? ` [置信:${d.confidence}]` : ''} — ${d.rationale ?? ''}`).join('\n')
       : ''
     const prompt = `${nowLine()}\n${ctxPrefix}${ledger}\n\n---\n\n${REFLECT_PROMPT}`
     const prior = ctx.db.getSession('discord', REPORT_DM)?.sdkSessionId
@@ -103,6 +104,9 @@ const weeklyReflection: Module = {
     const lessons = parseLessons(text)
     const wk = new Date().toISOString().slice(0, 10)
     lessons.forEach((l, i) => rememberMemory('lesson', l, `lesson:${wk}:${i}`, 'weekly-reflection'))
+    // 整篇复盘入知识库(语义可召回,kind=reflection);弱依赖,失败不阻塞。
+    const human = text.split('===LESSONS===')[0]!.split('===CLOSE===')[0]!.trim() || text
+    void kbIngest({ kind: 'reflection', title: `周复盘 ${wk}`, source_path: `reflection:${wk}`, body: human, meta: { week: wk } })
 
     // 结清已有结果的台账条目(闭环问责:开了就要收尾,别让台账无限增长)。
     // 只结清本次确实在未结集合里的 id,防误关。
@@ -111,8 +115,7 @@ const weeklyReflection: Module = {
       if (openIds.has(c.id)) ctx.db.closeDecision?.(c.id, c.outcome || '已结清')
     }
 
-    // 推人类报告(去掉 LESSONS / CLOSE 机器段)。
-    const human = text.split('===LESSONS===')[0]!.split('===CLOSE===')[0]!.trim() || text
+    // 推人类报告(去掉 LESSONS / CLOSE 机器段;human 已在上方算好)。
     await ctx.channels.send('discord', REPORT_DM, human, {})
   },
 }

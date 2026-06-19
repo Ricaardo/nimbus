@@ -108,6 +108,9 @@ export interface AgentRunner {
     blockAccount?: boolean
     /** 长桥模拟盘下单放行(仅 paper 模块、指纹验证通过后)。 */
     allowPaperTrade?: boolean
+    /** MCP server whitelist for this run. Defaults to MCP_DEFAULT_ALLOW.
+     *  Pass [] for zero MCP (haiku/闲聊), ['longbridge'] for paper-trade. */
+    mcpAllow?: readonly string[]
   }): Promise<{ sessionId?: string; text: string }>
 }
 
@@ -163,9 +166,9 @@ export interface DB {
   getKv?(key: string): string | null
   setKv?(key: string, value: string): void
   /** Decision ledger: open recommendations for reflection to score. */
-  openDecisions?(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null }>
+  openDecisions?(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }>
   /** Record an explicit trade recommendation. */
-  recordDecision?(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string }): void
+  recordDecision?(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void
   /** Resolve a ledger entry with an outcome (weekly reflection closes scored ones). */
   closeDecision?(id: number, outcome: string): void
   /** Per-model usage summary over last N days (weekly cost report). */

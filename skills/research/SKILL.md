@@ -112,6 +112,26 @@ required_tools: ["websearch", "tavily", "context7"]
    - 多久没有催化 → 我会重审
 ```
 
+### 9️⃣ 风险评分 + 置信度（结构化收尾，供日后前瞻验证）
+
+研报末尾给两个机读分，便于知识库按标的对比、周复盘算"判断命中率"：
+
+- **confidence**（0~1）：你对这个 thesis 的总体置信度。骑墙=低，敢拍=高。
+- **risk_score**（0~10，加权，越高越危险）— 7 维各 1~10 后按权重合成（权重来源对齐 equity-screener `weights.py` 习惯，可在评论里标注偏离理由）：
+
+  ```
+  risk_score = valuation*0.20 + financial*0.20 + management*0.15
+             + competition*0.15 + macro*0.10 + execution*0.10 + regulation*0.10
+  ```
+  分档：0~3 Low / 4~6 Medium / 7~10 High。
+
+**入库时带上分数**（meta 落 confidence/risk_score，Phase C 闭环）：
+
+```bash
+bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA \
+  --title "NVDA 深度研报" --confidence 0.7 --risk_score 5.5 --file <path.md>
+```
+
 ---
 
 ## 模式 3: Hypothesis — 可证伪交易假设
@@ -355,3 +375,18 @@ research 是"idea 工厂"——产出流入估值→执行→跟踪链。
 
 - `ideas/` 系统筛选 + 主题研究模板（来自 idea-generator）
 - `scenarios/` 场景推演方法论（来自 scenario-analyzer）
+
+## 📚 入知识库（研报/论点产出后必做）
+
+完成 Narrative 研报 / Hypothesis / Scenarios 推演后，把成稿喂进知识库（语义可召回，下次研究自动反哺、避免冷启动）：
+
+```bash
+# 有文件：
+bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报" --file <path.md>
+# 或管道：
+cat <<'RPT' | bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报"
+<研报正文>
+RPT
+```
+
+kind：Narrative→`research`，Hypothesis→`thesis`，Scenarios→`research`。弱依赖，sidecar 没起不报错。

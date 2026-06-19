@@ -447,5 +447,9 @@ Lynch lens 在茅台上**部分失效**（PE 太高），应该叠加 Buffett le
 - `joel-greenblatt/` Magic Formula + Spin-off 4 类
 - `peter-lynch/` 6 类公司分类 + Magellan 实战
 - `bill-ackman/` 5 条标准 + COVID hedge / Valeant 失败
+- `charlie-munger/` 逆向 + 心智模型格栅 + 25 误判心理 + See's/Costco/BYD/阿里认错
+- `benjamin-graham/` 安全边际源头 + Mr.Market + net-net + 防御vs进取 + GEICO
+- `philip-fisher/` scuttlebutt + 15 要点 + 成长质量 + Motorola 长持 + 卖出三理由
+- `nick-sleep/` 规模经济共享 SES + 目的地分析 + Costco/Amazon 飞轮 + 极低换手
 
-调用时根据需要 Read 对应子目录获取大师的原话和案例。
+调用时根据需要 Read 对应子目录获取大师的原话和案例。补充的 4 位（Munger/Graham/Fisher/Sleep）是深度档,未纳入上方 7-lens 决策表,但同样可作 lens 参考。

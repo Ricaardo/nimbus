@@ -10,6 +10,8 @@
 
 import type { Module, ModuleContext } from '../module.js'
 import { nowLine } from '../../core/memory.js'
+import { kbIngest } from '../../core/knowledge.js'
+import { extractSymbols } from '../../core/symbol.js'
 import { REPORT_DM, OPPORTUNITY_CRON } from '../../config.js'
 import { modelFor } from '../../core/models.js'
 
@@ -44,20 +46,33 @@ const opportunityScan: Module = {
 
     const ctxPrefix = ctx.memory.buildContext()
     const prompt = `${nowLine()}\n${ctxPrefix}\n\n---\n\n${OPP_PROMPT}`
-    const prior = ctx.db.getSession('discord', REPORT_DM)?.sdkSessionId
 
+    // 机会扫描每次全新 session — 不 resume 也不 putSession。
+    // REPORT_DM 同时是主人日常对话 DM，resume 会污染主人的对话上下文。
     let text = ''
-    let sessionId: string | undefined
     try {
-      const r = await ctx.agent.run({ prompt, resume: prior, model: modelFor('sonnet') })
+      const r = await ctx.agent.run({ prompt, model: modelFor('sonnet') })
       text = r.text
-      sessionId = r.sessionId
     } catch (err) {
       await ctx.channels.send('discord', REPORT_DM, `⚠️ 机会扫描出错：${err}`, {})
       return
     }
-    if (sessionId) ctx.db.putSession('discord', REPORT_DM, { sdkSessionId: sessionId })
     if (text) await ctx.channels.send('discord', REPORT_DM, text, {})
+
+    // 入知识库(kind=opportunity):每日机会扫描沉淀为可召回资产,日后研究能调出
+    // "我什么时候盯过这个机会、当时的逻辑/触发条件"。只在有实质内容时入库。弱依赖。
+    if (text && text.trim().length >= 300) {
+      const date = new Date().toISOString().slice(0, 10)
+      const symbols = extractSymbols(text)
+      void kbIngest({
+        kind: 'opportunity',
+        ticker: symbols[0],
+        title: `每日机会扫描 ${date}`,
+        source_path: `opportunity:${date}`,
+        body: text,
+        meta: { date, symbols },
+      })
+    }
   },
 }
 

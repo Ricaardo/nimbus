@@ -26,7 +26,7 @@ import type {
 import { readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
-import { PROJECT_ROOT } from '../config.js'
+import { PROJECT_ROOT, MCP_DEFAULT_ALLOW } from '../config.js'
 import { canUseTool, makeCanUseTool } from './safety.js'
 import type { Approver } from './safety.js'
 import type { AgentRunner } from '../modules/module.js'
@@ -42,7 +42,12 @@ import type { AgentRunner } from '../modules/module.js'
 // grok-search dropped: tavily already covers web search + news.
 const MCP_EXCLUDE = new Set(['grok-search'])
 
-function loadMcpServers(): Record<string, unknown> {
+/**
+ * Load all available MCP servers from the three config sources, merge them,
+ * and strip the excluded set. This is the raw full map — callers use
+ * `filterMcp` to get only the servers they need.
+ */
+function loadAllMcpServers(): Record<string, unknown> {
   const merged: Record<string, unknown> = {}
   // Read order: CC global first (fallback), then PROJECT secrets/mcp.json last
   // so the project's own copy (含密钥, gitignored) WINS → 独立、不依赖 ~/.claude。
@@ -61,8 +66,30 @@ function loadMcpServers(): Record<string, unknown> {
   return merged
 }
 
-// Loaded once at module init.
-const MCP_SERVERS = loadMcpServers()
+/**
+ * Filter an MCP server map to only include the given allow-listed keys.
+ * Exact key match — returns a new object with only the whitelisted servers.
+ * Exported for unit tests.
+ */
+export function filterMcp(
+  all: Record<string, unknown>,
+  allow: readonly string[],
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const key of allow) {
+    if (Object.prototype.hasOwnProperty.call(all, key)) {
+      result[key] = all[key]
+    }
+  }
+  return result
+}
+
+// Full map loaded once at module init (all servers, minus excluded).
+const ALL_MCP_SERVERS = loadAllMcpServers()
+// Log the available server keys once at startup so key-name drift is visible.
+process.stderr.write(
+  `nimbus: MCP servers available — [${Object.keys(ALL_MCP_SERVERS).join(', ')}]\n`,
+)
 
 // ── Reply-style guidance (appended to the Claude Code preset) ─────────────────
 // Counters the verbosity that the investment-advisor CLAUDE.md persona + injected
@@ -187,6 +214,7 @@ export class AgentRunnerImpl implements AgentRunner {
     settingSources,
     blockAccount,
     allowPaperTrade,
+    mcpAllow,
   }: {
     prompt: string
     resume?: string
@@ -203,6 +231,9 @@ export class AgentRunnerImpl implements AgentRunner {
     blockAccount?: boolean
     /** ★长桥模拟盘下单放行(仅 paper 模块、指纹验证通过后传 true)。 */
     allowPaperTrade?: boolean
+    /** MCP server whitelist for this run. Defaults to MCP_DEFAULT_ALLOW.
+     *  Pass [] to disable all MCP, or ['longbridge'] for paper-trade calls. */
+    mcpAllow?: readonly string[]
   }): Promise<{ sessionId?: string; text: string }> {
     // One attempt with a given resume value. Wrapped so a stale session
     // ("No conversation found") can be retried once WITHOUT resume (fresh session)
@@ -228,10 +259,15 @@ export class AgentRunnerImpl implements AgentRunner {
       thinking: { type: 'adaptive', display: 'omitted' },
       // effort 仅作可选手动覆盖(默认不传 → 纯由 adaptive 决定)。
       ...(effort ? { effort } : {}),
-      // Give the agent the local data MCPs (news/quotes) — not auto-loaded by the SDK.
-      ...(Object.keys(MCP_SERVERS).length > 0
-        ? { mcpServers: MCP_SERVERS as Parameters<typeof query>[0]['options'] extends { mcpServers?: infer M } ? M : never }
-        : {}),
+      // Give the agent only the whitelisted MCP servers for this run.
+      // filterMcp returns a subset of ALL_MCP_SERVERS keyed by mcpAllow.
+      // Empty result → omit mcpServers entirely (existing "空则不传" logic).
+      ...(() => {
+        const mcpServers = filterMcp(ALL_MCP_SERVERS, mcpAllow ?? MCP_DEFAULT_ALLOW)
+        return Object.keys(mcpServers).length > 0
+          ? { mcpServers: mcpServers as Parameters<typeof query>[0]['options'] extends { mcpServers?: infer M } ? M : never }
+          : {}
+      })(),
       cwd: cwd ?? PROJECT_ROOT,
       permissionMode: 'default',
       // Layer 2: SDK-level trade guard. With an approver, ASK-listed ops get

@@ -245,3 +245,55 @@ describe('reportModules exports', () => {
     expect(new Set(names).size).toBe(names.length)
   })
 })
+
+// ── Phase 0-2: reports do NOT resume or pollute the REPORT_DM session ──────────
+// Reports share REPORT_DM's chatId with the owner's live DM. Resuming/writing
+// that session made each cron report re-read the owner's whole chat history at
+// full price (and vice-versa). These tests lock the decoupling in place.
+
+describe('reports session isolation (Phase 0-2)', () => {
+  /** Context whose getSession returns a real id and whose putSession is spied. */
+  function makeIsolationContext(agentCalls: AgentCall[], putSessionCalls: string[]): ModuleContext {
+    const agent: AgentRunner = {
+      async run(opts) {
+        agentCalls.push({ prompt: opts.prompt, model: opts.model, resume: opts.resume })
+        return { sessionId: 'ses-report', text: 'report result' }
+      },
+    }
+    const channels: ChannelRegistry = {
+      async send() { return 'msg-id' },
+      async edit() {},
+      async sendTyping() {},
+    }
+    const db: DB = {
+      getSession: () => ({ sdkSessionId: 'pre-existing-owner-session' }),
+      putSession: (_channel: string, chatId: string) => { putSessionCalls.push(chatId) },
+      audit: () => {},
+      getJob: () => null,
+      upsertJob: () => {},
+      markJobRun: () => {},
+      getCooldown: () => null,
+      setCooldown: () => {},
+    }
+    const memory: Memory = { loadPortfolioState: () => null, riskProfile: () => '', buildContext: () => '' }
+    const safety: Safety = { canUseTool: async () => ({ behavior: 'allow' }) }
+    return { trigger: { kind: 'cron', job: 'test' }, channels, agent, db, memory, safety }
+  }
+
+  for (const name of ['report:morning', 'report:premarket', 'report:close']) {
+    test(`${name}: never resumes even when a session exists`, async () => {
+      const mod = reportModules.find(m => m.name === name)!
+      const agentCalls: AgentCall[] = []
+      await mod.handle(makeIsolationContext(agentCalls, []))
+      expect(agentCalls).toHaveLength(1)
+      expect(agentCalls[0].resume).toBeUndefined()
+    })
+
+    test(`${name}: never writes back to REPORT_DM session (no pollution)`, async () => {
+      const mod = reportModules.find(m => m.name === name)!
+      const putSessionCalls: string[] = []
+      await mod.handle(makeIsolationContext([], putSessionCalls))
+      expect(putSessionCalls).toHaveLength(0)
+    })
+  }
+})
