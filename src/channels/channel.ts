@@ -42,6 +42,10 @@ export interface HistoryEntry {
 
 export interface Channel {
   id: string
+  /** False for channels that can't stream edits (e.g. weixin via hub). The
+   *  dispatcher then skips the streaming placeholder and sends one final
+   *  message. Defaults to true (streaming) when omitted. */
+  streaming?: boolean
   start(): Promise<void>
   onMessage(cb: (m: InboundMsg) => void): void
   send(chatId: string, text: string, opts?: SendOpts): Promise<string>

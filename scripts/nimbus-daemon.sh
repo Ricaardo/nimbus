@@ -20,6 +20,10 @@ unset ANTHROPIC_API_KEY
 # that has the `futu` package (homebrew python3 lacks it → quote scripts fail).
 export PATH="$HOME/miniforge3/bin:$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
+# Phase 2: two-way personal-WeChat — Cici answers via weixin-hub inbound
+# (single-consumer; Hermes weixin polling must be off).
+export WEIXIN_TWOWAY=1
+
 NIMBUS_DIR="$HOME/nimbus-stack/nimbus"
 LOG_DIR="$NIMBUS_DIR/logs"
 SESSION="nimbus"
@@ -66,7 +70,7 @@ while true; do
   else
     echo "$(date -u +%FT%TZ) nimbus: starting tmux session '$SESSION'" >> "$LOG_DIR/daemon.out.log"
     tmux new-session -d -s "$SESSION" -c "$NIMBUS_DIR" \
-      "exec bun run src/main.ts >> '$LOG_DIR/nimbus.stdout.log' 2>> '$LOG_DIR/nimbus.stderr.log'"
+      "exec env WEIXIN_TWOWAY=1 NIMBUS_OWNER_IDS=1086665220723855560,o9cq80_Kihl0hEX5CLKu1I1b_FyM@im.wechat bun run src/main.ts >> '$LOG_DIR/nimbus.stdout.log' 2>> '$LOG_DIR/nimbus.stderr.log'"
     # Wait for the session to come up.
     sleep 2
   fi

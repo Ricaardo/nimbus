@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 21:30 CST — 美股 → Buffett + Howard Marks 视角 -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.masters-study.us</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/x/nimbus-stack/nimbus/scripts/masters-study-digest.sh</string>
+    <string>us</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>30</integer></dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/masters-study.us.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/x/nimbus-stack/nimbus/logs/masters-study.us.err.log</string>
+</dict>
+</plist>

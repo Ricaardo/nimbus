@@ -4,13 +4,15 @@ import './channels/discord/proxy.js'
 
 import { mkdirSync } from 'fs'
 import { DiscordChannel } from './channels/discord/index.js'
+import { WeixinChannel } from './channels/weixin/index.js'
 import { Dispatcher } from './core/dispatcher.js'
 import { SimpleRegistry } from './core/registry.js'
+import { MirroringRegistry } from './core/mirror-registry.js'
 import { agentRunner, assertSubscriptionMode, setUsageLogger } from './core/agent.js'
 import { refreshModels } from './core/models.js'
 import { memory, setMemoryStore } from './core/memory.js'
 import { safety } from './core/safety.js'
-import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD } from './config.js'
+import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_TWOWAY_ENABLED } from './config.js'
 import { defaultDb, closeDb } from './core/db.js'
 import { Scheduler } from './core/scheduler.js'
 import { reportModules } from './modules/reports/index.js'
@@ -71,16 +73,26 @@ const discordChannel = new DiscordChannel()
 const registry = new SimpleRegistry()
 registry.register(discordChannel)
 
+// Phase 2 双向:启用后注册 weixin 渠道(入站 HTTP 端点 + 经 hub 出站回复)。
+let weixinChannel: WeixinChannel | undefined
+if (WEIXIN_TWOWAY_ENABLED) {
+  weixinChannel = new WeixinChannel()
+  registry.register(weixinChannel)
+}
+
+// 主动推送(无 replyTo)镜像到个人微信 weixin-hub;交互式回复不镜像。失败静默。
+const channels = new MirroringRegistry(registry)
+
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
 const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...costReportModules, ...healthModules, ...alertModules]
 
 // Human-in-the-loop approval: ASK-listed ops (publish/send/destructive) prompt
 // the user over their chat and wait for `y/n <code>` before the agent proceeds.
-const broker = new PermissionBroker((ch, chat, text) => registry.send(ch, chat, text))
+const broker = new PermissionBroker((ch, chat, text) => channels.send(ch, chat, text))
 
 const dispatcher = new Dispatcher(
   allModules,
-  registry,
+  channels,
   agentRunner,
   db,
   memory,
@@ -104,6 +116,12 @@ const eventSource = new EventSource(defaultDetectors, dispatcher, db, memory, co
 eventSource.start()
 
 discordChannel.onMessage(m => {
+  dispatcher.dispatch(m).catch(err => {
+    process.stderr.write(`nimbus: dispatcher error: ${err}\n`)
+  })
+})
+
+weixinChannel?.onMessage(m => {
   dispatcher.dispatch(m).catch(err => {
     process.stderr.write(`nimbus: dispatcher error: ${err}\n`)
   })
@@ -135,3 +153,4 @@ process.on('SIGINT', shutdown)
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 await discordChannel.start()
+if (weixinChannel) await weixinChannel.start()

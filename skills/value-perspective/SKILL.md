@@ -1,6 +1,6 @@
 ---
 name: value-perspective
-description: 价值投资派 7 大师的思维框架（Buffett/Klarman/Bogle/Templeton/Greenblatt/Lynch/Ackman）。**仅在用户明确要求大师视角或使用价值派专属概念时触发**——不是默认的"分析这只股票"入口。明确触发：「用 Buffett/Klarman/Lynch... 的视角」「价值投资视角」「魔法公式」「安全边际」「护城河」「能力圈」「市场先生」「极度悲观」「tenbagger」「集中持仓」「催化事件」「不对称回报」「Bogleheads/被动投资」。NOT for: (1) 普通"AAPL 怎么样/分析这只股票" → 用 us-stock-analysis；(2) 宏观/周期/量化 → 用 macro-perspective；(3) 仅算 PE/PB/DCF → 用 valuation；(4) 短线/技术 → 用 technical-analysis。
+description: 价值投资派大师的思维框架（Buffett/Klarman/Bogle/Templeton/Greenblatt/Lynch/Ackman + 段永平）。**仅在用户明确要求大师视角或使用价值派专属概念时触发**——不是默认的"分析这只股票"入口。明确触发：「用 Buffett/Klarman/Lynch... 的视角」「价值投资视角」「魔法公式」「安全边际」「护城河」「能力圈」「市场先生」「极度悲观」「tenbagger」「集中持仓」「催化事件」「不对称回报」「Bogleheads/被动投资」「段永平/本分/能力圈/不为清单/stop doing/A股港股价值」。NOT for: (1) 普通"AAPL 怎么样/分析这只股票" → 用 us-stock-analysis；(2) 宏观/周期/量化 → 用 macro-perspective；(3) 仅算 PE/PB/DCF → 用 valuation；(4) 短线/技术 → 用 technical-analysis。
 ---
 
 # 价值投资合并视角 — 决策协议
@@ -20,7 +20,7 @@ description: 价值投资派 7 大师的思维框架（Buffett/Klarman/Bogle/Tem
 
 ### Step 2: 选 lens
 
-从下面 7 位大师里挑 1-3 位最相关的（见"何时调谁"决策表）。
+从下面核心大师里挑 1-3 位最相关的（见"何时调谁"决策表）。
 
 ### Step 3: 跑 lens 协议
 
@@ -43,10 +43,11 @@ description: 价值投资派 7 大师的思维框架（Buffett/Klarman/Bogle/Tem
 | "市场恐慌了，该不该买" / "全球哪里便宜" | Templeton | Klarman |
 | "我该买主动还是指数 / 散户怎么办" | Bogle | — |
 | "这股票值不值得重仓 / 有催化吗" | Ackman | Buffett |
+| "A股/港股好生意" / "用段永平/本分视角" / "该不该长期拿一门中国消费·互联网生意" | 段永平 | Buffett（同源叠加）|
 
 ---
 
-## 📚 7 位大师协议（按调用频率排序）
+## 📚 核心大师协议（按调用频率排序）
 
 ### 1. Warren Buffett — 好生意检测器
 
@@ -222,6 +223,34 @@ description: 价值投资派 7 大师的思维框架（Buffett/Klarman/Bogle/Tem
 **失效条件**：
 - 没有明确催化时间表 → 转变为 "Buffett-style hold"，不是 Ackman trade
 - 重仓但没有 hedge → 不符合"不对称"
+
+### 8. 段永平 — 本分 + 能力圈检测器（A股/港股首选，与 Buffett 同源）
+
+**核心问句**：这是不是一门我真懂、文化正、能长期"多赚久赚"的好生意？买它就是买这家公司。
+
+**量化门槛（先做减法 stop doing，再做加法）**：
+1. **能力圈**：这门生意能一句话讲清且我真懂吗 → 不懂 = 直接 FAIL（不碰）
+2. **商业模式**：差异化 + 持续高自由现金流 + 不靠烧钱/高杠杆 → 看现金流的"久"和"多"
+3. **企业文化**：管理层是否"本分"（做对的事、诚信、长期、不乱并购/不乱发股）→ 主观打分 1-5
+4. **价格**：相对内在价值有安全边际；DCF 是思维方式不是公式（看大方向，别精算）
+5. **拿得住**：仓位与确信度匹配，能无视短期波动长期持有吗
+
+**stop doing 铁律（任一触犯 = FAIL）**：做空 / 借钱(margin) / 碰看不懂的题材 / 因"别人在赚"而追
+
+**5 步检查**：
+- [ ] 在我能力圈内吗（不懂就停，回到不为清单）
+- [ ] 商业模式能"多赚 + 久赚"吗
+- [ ] 文化够本分吗（管理层做对的事）
+- [ ] 价格有安全边际吗
+- [ ] 我拿得住吗（拿不住 = 没真懂或仓位过大）
+
+**失效条件**：
+- "便宜/抄底"但生意或文化在恶化（GE 式能力圈外的错）
+- 把"长期持有"当躺平，看错了不认错快改
+- 借段之名做空/加杠杆/追热点 —— 与其 stop doing 铁律相悖
+
+**著名案例**：网易抄底（能力圈+逆向，约百倍）/ 苹果（消费+生态+文化长持）/ 茅台（好生意原型）/ GE（能力圈外认错）
+**最适用**：A股/港股消费白马 + 中国互联网平台；与 Buffett 同源，可叠加。
 
 ---
 
@@ -451,5 +480,6 @@ Lynch lens 在茅台上**部分失效**（PE 太高），应该叠加 Buffett le
 - `benjamin-graham/` 安全边际源头 + Mr.Market + net-net + 防御vs进取 + GEICO
 - `philip-fisher/` scuttlebutt + 15 要点 + 成长质量 + Motorola 长持 + 卖出三理由
 - `nick-sleep/` 规模经济共享 SES + 目的地分析 + Costco/Amazon 飞轮 + 极低换手
+- `duan-yongping/` 本分 + 能力圈 + 买公司不是买股票 + 网易/苹果/茅台 + DCF思维 + A股港股首选视角
 
-调用时根据需要 Read 对应子目录获取大师的原话和案例。补充的 4 位（Munger/Graham/Fisher/Sleep）是深度档,未纳入上方 7-lens 决策表,但同样可作 lens 参考。
+调用时根据需要 Read 对应子目录获取大师的原话和案例。若用户要求"原话/原文/出处",优先读取该大师 `sources/**/primary-source-map.md`。补充的 4 位（Munger/Graham/Fisher/Sleep）是深度档,未纳入上方决策表,但同样可作 lens 参考；段永平已纳入决策表(A股/港股首选 lens,含完整协议)。

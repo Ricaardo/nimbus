@@ -47,12 +47,15 @@ const BACKFILL_TARGETS: ScanTarget[] = [
 // 直接点名 SKILL.md(backfill 的 SKIP 规则会排除 SKILL.md,故单列)。
 const FRAMEWORK_DOCS: Array<{ path: string; title: string }> = [
   // 协议摘要(怎么应用 — 量化门槛/5步检查/失效条件)
-  { path: 'value-perspective/SKILL.md', title: '价值投资7大师协议(Buffett/Lynch/Klarman/Bogle/Templeton/Greenblatt/Ackman)' },
+  { path: 'value-perspective/SKILL.md', title: '价值投资核心大师协议(Buffett/Lynch/Klarman/Bogle/Templeton/Greenblatt/Ackman/段永平)' },
   { path: 'macro-perspective/SKILL.md', title: '宏观周期6大师协议(Soros/Druckenmiller/Marks/Dalio/Simons/Mauboussin)' },
   { path: 'serenity-tracker/SKILL.md', title: '白毛股神Serenity瓶颈理论方法论(AI半导体供应链)' },
   { path: 'serenity-tracker/references/bottleneck-theory.md', title: '白毛股神瓶颈理论深度档:AI算力供应链瓶颈迁移图(光/CPO/HBM/InP衬底/Neocloud/太空)+选股逻辑+误用风险' },
   // 大师深度档(表达DNA + 成功/失败案例库 + 思维模式 + 常见误用)——分析时浮出真实案例
   { path: 'value-perspective/references/warren-buffett/dna-and-cases.md', title: 'Buffett深度档:护城河类型/See\'s/GEICO/KO/Apple成功·IBM/Kraft/Tesco失败/4道闸门' },
+  { path: 'value-perspective/references/warren-buffett/sources/letters/primary-source-map.md', title: 'Buffett原文RAG索引:股东信精选(1983商誉/1989错误/2007护城河/2014五十周年/2024认错与长期持有)' },
+  { path: 'value-perspective/references/duan-yongping/dna-and-cases.md', title: '段永平深度档:本分/stop doing不为清单/买公司不是买股票/能力圈不懂不做/网易抄底·苹果·茅台/DCF是思维方式/A股港股首选视角' },
+  { path: 'value-perspective/references/duan-yongping/sources/qa/primary-source-map.md', title: '段永平问答资料RAG锚点:投资问答录/雪球问答/网易访谈/哈佛中国论坛线索(本分/能力圈/stop doing/DCF思维/网易苹果茅台)' },
   { path: 'value-perspective/references/seth-klarman/dna-and-cases.md', title: 'Klarman深度档:安全边际/3种便宜来源/forced sellers/下行优先/Lehman债权案例' },
   { path: 'value-perspective/references/joel-greenblatt/dna-and-cases.md', title: 'Greenblatt深度档:Magic Formula/ROIC+EBIT-EV/spin-off分拆/特殊情况投资' },
   { path: 'value-perspective/references/peter-lynch/dna-and-cases.md', title: 'Lynch深度档:6类公司分类/PEG/tenbagger/生活观察/Magellan实战/scuttlebutt' },
@@ -67,6 +70,7 @@ const FRAMEWORK_DOCS: Array<{ path: string; title: string }> = [
   { path: 'macro-perspective/references/george-soros/dna-and-cases.md', title: 'Soros深度档:反身性/盛衰循环/1992英镑/认错要快/试错下注' },
   { path: 'macro-perspective/references/stanley-druckenmiller/dna-and-cases.md', title: 'Druckenmiller深度档:流动性驱动/集中重注/顺势/择时/资本保全' },
   { path: 'macro-perspective/references/howard-marks/dna-and-cases.md', title: 'Marks深度档:钟摆/第二层思维/周期定位/风险即永久损失/逆向不蛮干' },
+  { path: 'macro-perspective/references/howard-marks/sources/memos/primary-source-map.md', title: 'Howard Marks原文RAG索引:Oaktree备忘录精选(Risk/The Most Important Thing/Limits to Negativism/Taking the Temperature/Sea Change/I Beg to Differ)' },
   { path: 'macro-perspective/references/ray-dalio/dna-and-cases.md', title: 'Dalio深度档:经济机器/债务周期/全天候/桥水原则/相关性分散' },
   { path: 'macro-perspective/references/jim-simons/dna-and-cases.md', title: 'Simons深度档:量化统计套利/Medallion/信号vs噪声/系统化不情绪' },
   { path: 'macro-perspective/references/michael-mauboussin/dna-and-cases.md', title: 'Mauboussin深度档:期望投资/运气vs技能/基础率/市场隐含预期' },
@@ -105,12 +109,21 @@ async function backfill(): Promise<void> {
     }
   }
   // 大师框架种子
+  let missingFramework = 0
   for (const f of FRAMEWORK_DOCS) {
     const path = `${SKILLS_ROOT}/${f.path}`
     let body: string
-    try { body = readFileSync(path, 'utf8') } catch { continue }
+    try { body = readFileSync(path, 'utf8') } catch {
+      missingFramework++
+      console.error(`✗ framework seed 缺失: ${f.path}`)
+      continue
+    }
     const res = await kbIngest({ kind: 'framework', title: f.title, source_path: path, body, meta: { seed: true } })
     if (res) { ok++; console.log(`✓ [framework] ${f.path} → ${res.chunks} chunks`) }
+  }
+  if (missingFramework > 0) {
+    console.error(`✗ ${missingFramework} 个 framework seed 缺失,请修正 FRAMEWORK_DOCS。`)
+    process.exit(1)
   }
   const after = await kbHealth()
   console.log(`\n回填完成: ${ok} 篇入库, ${skip} 跳过。知识库现有 ${after?.artifacts} artifacts / ${after?.chunks} chunks。`)

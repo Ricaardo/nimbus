@@ -5,6 +5,9 @@ export interface ChannelRegistry {
   send(channel: string, chatId: string, text: string, opts?: SendOpts): Promise<string>
   edit(channel: string, chatId: string, msgId: string, text: string): Promise<void>
   sendTyping(channel: string, chatId: string): Promise<void>
+  /** Whether a channel streams (placeholder + incremental edits). Defaults
+   *  true when not implemented; non-streaming channels get one final send. */
+  streams?(channel: string): boolean
 }
 
 // ── Event / Trigger types ─────────────────────────────────────────────────────

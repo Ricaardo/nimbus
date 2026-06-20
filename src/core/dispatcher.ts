@@ -487,7 +487,10 @@ export class Dispatcher {
       : tier === 'haiku' ? '💬 稍等…'
       : '🔍 正在看…'
 
-    try {
+    // Non-streaming channels (e.g. weixin via hub) skip the placeholder/edit
+    // dance and get one final message instead.
+    const canStream = this.#channels.streams?.(inbound.channel) ?? true
+    if (canStream) try {
       placeholderId = await this.#channels.send(
         inbound.channel,
         chatId,

@@ -43,4 +43,8 @@ export class SimpleRegistry implements ChannelRegistry {
     if (!ch) throw new Error(`ChannelRegistry: unknown channel '${channelId}'`)
     return ch.sendTyping(chatId)
   }
+
+  streams(channelId: string): boolean {
+    return this.#channels.get(channelId)?.streaming !== false
+  }
 }
