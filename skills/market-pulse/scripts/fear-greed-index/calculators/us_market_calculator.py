@@ -31,16 +31,22 @@ def _empty(name, weight, reason, search_hint=""):
 
 
 def _get_yf_data(ticker, period="3mo"):
-    """yfinance 获取历史数据"""
+    """历史收盘经 data-access facade (Tier-1: ETF→Futu, 指数→yahoo)。
+    返回带 'Close' 列的 DataFrame（调用方只用 Close）。"""
     try:
-        import yfinance as yf
-        t = yf.Ticker(ticker)
-        hist = t.history(period=period)
-        if hist.empty:
+        import os
+        import sys as _sys
+        import pandas as pd
+        _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+        from _dataplatform import closes  # noqa: PLC0415
+        canon = ticker if (ticker.startswith("^") or "=" in ticker or "-" in ticker) else f"US:{ticker}"
+        limit = {"1mo": 25, "3mo": 70, "6mo": 130, "1y": 260}.get(period, 70)
+        c = closes(canon, limit)
+        if not c:
             return None
-        return hist
+        return pd.DataFrame({"Close": c})
     except Exception as e:
-        logger.debug("yfinance %s 失败: %s", ticker, e)
+        logger.debug("%s 失败: %s", ticker, e)
         return None
 
 
