@@ -11,6 +11,7 @@ import { readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { WEIXIN_HUB_URL } from '../../config.js'
+import { buildEnvelope, toWeixinHub } from '../pushEnvelope.js'
 
 function loadHubToken(): string {
   const env = process.env.WEIXIN_HUB_TOKEN?.trim()
@@ -40,6 +41,24 @@ export interface HubPush {
  *  (never throws — callers treat WeChat delivery as best-effort). */
 export async function pushToHub(p: HubPush): Promise<boolean> {
   if (!p.text?.trim() && !p.title?.trim()) return false
+  // Construct a PushEnvelope v1 and map it to the hub /send payload. This adds a
+  // stable request_id (content hash) for hub-side dedup and keeps nimbus/news on
+  // one push contract; delivery stays best-effort fire-and-forget.
+  let body: Record<string, string>
+  try {
+    body = toWeixinHub(
+      buildEnvelope({
+        source: p.source ?? 'Cici',
+        text: p.text ?? '',
+        title: p.title,
+        priority: p.priority ?? 'now',
+        channel_hint: 'weixin-hub',
+        to: p.to,
+      }),
+    )
+  } catch {
+    return false
+  }
   try {
     const res = await fetch(SEND_URL, {
       method: 'POST',
@@ -47,13 +66,7 @@ export async function pushToHub(p: HubPush): Promise<boolean> {
         'Content-Type': 'application/json',
         ...(HUB_TOKEN ? { Authorization: `Bearer ${HUB_TOKEN}` } : {}),
       },
-      body: JSON.stringify({
-        text: p.text ?? '',
-        title: p.title ?? '',
-        source: p.source ?? 'Cici',
-        priority: p.priority ?? 'now',
-        ...(p.to ? { to: p.to } : {}),
-      }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(8000),
     })
     return res.ok
