@@ -88,6 +88,12 @@ def init_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_artifacts_src ON artifacts(source_path)"
     )
     db.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_ticker ON artifacts(ticker)")
+    # ResearchArtifact v1 migration: add columns in-place on the live DB if absent.
+    have = {r[1] for r in db.execute("PRAGMA table_info(artifacts)").fetchall()}
+    for col in ("symbols", "tags", "source_id", "provenance"):
+        if col not in have:
+            db.execute(f"ALTER TABLE artifacts ADD COLUMN {col} TEXT")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_source_id ON artifacts(source_id)")
     # vec0 虚拟表;维度随模型。已存在但维度不符 → 重建(开发期模型换了会触发)。
     row = db.execute(
         "SELECT sql FROM sqlite_master WHERE name='chunks'"
@@ -146,6 +152,11 @@ class IngestReq(BaseModel):
     title: str | None = None
     source_path: str | None = None
     meta: dict[str, Any] | None = None
+    # ResearchArtifact v1 fields (docs/contracts/research-artifact-v1.md)
+    symbols: list[str] | None = None
+    tags: list[str] | None = None
+    source_id: str | None = None
+    provenance: dict[str, Any] | None = None
 
 
 class SearchReq(BaseModel):
@@ -153,6 +164,8 @@ class SearchReq(BaseModel):
     limit: int = 6
     kind: str | None = None
     ticker: str | None = None
+    symbol: str | None = None
+    tag: str | None = None
 
 
 def _counts(db: sqlite3.Connection) -> tuple[int, int]:
@@ -170,28 +183,65 @@ def health() -> dict[str, Any]:
     return {"ok": True, "model": MODEL_NAME, "dim": DIM, "artifacts": a, "chunks": c}
 
 
+@app.get("/coverage")
+def coverage() -> dict[str, Any]:
+    """Distribution of artifacts by kind / source / tag (P4 coverage report)."""
+    db = connect()
+    by_kind = dict(db.execute("SELECT kind, count(*) FROM artifacts GROUP BY kind").fetchall())
+    rows = db.execute("SELECT tags, source_id, provenance FROM artifacts").fetchall()
+    by_tag: dict[str, int] = {}
+    with_provenance = 0
+    by_source: dict[str, int] = {}
+    for tags_j, source_id, prov_j in rows:
+        for t in (json.loads(tags_j) if tags_j else []):
+            by_tag[t] = by_tag.get(t, 0) + 1
+        if prov_j:
+            with_provenance += 1
+        src = (source_id or "").split(":", 1)[0] if source_id else "(none)"
+        by_source[src] = by_source.get(src, 0) + 1
+    total, chunks = _counts(db)
+    db.close()
+    return {
+        "artifacts": total,
+        "chunks": chunks,
+        "by_kind": by_kind,
+        "by_tag": dict(sorted(by_tag.items(), key=lambda kv: -kv[1])),
+        "by_source": by_source,
+        "with_provenance": with_provenance,
+    }
+
+
 @app.post("/ingest")
 def ingest(req: IngestReq) -> dict[str, Any]:
     db = connect()
-    # 覆盖语义:同 source_path 先删旧 artifact + 其 chunks
-    if req.source_path:
-        old = db.execute(
-            "SELECT id FROM artifacts WHERE source_path=?", (req.source_path,)
-        ).fetchall()
-        for (aid,) in old:
-            db.execute("DELETE FROM chunks WHERE artifact_id=?", (aid,))
-            db.execute("DELETE FROM artifacts WHERE id=?", (aid,))
+    # Bridge single ticker <-> symbols[] so old and new callers interoperate.
+    symbols = list(req.symbols) if req.symbols else ([req.ticker] if req.ticker else [])
+    ticker = req.ticker or (symbols[0] if symbols else None)
+    # 覆盖语义:同 source_id(优先) 或 source_path 先删旧 artifact + 其 chunks
+    if req.source_id:
+        old = db.execute("SELECT id FROM artifacts WHERE source_id=?", (req.source_id,)).fetchall()
+    elif req.source_path:
+        old = db.execute("SELECT id FROM artifacts WHERE source_path=?", (req.source_path,)).fetchall()
+    else:
+        old = []
+    for (aid,) in old:
+        db.execute("DELETE FROM chunks WHERE artifact_id=?", (aid,))
+        db.execute("DELETE FROM artifacts WHERE id=?", (aid,))
     cur = db.execute(
-        "INSERT INTO artifacts(kind,ticker,title,created_at,source_path,meta,body) "
-        "VALUES(?,?,?,?,?,?,?)",
+        "INSERT INTO artifacts(kind,ticker,title,created_at,source_path,meta,body,"
+        "symbols,tags,source_id,provenance) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         (
             req.kind,
-            req.ticker,
+            ticker,
             req.title,
             int(time.time()),
             req.source_path,
             json.dumps(req.meta, ensure_ascii=False) if req.meta else None,
             req.body,
+            json.dumps(symbols, ensure_ascii=False) if symbols else None,
+            json.dumps(req.tags, ensure_ascii=False) if req.tags else None,
+            req.source_id,
+            json.dumps(req.provenance, ensure_ascii=False) if req.provenance else None,
         ),
     )
     aid = cur.lastrowid
@@ -237,15 +287,22 @@ def search(req: SearchReq) -> dict[str, Any]:
     scored = []
     for aid, (dist, snippet) in best.items():
         meta = db.execute(
-            "SELECT kind,ticker,title,created_at,source_path FROM artifacts WHERE id=?",
+            "SELECT kind,ticker,title,created_at,source_path,symbols,tags,source_id,provenance "
+            "FROM artifacts WHERE id=?",
             (aid,),
         ).fetchone()
         if not meta:
             continue
-        kind, ticker, title, created_at, source_path = meta
+        kind, ticker, title, created_at, source_path, symbols_j, tags_j, source_id, prov_j = meta
+        symbols = json.loads(symbols_j) if symbols_j else ([ticker] if ticker else [])
+        tags = json.loads(tags_j) if tags_j else []
         if req.kind and kind != req.kind:
             continue
         if req.ticker and (ticker or "").upper() != req.ticker.upper():
+            continue
+        if req.symbol and req.symbol.upper() not in {s.upper() for s in symbols}:
+            continue
+        if req.tag and req.tag.lower() not in {t.lower() for t in tags}:
             continue
         cosine = max(0.0, 1.0 - float(dist))  # 钳到非负(near-orthogonal 可 >1 距离)
         effective = cosine * recency_weight(created_at, now)
@@ -254,9 +311,13 @@ def search(req: SearchReq) -> dict[str, Any]:
                 "artifact_id": aid,
                 "kind": kind,
                 "ticker": ticker,
+                "symbols": symbols,
+                "tags": tags,
                 "title": title,
                 "created_at": created_at,
                 "source_path": source_path,
+                "source_id": source_id,
+                "provenance": json.loads(prov_j) if prov_j else None,
                 "score": round(effective, 4),  # cosine × 时效权重(排序与 minScore 用)
                 "snippet": snippet[:400],
             }

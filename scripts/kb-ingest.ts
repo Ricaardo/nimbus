@@ -7,6 +7,7 @@
  *   单篇入库(skill 产出报告后调用):
  *     bun run scripts/kb-ingest.ts --kind thesis --ticker NVDA --title "NVDA 多头" --file path/to/report.md
  *     echo "正文..." | bun run scripts/kb-ingest.ts --kind research --ticker AAPL --title "..."
+ *     echo "正文..." | bun run scripts/kb-ingest.ts --kind framework --title "大师研习" --source-path "masters-study:ah:2026-06-21"
  *
  *   历史回填(一次性,把散落 markdown 灌进 knowledge.db):
  *     bun run scripts/kb-ingest.ts backfill
@@ -147,12 +148,18 @@ async function single(argv: string[]): Promise<void> {
   if (f.file) body = readFileSync(f.file, 'utf8')
   else body = await Bun.stdin.text()
   if (!body.trim()) { console.error('正文为空 (--file 或 stdin)'); process.exit(1) }
+  const splitList = (v?: string): string[] | undefined =>
+    v ? v.split(',').map(s => s.trim()).filter(Boolean) : undefined
   const res = await kbIngest({
     kind: f.kind,
     ticker: f.ticker || (f.file ? guessTicker(f.file) : undefined),
     title: f.title || (f.file ? guessTitle(body, f.file) : undefined),
     // 归一为绝对路径,避免相对/绝对 source_path 不一致造成重复入库(覆盖语义靠它)。
-    source_path: f.file ? resolve(f.file) : undefined,
+    source_path: f['source-path'] || (f.file ? resolve(f.file) : undefined),
+    // ResearchArtifact v1 直通字段
+    symbols: splitList(f.symbols),
+    tags: splitList(f.tags),
+    source_id: f['source-id'] || undefined,
     body,
     meta: f.confidence || f.risk_score ? { confidence: f.confidence, risk_score: f.risk_score } : undefined,
   })

@@ -15,20 +15,29 @@ export interface KbResult {
   artifact_id: number
   kind: string
   ticker: string | null
+  symbols?: string[]
+  tags?: string[]
   title: string | null
   created_at: number
   source_path: string | null
+  source_id?: string | null
+  provenance?: Record<string, unknown> | null
   score: number // cosine 相似度 × 时效权重(0~1)。注意:已混入 recency 衰减,旧文档分数被压低,minScore 据此过滤
   snippet: string
 }
 
 export interface KbArtifact {
-  kind: string // research | thesis | reflection | journal | filing | earnings_call
+  kind: string // research | thesis | reflection | journal | filing | earnings_call | framework | analysis | opportunity
   body: string
   ticker?: string
   title?: string
   source_path?: string
   meta?: Record<string, unknown>
+  // ResearchArtifact v1 fields (docs/contracts/research-artifact-v1.md)
+  symbols?: string[]
+  tags?: string[]
+  source_id?: string
+  provenance?: Record<string, unknown>
 }
 
 async function post<T>(path: string, payload: unknown, timeoutMs: number): Promise<T | null> {
@@ -83,7 +92,9 @@ export function formatRecall(results: KbResult[]): string {
   const lines = results.map(r => {
     const date = new Date(r.created_at * 1000).toISOString().slice(0, 10)
     const tag = [r.kind, r.ticker, date].filter(Boolean).join('·')
-    return `• [${tag}] ${r.title ?? ''}\n  ${r.snippet.replace(/\n+/g, ' ').slice(0, 220)}`
+    // Cite the artifact source so the agent can attribute its recall.
+    const cite = r.source_id ?? r.source_path ?? `kb#${r.artifact_id}`
+    return `• [${tag}] ${r.title ?? ''}（来源 ${cite}）\n  ${r.snippet.replace(/\n+/g, ' ').slice(0, 220)}`
   })
   return '【历史研究召回（你过去对相关标的的研究/论点，供延续与对照，避免冷启动）】\n' + lines.join('\n')
 }

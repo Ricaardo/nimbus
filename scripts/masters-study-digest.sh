@@ -10,11 +10,11 @@
 #   us     (~21:30) 美股      → Buffett + Howard Marks 视角
 #   review (~22:30) 跨市场复盘 → 按星期轮换一位大师 + 思想沉淀
 #
-# 用法:   ~/nimbus-stack/nimbus/scripts/masters-study-digest.sh ah
-# 只看不推: DRY_RUN=1 ~/nimbus-stack/nimbus/scripts/masters-study-digest.sh ah
+# 用法:   ~/nimbus-os/nimbus/scripts/masters-study-digest.sh ah
+# 只看不推: DRY_RUN=1 ~/nimbus-os/nimbus/scripts/masters-study-digest.sh ah
 set -uo pipefail
 
-ROOT="$HOME/nimbus-stack"
+ROOT="$HOME/nimbus-os"
 NIMBUS="$ROOT/nimbus"
 REFS="$NIMBUS/skills"
 LOG="$NIMBUS/logs/masters-study-digest.log"
@@ -155,13 +155,22 @@ esac
 
 # ── 追加 news-feed(给 nimbus / Cici 当资料)──
 if [ -d "$(dirname "$FEED")" ]; then
-  printf '%s' "$DIGEST" | python3 -c '
-import json, sys, time
-from datetime import datetime, timezone
-d=sys.stdin.read().strip()
-title=next((l for l in d.splitlines() if l.strip()), "大师研习").replace("**","").replace("📚","").strip()
-print(json.dumps({"ts":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),"epoch":int(time.time()),
-  "source":"大师研习","title":title[:80],"zh":d,"tickers":[]}, ensure_ascii=False))' >> "$FEED" \
+  printf '%s' "$DIGEST" | "$NIMBUS/scripts/news-feed-write.py" \
+    --feed "$FEED" \
+    --v2-feed "$NIMBUS/workspace/feed/breaking.v2.jsonl" \
+    --source "大师研习" \
   && log "appended news-feed" || log "WARN news-feed append failed"
+fi
+
+# ── 入知识库(弱依赖;失败不影响推送)──
+if printf '%s' "$DIGEST" | bun run "$NIMBUS/scripts/kb-ingest.ts" \
+    --kind framework \
+    --title "$FIRST_LINE" \
+    --tags "masters-study,${MODE}" \
+    --source-id "masters-study:${MODE}:${DATE_CN}" \
+    --source-path "masters-study:${MODE}:${DATE_CN}" >/dev/null 2>>"$LOG"; then
+  log "kb-ingest ok source=masters-study:${MODE}:${DATE_CN}"
+else
+  log "WARN kb-ingest failed source=masters-study:${MODE}:${DATE_CN}"
 fi
 log "done MODE=$MODE http=$HTTP"
