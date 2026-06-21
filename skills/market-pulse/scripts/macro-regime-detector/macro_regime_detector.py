@@ -46,7 +46,7 @@ from calculators.equity_bond_calculator import calculate_equity_bond
 from calculators.sector_rotation_calculator import calculate_sector_rotation
 from calculators.size_factor_calculator import calculate_size_factor
 from calculators.yield_curve_calculator import calculate_yield_curve
-from fmp_client import FMPClient
+from market_client import FMPClient
 from report_generator import generate_json_report, generate_markdown_report, generate_chinese_markdown_report, generate_dashboard_json
 from scorer import calculate_composite_score, check_regime_consistency, classify_regime
 
