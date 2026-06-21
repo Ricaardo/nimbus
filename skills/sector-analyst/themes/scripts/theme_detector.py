@@ -632,17 +632,13 @@ def main():
     stock_s = scanner_stats.get("stock", {})
     etf_s = scanner_stats.get("etf", {})
     print(
-        f"  Scanner (stock): FMP {stock_s.get('fmp_calls', 0)} calls "
-        f"({stock_s.get('fmp_failures', 0)} failures), "
-        f"yfinance: {stock_s.get('yf_calls', 0)} calls "
-        f"({stock_s.get('yf_fallbacks', 0)} fallbacks)",
+        f"  Scanner (stock): facade {stock_s.get('facade_calls', 0)} calls "
+        f"({stock_s.get('facade_failures', 0)} failures)",
         file=sys.stderr,
     )
     print(
-        f"  Scanner (ETF):   FMP {etf_s.get('fmp_calls', 0)} calls "
-        f"({etf_s.get('fmp_failures', 0)} failures), "
-        f"yfinance: {etf_s.get('yf_calls', 0)} calls "
-        f"({etf_s.get('yf_fallbacks', 0)} fallbacks)",
+        f"  Scanner (ETF):   facade {etf_s.get('facade_calls', 0)} calls "
+        f"({etf_s.get('facade_failures', 0)} failures)",
         file=sys.stderr,
     )
 

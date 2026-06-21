@@ -403,50 +403,43 @@ class TestThemeDetectorE2E:
 
 
 class TestE2EFMPPath:
-    """E2E tests for FMP backend integration in theme_detector."""
+    """E2E tests for the data-access facade backend in theme_detector."""
 
-    def test_scanner_receives_fmp_key(self):
-        """ETFScanner constructed with fmp_api_key stores it."""
+    def test_scanner_accepts_legacy_fmp_key(self):
+        """ETFScanner still accepts the (now-unused) fmp_api_key for back-compat."""
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key_123")
-        assert scanner._fmp_api_key == "test_key_123"
-        scanner_no_key = ETFScanner()
-        assert scanner_no_key._fmp_api_key is None
+        # Constructs without error with or without the deprecated key.
+        ETFScanner(fmp_api_key="test_key_123")
+        ETFScanner()
 
     def test_metadata_contains_scanner_stats(self):
-        """After batch_stock_metrics, backend_stats is populated."""
+        """After batch_stock_metrics, backend_stats reflects facade calls."""
         from unittest.mock import MagicMock, patch
 
         from etf_scanner import ETFScanner
 
-        scanner = ETFScanner(fmp_api_key="test_key", rate_limit_sec=0)
+        scanner = ETFScanner()
 
-        with patch("etf_scanner._requests_lib") as mock_req:
-            quote_resp = MagicMock()
-            quote_resp.status_code = 200
-            quote_resp.json.return_value = [
-                {"symbol": "NVDA", "pe": 60, "price": 800, "yearHigh": 950, "yearLow": 400},
-            ]
-            hist_resp = MagicMock()
-            hist_resp.status_code = 200
-            hist_resp.json.return_value = {
-                "historicalStockList": [
-                    {
-                        "symbol": "NVDA",
-                        "historical": [{"close": float(800 - i)} for i in range(20)],
-                    },
-                ]
-            }
-            mock_req.get.side_effect = [quote_resp, hist_resp]
-            scanner.batch_stock_metrics(["NVDA"])
+        fake = MagicMock()
+        fake.history.return_value = [
+            {"trade_date": f"2026-01-{i + 1:02d}", "close": float(800 - i),
+             "high": 950.0, "low": 400.0, "volume": 1_000_000}
+            for i in range(20)
+        ]
+        fake.technicals.return_value = [{"rsi14": 55.0}]
+        fake.quote.return_value = [{"pe_ttm": 60.0}]
+        with patch.dict("sys.modules", {"data_access": fake}):
+            metrics = scanner.batch_stock_metrics(["NVDA"])
+
+        assert metrics[0]["symbol"] == "NVDA"
+        assert metrics[0]["rsi_14"] == 55.0
+        assert metrics[0]["pe_ratio"] == 60.0
 
         stats = scanner.backend_stats()
-        assert "fmp_calls" in stats
-        assert "fmp_failures" in stats
-        assert "yf_calls" in stats
-        assert "yf_fallbacks" in stats
-        assert stats["fmp_calls"] > 0
+        assert "facade_calls" in stats
+        assert "facade_failures" in stats
+        assert stats["facade_calls"] > 0
 
     def test_metadata_still_has_yfinance_stocks_key(self):
         """yfinance_stocks key is preserved for backward compatibility.
