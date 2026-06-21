@@ -13,7 +13,7 @@ class TestVixTermStructure:
     def _make_client(self):
         """Create a mock FMPClient without real API key."""
         with patch.dict(os.environ, {"FMP_API_KEY": "test_key"}):
-            from fmp_client import FMPClient
+            from market_client import FMPClient
 
             client = FMPClient(api_key="test_key")
         return client
