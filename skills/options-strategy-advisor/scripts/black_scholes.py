@@ -29,9 +29,20 @@ Author: Claude Trading Skills
 Version: 1.0
 """
 
+import sys as _sys
+
 import numpy as np
-import requests
 from scipy.stats import norm
+
+_sys.path.insert(0, "/Users/x/nimbus-os/services/data-access")
+
+
+def _canonical(sym):
+    """Ticker -> facade canonical; indices/futures/crypto pass through."""
+    s = str(sym).strip().upper()
+    if ":" in s or s.startswith("^") or "=" in s or "-" in s:
+        return s
+    return f"US:{s}"
 
 
 class OptionPricer:
@@ -350,22 +361,16 @@ def fetch_historical_prices_for_hv(symbol, api_key=None, days=90):
     except Exception:
         pass
 
-    # Fallback: FMP API（原始逻辑）
-    if api_key:
-        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}"
-        params = {"apikey": api_key}
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            if "historical" not in data:
-                return None
-            historical = data["historical"][:days]
-            historical = historical[::-1]
-            prices = [item["adjClose"] for item in historical]
-            return prices
-        except Exception as e:
-            print(f"Error fetching prices for {symbol}: {e}")
+    # Fallback: data-access facade (Tier-1) — daily closes, oldest->newest
+    try:
+        import data_access as data  # noqa: PLC0415
+
+        bars = data.history(_canonical(symbol), limit=days) or []
+        closes = [b["close"] for b in bars if b.get("close") is not None]
+        if closes:
+            return closes
+    except Exception as e:  # noqa: BLE001
+        print(f"Error fetching prices for {symbol}: {e}")
 
     return None
 
@@ -391,43 +396,25 @@ def get_current_stock_price(symbol, api_key=None):
     except Exception:
         pass
 
-    # Fallback: FMP API
-    if api_key:
-        url = f"https://financialmodelingprep.com/api/v3/quote/{symbol}"
-        params = {"apikey": api_key}
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            if data and len(data) > 0:
-                return data[0]["price"]
-        except Exception as e:
-            print(f"Error fetching current price for {symbol}: {e}")
+    # Fallback: data-access facade
+    try:
+        import data_access as data  # noqa: PLC0415
+
+        rows = data.quote(_canonical(symbol)) or []
+        last = rows[0].get("last") if rows else None
+        if last is not None:
+            return last
+    except Exception as e:  # noqa: BLE001
+        print(f"Error fetching current price for {symbol}: {e}")
 
     return None
 
 
-def get_dividend_yield(symbol, api_key):
-    """Fetch dividend yield from FMP API"""
-    url = f"https://financialmodelingprep.com/api/v3/profile/{symbol}"
-    params = {"apikey": api_key}
-
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        if data and len(data) > 0:
-            # Last annual dividend / current price
-            last_div = data[0].get("lastDiv", 0)
-            price = data[0].get("price", 1)
-            div_yield = (last_div / price) if price > 0 else 0
-            return div_yield
-
-        return 0
-
-    except Exception:
-        return 0
+def get_dividend_yield(symbol, api_key=None):
+    """Dividend yield. The data-access facade does not expose dividends yet
+    (T5b: Longbridge dividend), so this returns 0.0 until that lands. Dividend
+    yield is a second-order Black-Scholes input (default 0)."""
+    return 0.0
 
 
 # =============================================================================
