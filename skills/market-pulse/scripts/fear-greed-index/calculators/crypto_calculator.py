@@ -27,6 +27,15 @@ def _empty(name, weight, reason, search_hint=""):
     }
 
 
+def _dp():
+    """data-access facade helper (Tier-1): crypto closes + funding via facade."""
+    import os
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+    import _dataplatform  # noqa: PLC0415
+    return _dataplatform
+
+
 def _calc_alt_fear_greed():
     """组件 1: Alternative.me Fear & Greed Index (30%)"""
     name = "Alternative.me 贪恐指数"
@@ -66,19 +75,10 @@ def _calc_funding_rate():
     name = "资金费率"
     weight = 0.25
 
-    # Binance 永续合约资金费率
+    # 永续合约资金费率经 data-access facade (Tier-1: binance->okx)
     try:
-        import requests
-        resp = requests.get(
-            "https://fapi.binance.com/fapi/v1/fundingRate",
-            params={"symbol": "BTCUSDT", "limit": 1},
-            timeout=10,
-        )
-        data = resp.json()
-        if data and len(data) > 0:
-            rate = float(data[0]["fundingRate"])
-            rate_pct = rate * 100
-
+        rate_pct = _dp().funding_rate_pct("BTC")
+        if rate_pct is not None:
             # 正费率高→多头过度→贪婪; 负费率→空头主导→恐惧
             if rate_pct > 0.1:
                 score = 92
@@ -108,51 +108,7 @@ def _calc_funding_rate():
                 "reasoning": f"BTC 资金费率={rate_pct:+.4f}%，{'多头拥挤→贪婪' if rate_pct > 0.05 else '空头主导→恐惧' if rate_pct < -0.01 else '费率中性'}",
             }
     except Exception as e:
-        logger.debug("Binance 资金费率失败: %s", e)
-
-    # OKX fallback
-    try:
-        import requests
-        resp = requests.get(
-            "https://www.okx.com/api/v5/public/funding-rate",
-            params={"instId": "BTC-USDT-SWAP"},
-            timeout=10,
-        )
-        data = resp.json()
-        if data.get("data"):
-            rate = float(data["data"][0]["fundingRate"])
-            rate_pct = rate * 100
-
-            if rate_pct > 0.1:
-                score = 92
-            elif rate_pct > 0.05:
-                score = 78
-            elif rate_pct > 0.01:
-                score = 62
-            elif rate_pct > -0.01:
-                score = 48
-            elif rate_pct > -0.05:
-                score = 30
-            else:
-                score = 12
-
-            signal = "greed" if score >= 60 else "fear" if score < 40 else "neutral"
-
-            return {
-                "name": name,
-                "weight": weight,
-                "score": round(max(0, min(100, score))),
-                "signal": signal,
-                "data_available": True,
-                "data": {
-                    "btc_funding_rate_pct": round(rate_pct, 4),
-                    "source": "OKX",
-                    "as_of": datetime.now().strftime("%Y-%m-%d"),
-                },
-                "reasoning": f"BTC 资金费率={rate_pct:+.4f}% (OKX)，{'多头拥挤→贪婪' if rate_pct > 0.05 else '空头主导→恐惧' if rate_pct < -0.01 else '费率中性'}",
-            }
-    except Exception as e:
-        logger.debug("OKX 资金费率失败: %s", e)
+        logger.debug("资金费率失败: %s", e)
 
     return _empty(name, weight, "资金费率数据不可用", "BTC funding rate perpetual swap today")
 
@@ -163,14 +119,14 @@ def _calc_btc_dominance():
     weight = 0.25
 
     try:
-        import yfinance as yf
-        btc = yf.Ticker("BTC-USD").history(period="3mo")
-        eth = yf.Ticker("ETH-USD").history(period="3mo")
+        dp = _dp()
+        btc = dp.closes("CRYPTO:BTC-USD", 70)
+        eth = dp.closes("CRYPTO:ETH-USD", 70)
 
-        if btc is not None and eth is not None and len(btc) > 20 and len(eth) > 20:
+        if btc and eth and len(btc) > 20 and len(eth) > 20:
             # BTC vs ETH 相对强弱近似主导率变化
-            btc_ret = (float(btc["Close"].iloc[-1]) / float(btc["Close"].iloc[-20]) - 1) * 100
-            eth_ret = (float(eth["Close"].iloc[-1]) / float(eth["Close"].iloc[-20]) - 1) * 100
+            btc_ret = (float(btc[-1]) / float(btc[-20]) - 1) * 100
+            eth_ret = (float(eth[-1]) / float(eth[-20]) - 1) * 100
             relative = btc_ret - eth_ret
 
             # BTC 主导率上升→避险情绪→恐惧; 下降→山寨币活跃→贪婪
@@ -213,13 +169,12 @@ def _calc_btc_momentum():
     weight = 0.20
 
     try:
-        import yfinance as yf
-        hist = yf.Ticker("BTC-USD").history(period="6mo")
+        hist = _dp().closes("CRYPTO:BTC-USD", 130)
 
-        if hist is not None and len(hist) >= 90:
-            current = float(hist["Close"].iloc[-1])
-            price_30d = float(hist["Close"].iloc[-22])  # ~30 trading days
-            price_90d = float(hist["Close"].iloc[-66])  # ~90 trading days
+        if hist and len(hist) >= 90:
+            current = float(hist[-1])
+            price_30d = float(hist[-22])  # ~30 trading days
+            price_90d = float(hist[-66])  # ~90 trading days
 
             ret_30d = (current / price_30d - 1) * 100
             ret_90d = (current / price_90d - 1) * 100

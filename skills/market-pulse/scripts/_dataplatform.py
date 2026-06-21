@@ -36,3 +36,10 @@ def fear_greed() -> int | None:
     import data_access as data  # noqa: PLC0415
     rows = data.feargreed()
     return rows[0]["value"] if rows else None
+
+
+def funding_rate_pct(symbol: str = "BTC") -> float | None:
+    """Perp-swap funding rate in percent (e.g. funding_rate_pct("BTC"))."""
+    import data_access as data  # noqa: PLC0415
+    rows = data.funding(symbol)
+    return rows[0].get("funding_rate_pct") if rows else None
