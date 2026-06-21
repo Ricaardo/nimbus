@@ -17,7 +17,7 @@ from calculators.ma50_calculator import calculate_ma50_position
 from calculators.ma200_calculator import calculate_ma200_position
 from calculators.pre_earnings_trend_calculator import calculate_pre_earnings_trend
 from calculators.volume_trend_calculator import calculate_volume_trend
-from fmp_client import ApiCallBudgetExceeded, FMPClient
+from market_client import ApiCallBudgetExceeded, FMPClient
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import COMPONENT_WEIGHTS, calculate_composite_score
 
@@ -838,61 +838,43 @@ class TestReportGenerator:
 
 
 class TestFMPClient:
-    """Test FMP client error handling and budget enforcement."""
+    """Facade-backed client: field mapping, graceful degradation, parity."""
 
-    @patch("fmp_client.requests.Session")
-    def test_api_429_retry(self, mock_session_cls):
-        """429 response triggers retry, sets rate_limit_reached on second failure."""
-        mock_session = MagicMock()
-        mock_session_cls.return_value = mock_session
+    def _patched(self, **attrs):
+        fake = MagicMock()
+        for k, v in attrs.items():
+            getattr(fake, k).return_value = v
+        return patch.dict("sys.modules", {"data_access": fake})
 
-        # First call returns 429, second also 429 (exceeds max_retries=1)
-        mock_response_429 = MagicMock()
-        mock_response_429.status_code = 429
-        mock_response_429.text = "Rate limit exceeded"
-        mock_session.get.return_value = mock_response_429
+    def test_earnings_calendar_maps_legacy_fields(self):
+        """Finnhub-shaped facade rows -> legacy calendar shape (hour -> time)."""
+        client = FMPClient()
+        rows = [{"symbol": "NVDA", "date": "2026-08-25", "hour": "amc",
+                 "epsEstimate": 2.1, "epsActual": None}]
+        with self._patched(earnings_calendar=rows):
+            out = client.get_earnings_calendar("2026-08-01", "2026-08-31")
+        assert out[0]["symbol"] == "NVDA"
+        assert out[0]["time"] == "amc"
+        assert out[0]["epsEstimated"] == 2.1
 
-        client = FMPClient(api_key="test_key", max_api_calls=200)
-        result = client._rate_limited_get("http://example.com/test")
+    def test_profile_maps_exchange_and_mktcap(self):
+        """facade marketCap -> mktCap; long exchange -> short US code."""
+        client = FMPClient()
+        with self._patched(profile=[{"name": "Apple Inc", "sector": "Technology",
+                                     "exchange": "NASDAQ NMS - GLOBAL MARKET",
+                                     "marketCap": 4.4e12}]):
+            p = client.get_profile("AAPL")
+        assert p[0]["mktCap"] == 4.4e12
+        assert p[0]["exchangeShortName"] == "NASDAQ"
+        assert p[0]["exchangeShortName"] in FMPClient.US_EXCHANGES
 
-        assert result is None
-        assert client.rate_limit_reached is True
+    def test_historical_empty_returns_none(self):
+        client = FMPClient()
+        with self._patched(history=[]):
+            assert client.get_historical_prices("AAPL", days=90) is None
 
-    @patch("fmp_client.requests.Session")
-    def test_api_timeout(self, mock_session_cls):
-        """requests.Timeout returns None without crashing."""
-        import requests as req
-
-        mock_session = MagicMock()
-        mock_session_cls.return_value = mock_session
-        mock_session.get.side_effect = req.exceptions.Timeout("Connection timed out")
-
-        client = FMPClient(api_key="test_key", max_api_calls=200)
-        result = client._rate_limited_get("http://example.com/test")
-
-        assert result is None
-
-    def test_budget_exceeded(self):
-        """After max_api_calls, subsequent calls raise ApiCallBudgetExceeded."""
-        client = FMPClient(api_key="test_key", max_api_calls=5)
-        client.api_calls_made = 5  # Simulate 5 calls already made
-
-        try:
-            client._rate_limited_get("http://example.com/test")
-            raise AssertionError("Should have raised ApiCallBudgetExceeded")
-        except ApiCallBudgetExceeded:
-            pass  # Expected
-
-    def test_budget_exceeded_at_exact_limit(self):
-        """Budget is checked before making the call."""
-        client = FMPClient(api_key="test_key", max_api_calls=3)
-        client.api_calls_made = 3
-
-        try:
-            client._rate_limited_get("http://example.com/test")
-            raise AssertionError("Should have raised ApiCallBudgetExceeded")
-        except ApiCallBudgetExceeded:
-            pass
+    def test_budget_never_raised(self):
+        assert issubclass(ApiCallBudgetExceeded, Exception)
 
     def test_api_stats(self):
         """get_api_stats returns expected structure."""

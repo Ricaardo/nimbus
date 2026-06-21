@@ -309,7 +309,6 @@ def generate_report(earnings: list[dict]) -> str:
 
 ## Additional Resources
 
-- **FMP API Documentation**: https://site.financialmodelingprep.com/developer/docs
 - **Seeking Alpha Calendar**: https://seekingalpha.com/earnings/earnings-calendar
 - **Yahoo Finance Calendar**: https://finance.yahoo.com/calendar/earnings
 

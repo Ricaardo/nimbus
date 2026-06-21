@@ -29,22 +29,35 @@ import sys
 from datetime import datetime
 from typing import Optional
 
-import requests
+sys.path.insert(0, "/Users/x/nimbus-os/services/data-access")
+
+
+def _short_exchange(long_name: Optional[str]) -> str:
+    """Finnhub's long exchange name -> legacy FMP short code (for US filters)."""
+    s = (long_name or "").upper()
+    if "NASDAQ" in s:
+        return "NASDAQ"
+    if "ARCA" in s:
+        return "NYSEArca"
+    if "NEW YORK STOCK EXCHANGE" in s or s.startswith("NYSE"):
+        return "NYSE"
+    if "BATS" in s or "CBOE" in s:
+        return "BATS"
+    if "AMERICAN" in s or "AMEX" in s or "NYSE MKT" in s:
+        return "AMEX"
+    return long_name or ""
 
 
 class FMPEarningsCalendar:
-    """FMP Earnings Calendar API client"""
+    """Earnings calendar client backed by the data-access facade (Tier-1)."""
 
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
     MIN_MARKET_CAP = 2_000_000_000  # $2B
     US_EXCHANGES = ["NYSE", "NASDAQ", "AMEX", "NYSEArca", "BATS", "NMS", "NGM", "NCM"]
 
-    def __init__(self, api_key: str, us_only: bool = True):
+    def __init__(self, api_key: Optional[str] = None, us_only: bool = True):
         """
-        Initialize FMP client
-
         Args:
-            api_key: FMP API key
+            api_key: accepted for backward compatibility; unused (facade needs none)
             us_only: If True, filter for US stocks only (default: True)
         """
         self.api_key = api_key
@@ -61,47 +74,29 @@ class FMPEarningsCalendar:
         Returns:
             List of earnings announcements or None on error
         """
-        url = f"{self.BASE_URL}/earning_calendar"
-        params = {"apikey": self.api_key, "from": start_date, "to": end_date}
-
         try:
-            response = requests.get(url, params=params, timeout=30)
+            import data_access as data  # noqa: PLC0415
 
-            if response.status_code == 401:
-                print("❌ ERROR: Invalid API key", file=sys.stderr)
-                print(
-                    "Get free API key: https://site.financialmodelingprep.com/developer/docs",
-                    file=sys.stderr,
-                )
-                return None
-
-            if response.status_code == 429:
-                print("❌ ERROR: Rate limit exceeded", file=sys.stderr)
-                print("Free tier: 250 calls/day. Consider upgrading.", file=sys.stderr)
-                return None
-
-            response.raise_for_status()
-            data = response.json()
-
-            # Check if response is error message
-            if isinstance(data, dict) and "Error Message" in data:
-                print(f"❌ API Error: {data['Error Message']}", file=sys.stderr)
-                return None
-
-            print(f"✓ Retrieved {len(data)} earnings announcements", file=sys.stderr)
-            return data
-
-        except requests.exceptions.Timeout:
-            print("❌ ERROR: Request timeout. Please try again.", file=sys.stderr)
+            rows = data.earnings_calendar(start_date, end_date) or []
+        except Exception as e:  # noqa: BLE001
+            print(f"❌ ERROR: {str(e)}", file=sys.stderr)
             return None
 
-        except requests.exceptions.ConnectionError:
-            print("❌ ERROR: Connection error. Check your internet connection.", file=sys.stderr)
-            return None
-
-        except Exception as e:
-            print(f"❌ ERROR: Unexpected error: {str(e)}", file=sys.stderr)
-            return None
+        # Map facade (Finnhub-shaped) rows to the legacy FMP earning_calendar shape.
+        out = [
+            {
+                "symbol": e.get("symbol"),
+                "date": e.get("date"),
+                "time": e.get("hour", ""),  # Finnhub 'hour' (bmo/amc) -> legacy 'time'
+                "eps": e.get("epsActual"),
+                "epsEstimated": e.get("epsEstimate"),
+                "revenue": e.get("revenueActual"),
+                "revenueEstimated": e.get("revenueEstimate"),
+            }
+            for e in rows
+        ]
+        print(f"✓ Retrieved {len(out)} earnings announcements", file=sys.stderr)
+        return out
 
     def fetch_company_profiles(self, symbols: list[str]) -> dict[str, dict]:
         """
@@ -113,34 +108,27 @@ class FMPEarningsCalendar:
         Returns:
             Dictionary mapping symbol to profile data
         """
-        profiles = {}
-        batch_size = 100  # FMP allows batch requests
-
+        profiles: dict[str, dict] = {}
         print(f"✓ Fetching profiles for {len(symbols)} companies...", file=sys.stderr)
 
-        for i in range(0, len(symbols), batch_size):
-            batch = symbols[i : i + batch_size]
-            symbols_str = ",".join(batch)
+        import data_access as data  # noqa: PLC0415
 
-            url = f"{self.BASE_URL}/profile/{symbols_str}"
-            params = {"apikey": self.api_key}
-
+        for sym in symbols:
+            canon = sym if ":" in str(sym).upper() else f"US:{sym}"
             try:
-                response = requests.get(url, params=params, timeout=30)
-                response.raise_for_status()
-
-                for profile in response.json():
-                    if isinstance(profile, dict):
-                        profiles[profile.get("symbol")] = profile
-
-                print(f"  ✓ Batch {i // batch_size + 1}: {len(batch)} profiles", file=sys.stderr)
-
-            except Exception as e:
-                print(
-                    f"  ⚠️  Warning: Failed to fetch batch {i // batch_size + 1}: {str(e)}",
-                    file=sys.stderr,
-                )
-                continue
+                rows = data.profile(canon) or []
+            except Exception:  # noqa: BLE001
+                rows = []
+            if rows:
+                p = rows[0]
+                profiles[sym] = {
+                    "symbol": sym,
+                    "companyName": p.get("name"),
+                    "sector": p.get("sector"),
+                    "industry": p.get("industry"),
+                    "exchangeShortName": _short_exchange(p.get("exchange")),
+                    "mktCap": p.get("marketCap"),
+                }
 
         print(f"✓ Retrieved {len(profiles)} company profiles", file=sys.stderr)
         return profiles
@@ -325,12 +313,6 @@ def get_api_key() -> Optional[str]:
     print("❌ ERROR: No API key found", file=sys.stderr)
     print("", file=sys.stderr)
     print("Options:", file=sys.stderr)
-    print("1. Set environment variable: export FMP_API_KEY='your-key'", file=sys.stderr)
-    print("2. Pass as argument: python fetch_earnings_fmp.py START END YOUR_KEY", file=sys.stderr)
-    print(
-        "3. Get free API key: https://site.financialmodelingprep.com/developer/docs",
-        file=sys.stderr,
-    )
     return None
 
 
@@ -400,10 +382,8 @@ def main():
         print("Expected format: YYYY-MM-DD", file=sys.stderr)
         sys.exit(1)
 
-    # Get API key
+    # API key is optional now (data comes from the facade); kept for back-compat.
     api_key = get_api_key()
-    if not api_key:
-        sys.exit(1)
 
     print("", file=sys.stderr)
     print(f"📅 Fetching earnings calendar: {start_date} to {end_date}", file=sys.stderr)
