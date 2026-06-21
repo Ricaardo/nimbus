@@ -94,12 +94,6 @@ export class ApiChannel implements Channel {
       sendJson(res, 200, { ok: true, channel: 'api' })
       return
     }
-    // OpenAI-compatible endpoint so OpenAI clients (wechat-io, Hermes) can route
-    // to the nimbus investment brain by pointing base_url here.
-    if (req.method === 'POST' && url.pathname === '/v1/chat/completions') {
-      await this.#handleOpenAI(req, res)
-      return
-    }
     if (req.method !== 'POST' || url.pathname !== '/chat') {
       sendJson(res, 404, { ok: false, error: 'not found' })
       return
@@ -139,53 +133,6 @@ export class ApiChannel implements Channel {
       sendJson(res, 200, { ok: true, session_id: chatId, reply })
     } catch (err) {
       sendJson(res, 500, { ok: false, error: String(err) })
-    }
-  }
-
-  async #handleOpenAI(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    if (API_CHANNEL_TOKEN) {
-      const auth = req.headers.authorization ?? ''
-      if (auth !== `Bearer ${API_CHANNEL_TOKEN}`) {
-        sendJson(res, 401, { error: { message: 'unauthorized', type: 'invalid_request_error' } })
-        return
-      }
-    }
-    if (!this.#handler) {
-      sendJson(res, 503, { error: { message: 'dispatcher not ready', type: 'server_error' } })
-      return
-    }
-    try {
-      const raw = await readBody(req)
-      const body = JSON.parse(raw || '{}') as Record<string, unknown>
-      const messages = Array.isArray(body.messages) ? (body.messages as Array<{ role?: string; content?: unknown }>) : []
-      const lastUser = [...messages].reverse().find(m => m.role === 'user')
-      const text = typeof lastUser?.content === 'string' ? lastUser.content.trim() : ''
-      if (!text) {
-        sendJson(res, 400, { error: { message: '`messages` must include a user message', type: 'invalid_request_error' } })
-        return
-      }
-      // session id: OpenAI has no field for it; accept a custom one or hash-less uuid.
-      const sessionId = typeof body.user === 'string' && body.user.trim() ? `oa:${body.user.trim()}` : `oa:${randomUUID()}`
-      const model = typeof body.model === 'string' ? body.model : 'nimbus-investment'
-      const reply = await this.#submit({
-        channel: this.id,
-        chatId: sessionId,
-        messageId: `api-msg-${randomUUID()}`,
-        user: 'openai',
-        userId: 'api', // non-owner: trade/account capabilities stay gated by PermissionBroker
-        ts: new Date().toISOString(),
-        content: text,
-      })
-      sendJson(res, 200, {
-        id: `chatcmpl-${randomUUID()}`,
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model,
-        choices: [{ index: 0, message: { role: 'assistant', content: reply }, finish_reason: 'stop' }],
-        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-      })
-    } catch (err) {
-      sendJson(res, 500, { error: { message: String(err), type: 'server_error' } })
     }
   }
 
