@@ -1,25 +1,17 @@
 #!/usr/bin/env python3
-"""内部人交易 — Finnhub 免费 /stock/insider-transactions（SEC Form 4）。
-读环境 FINNHUB_API_KEY（nimbus 已配）。
+"""内部人交易 — SEC Form 4，经 data-access facade（Tier-1：Finnhub insider）。
 用法: insider.py NVDA [--months 6] [--top 15]
 """
-import argparse, os, sys, time, urllib.request, urllib.parse, json
+import argparse, sys
 from datetime import date, timedelta
 
-KEY = os.environ.get("FINNHUB_API_KEY", "")
-BASE = "https://finnhub.io/api/v1/stock/insider-transactions"
+sys.path.insert(0, "/Users/x/nimbus-os/services/data-access")
 
 
 def fetch(symbol, frm):
-    q = urllib.parse.urlencode({"symbol": symbol, "from": frm, "token": KEY})
-    for i in range(3):
-        try:
-            with urllib.request.urlopen(f"{BASE}?{q}", timeout=15) as r:
-                return json.load(r).get("data", [])
-        except Exception as e:
-            if i == 2: raise
-            time.sleep(1)
-    return []
+    import data_access as data  # noqa: PLC0415
+    canon = symbol if ":" in symbol else f"US:{symbol}"
+    return data.insider(canon, frm) or []
 
 
 def main():
@@ -28,8 +20,6 @@ def main():
     ap.add_argument("--months", type=int, default=6)
     ap.add_argument("--top", type=int, default=15)
     a = ap.parse_args()
-    if not KEY:
-        print("FINNHUB_API_KEY 未设", file=sys.stderr); sys.exit(1)
 
     sym = a.symbol.upper()
     frm = (date.today() - timedelta(days=30 * a.months)).isoformat()
