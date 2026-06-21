@@ -21,7 +21,7 @@ from calculators.weekly_candle_calculator import (
     analyze_weekly_pattern,
     daily_to_weekly,
 )
-from fmp_client import ApiCallBudgetExceeded, FMPClient
+from market_client import ApiCallBudgetExceeded, FMPClient
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import COMPONENT_WEIGHTS, calculate_composite_score
 from screen_pead import (
@@ -980,47 +980,44 @@ class TestCalculatePriceGap:
 
 
 class TestFMPClient:
-    @patch("fmp_client.requests.Session")
-    def test_api_429(self, mock_session_class):
-        """Mock 429 -> rate_limit_reached, returns None."""
-        mock_session = MagicMock()
-        mock_response = MagicMock()
-        mock_response.status_code = 429
-        mock_response.text = "Rate limit exceeded"
-        mock_session.get.return_value = mock_response
-        mock_session_class.return_value = mock_session
+    """Facade-backed client: graceful degradation + legacy-shape field mapping."""
 
-        client = FMPClient(api_key="test_key", max_api_calls=200)
-        client.session = mock_session
-        client.max_retries = 0  # Don't retry for test speed
+    def _patched(self, **attrs):
+        fake = MagicMock()
+        for k, v in attrs.items():
+            getattr(fake, k).return_value = v
+        return patch.dict("sys.modules", {"data_access": fake})
 
-        result = client.get_earnings_calendar("2026-02-01", "2026-02-15")
-        assert result is None
-        assert client.rate_limit_reached is True
+    def test_historical_empty_returns_none(self):
+        """No facade history -> get_historical_prices returns None."""
+        client = FMPClient()
+        with self._patched(history=[]):
+            assert client.get_historical_prices("AAPL", days=90) is None
 
-    @patch("fmp_client.requests.Session")
-    def test_api_timeout(self, mock_session_class):
-        """Mock Timeout -> returns None."""
-        import requests as req
+    def test_earnings_calendar_maps_legacy_fields(self):
+        """Finnhub-shaped facade rows are mapped to the legacy calendar shape."""
+        client = FMPClient()
+        rows = [{"symbol": "NVDA", "date": "2026-08-25", "hour": "amc",
+                 "epsEstimate": 2.1, "epsActual": None,
+                 "revenueEstimate": 9.3e10, "revenueActual": None}]
+        with self._patched(earnings_calendar=rows):
+            out = client.get_earnings_calendar("2026-08-01", "2026-08-31")
+        assert out[0]["symbol"] == "NVDA"
+        assert out[0]["time"] == "amc"          # hour -> time
+        assert out[0]["epsEstimated"] == 2.1
 
-        mock_session = MagicMock()
-        mock_session.get.side_effect = req.exceptions.Timeout("Connection timed out")
-        mock_session_class.return_value = mock_session
+    def test_profile_maps_mktcap(self):
+        """facade marketCap -> legacy mktCap key."""
+        client = FMPClient()
+        with self._patched(profile=[{"name": "NVIDIA", "sector": "Semiconductors",
+                                     "marketCap": 5.0e12}]):
+            p = client.get_profile("NVDA")
+        assert p[0]["mktCap"] == 5.0e12
+        assert p[0]["companyName"] == "NVIDIA"
 
-        client = FMPClient(api_key="test_key", max_api_calls=200)
-        client.session = mock_session
-
-        result = client.get_historical_prices("AAPL", days=90)
-        assert result is None
-
-    def test_budget_exceeded(self):
-        """Raises ApiCallBudgetExceeded when budget exhausted."""
-        client = FMPClient(api_key="test_key", max_api_calls=0)
-        try:
-            client._rate_limited_get("https://example.com/api/v3/test")
-            raise AssertionError("Should have raised ApiCallBudgetExceeded")
-        except ApiCallBudgetExceeded as e:
-            assert "budget exhausted" in str(e).lower()
+    def test_budget_never_raised(self):
+        """The facade has no budget; the exception type still exists for parity."""
+        assert issubclass(ApiCallBudgetExceeded, Exception)
 
 
 # ===========================================================================

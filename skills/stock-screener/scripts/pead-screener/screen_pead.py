@@ -36,7 +36,7 @@ from calculators.breakout_calculator import calculate_breakout
 from calculators.liquidity_calculator import calculate_liquidity
 from calculators.risk_reward_calculator import calculate_risk_reward
 from calculators.weekly_candle_calculator import analyze_weekly_pattern, daily_to_weekly
-from fmp_client import ApiCallBudgetExceeded, FMPClient
+from market_client import ApiCallBudgetExceeded, FMPClient
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import calculate_composite_score
 
