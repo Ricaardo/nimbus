@@ -3,7 +3,7 @@
 screener_us.py — equity-screener 项目的美股 skill 封装（薄接口）
 
 数仓本体（DuckDB us_screener.duckdb + 多因子模型 + 概念热度 + squeeze）在
-~/nimbus-stack/equity-screener，自带 venv/CLI/launchd（每日盘前自动跑）。本封装让它的
+~/nimbus-os/equity-screener，自带 venv/CLI/launchd（每日盘前自动跑）。本封装让它的
 美股选股成为可发现、可调用的 skill：读候选、给报告路径。读为主、安全。A/H 见 ah-screener。
 
 用法：
@@ -18,7 +18,7 @@ import glob
 import json
 import os
 
-PROJECT_ROOT = os.path.expanduser("~/nimbus-stack/equity-screener")  # 美股数仓本体
+PROJECT_ROOT = os.path.expanduser("~/nimbus-os/equity-screener")  # 美股数仓本体
 REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports", "us-premarket")
 VENV_PY = os.path.join(PROJECT_ROOT, ".venv", "bin", "python")
 TODAY = dt.date.today()

@@ -2015,7 +2015,7 @@ describe('knowledge recall — 隐私边界 + 弱依赖', () => {
     installFetch()
     const agent = makeAgent({ result: { text: 'NVDA 现价 $210' }, calls: [] })
     const { registry } = makeRegistry()
-    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety)
+    const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
     await d.dispatch(makeInbound({ content: 'NVDA 多少钱', chatId: 'ing-short', userId: OWNER_ID }))
     expect(ingestCalls).toHaveLength(0)
   })

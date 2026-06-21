@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """news→nimbus 数据桥读取器。两种取数方式：
-  (A) 文件桥 ~/nimbus-stack/nimbus/workspace/feed/：13f-latest.json / ashare-candidates.json /
+  (A) 文件桥 ~/nimbus-os/nimbus/workspace/feed/：13f-latest.json / ashare-candidates.json /
       breaking.jsonl（高频突发）。
   (B) HTTP API（news 平台 :8081）：store 捕获【全部源】(与 sink 无关) →
       可列出所有源并按源拉取最新消息。env NEWS_API 可覆盖基址。
@@ -15,7 +15,7 @@
 import argparse, json, os, sys, time, urllib.request, urllib.parse
 from datetime import datetime, timezone
 
-FEED = os.path.expanduser("~/nimbus-stack/nimbus/workspace/feed")
+FEED = os.path.expanduser(os.environ.get("NIMBUS_FEED_DIR", "~/nimbus-os/nimbus/workspace/feed"))
 NEWS_API = os.environ.get("NEWS_API", "http://localhost:8081")
 
 
@@ -66,6 +66,42 @@ def load_json(name):
     except Exception: return None
 
 
+def parse_epoch(row):
+    ts = row.get("epoch") or 0
+    if ts:
+        return ts
+    raw = (row.get("ts") or "").strip()
+    if not raw:
+        return 0
+    try:
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        return datetime.fromisoformat(raw).timestamp()
+    except Exception:
+        return 0
+
+
+def normalize_news_event(row):
+    """Return a display-friendly shape for legacy v1 and NewsEvent v2 rows."""
+    summary = row.get("summary_zh") or row.get("zh") or row.get("title") or ""
+    title = row.get("title") or summary
+    symbols = row.get("symbols")
+    if not isinstance(symbols, list):
+        symbols = row.get("tickers")
+    if not isinstance(symbols, list):
+        symbols = []
+    return {
+        "version": row.get("version", 1),
+        "ts": row.get("ts") or "",
+        "epoch": parse_epoch(row),
+        "source": row.get("source") or "?",
+        "title": title,
+        "summary": summary,
+        "symbols": [str(s) for s in symbols if str(s).strip()],
+        "link": row.get("link") or row.get("source_id") or "",
+    }
+
+
 def show_breaking(tickers, hours):
     p = os.path.join(FEED, "breaking.jsonl")
     if not os.path.exists(p): print("（无 breaking feed；news filefeed 未启用或暂无数据）"); return
@@ -76,19 +112,19 @@ def show_breaking(tickers, hours):
         if not line: continue
         try: x = json.loads(line)
         except Exception: continue
-        ts = x.get("epoch") or 0
+        ev = normalize_news_event(x)
+        ts = ev["epoch"]
         if ts and ts < cutoff: continue
         if tickers:
-            # 只扫 标题+译文(含 DeepSeek "标的:X" 和括号 ticker)；不用 tickers 数组(finnhub 多标污染)
-            hay = ((x.get("title") or "") + " " + (x.get("zh") or "")).upper()
+            # 只扫 标题+摘要+symbol；v1 的 tickers 常有污染，v2 的 canonical symbols 可作为补充。
+            hay = (ev["title"] + " " + ev["summary"] + " " + " ".join(ev["symbols"])).upper()
             if not any(t in hay for t in tickers): continue
-        rows.append(x)
+        rows.append(ev)
     rows = rows[-25:]
     print(f"📰 突发 feed（近{hours}h，{len(rows)} 条）")
     for x in rows:
-        zh = x.get("zh") or x.get("title", "")
-        # zh 即 DeepSeek "利好/利空 | 板块 | 标的 | 影响"，已含方向，不再叠加空 impact
-        print(f"  [{x.get('ts','?')[:16]}] {x.get('source','?')}: {zh}"[:170])
+        # v1 的 zh 和 v2 的 summary_zh 均已含方向/影响，不再叠加空 impact。
+        print(f"  [{x.get('ts','?')[:16]}] {x.get('source','?')}: {x.get('summary','')}"[:170])
 
 
 def show_13f():

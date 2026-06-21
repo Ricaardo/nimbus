@@ -12,7 +12,7 @@
   故 21:00 ≈ 开盘前 30 分；冬令时会再早些。要改时间调 StartCalendarInterval。
 
   INSTALL:
-    cp ~/nimbus-stack/nimbus/deploy/com.local.lb-research-digest.plist ~/Library/LaunchAgents/
+    cp ~/nimbus-os/nimbus/deploy/com.local.lb-research-digest.plist ~/Library/LaunchAgents/
     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.local.lb-research-digest.plist
   手动触发一次：launchctl kickstart gui/$(id -u)/com.local.lb-research-digest
   卸载：launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.local.lb-research-digest.plist
@@ -25,7 +25,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/x/nimbus-stack/nimbus/scripts/lb-research-digest.sh</string>
+    <string>/Users/x/nimbus-os/nimbus/scripts/lb-research-digest.sh</string>
   </array>
 
   <key>StartCalendarInterval</key>
@@ -41,9 +41,9 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/lb-research-digest.out.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/lb-research-digest.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/lb-research-digest.err.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/lb-research-digest.err.log</string>
 </dict>
 </plist>

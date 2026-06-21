@@ -13,10 +13,10 @@ description: 抓取并摘要美股 SEC 文件(10-K 年报/10-Q 季报/8-K 临时
 - 优先 **SEC EDGAR** 全文检索(免费):`https://efts.sec.gov/LATEST/search-index?q=...&forms=10-K`,或公司 filings 页 `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&ticker=<T>&type=10-K`。
 - 兜底 **OpenBB**（任意对话可用,零 MCP 成本,走 python CLI）:
   ```bash
-  ~/nimbus-stack/nimbus/.venv-openbb/bin/python -c "from openbb import obb; print(obb.equity.fundamental.filings('NVDA', provider='sec').to_df().head(20))"
+  ~/nimbus-os/nimbus/.venv-openbb/bin/python -c "from openbb import obb; print(obb.equity.fundamental.filings('NVDA', provider='sec').to_df().head(20))"
   ```
   （交互式想用 OpenBB MCP 工具时,该 run 显式 `mcpAllow: ['openbb']`；默认休眠不占 token。）
-  **OpenBB 完整命令→provider 速查**：`~/nimbus-stack/nimbus/skills/references/openbb-commands.md`（别凭空猜命令路径）。
+  **OpenBB 完整命令→provider 速查**：`~/nimbus-os/nimbus/skills/references/openbb-commands.md`（别凭空猜命令路径）。
 - 用 `WebFetch`(免费)抓正文,需要深度多源再上 tavily。
 
 ### Step 2: 提炼(不是全文复制,是结构化摘要)
@@ -27,7 +27,7 @@ description: 抓取并摘要美股 SEC 文件(10-K 年报/10-Q 季报/8-K 临时
 
 ### Step 3: 入知识库(kind=filing)
 ```bash
-cat <<'DOC' | bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind filing --ticker NVDA --title "NVDA 10-K FY2026 摘要"
+cat <<'DOC' | bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind filing --ticker NVDA --title "NVDA 10-K FY2026 摘要"
 <结构化摘要正文>
 DOC
 ```

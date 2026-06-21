@@ -152,5 +152,5 @@ trade-journal weekly/monthly（统计 + 教训）
 周报或行为复盘成稿后入库（kind=journal），让执行弱点/有效打法被未来对话语义召回：
 
 ```bash
-bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind journal --title "周复盘 2026-06-21" --file <report.md>
+bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind journal --title "周复盘 2026-06-21" --file <report.md>
 ```

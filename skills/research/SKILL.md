@@ -128,7 +128,7 @@ required_tools: ["websearch", "tavily", "context7"]
 **入库时带上分数**（meta 落 confidence/risk_score，Phase C 闭环）：
 
 ```bash
-bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA \
+bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA \
   --title "NVDA 深度研报" --confidence 0.7 --risk_score 5.5 --file <path.md>
 ```
 
@@ -382,9 +382,9 @@ research 是"idea 工厂"——产出流入估值→执行→跟踪链。
 
 ```bash
 # 有文件：
-bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报" --file <path.md>
+bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报" --file <path.md>
 # 或管道：
-cat <<'RPT' | bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报"
+cat <<'RPT' | bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind research --ticker NVDA --title "NVDA 深度研报"
 <研报正文>
 RPT
 ```

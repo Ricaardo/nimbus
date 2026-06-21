@@ -3,7 +3,7 @@ import { homedir } from 'os'
 import { join } from 'path'
 
 // ── Nimbus workspace / data paths ─────────────────────────────────────────────
-export const PROJECT_ROOT = '/Users/x/nimbus-stack/nimbus'
+export const PROJECT_ROOT = '/Users/x/nimbus-os/nimbus'
 export const WORKSPACE = join(PROJECT_ROOT, 'workspace')
 export const DATA_DIR = join(PROJECT_ROOT, 'data')
 export const DB_PATH = join(DATA_DIR, 'state.db')
@@ -31,6 +31,14 @@ export const WEIXIN_INBOUND_PORT = Number(process.env.WEIXIN_INBOUND_PORT ?? 878
 // Phase 2 总开关:启用后 nimbus 注册 weixin 渠道并起入站端点(Cici 在微信里直接答)。
 // 默认关闭,切换时设 WEIXIN_TWOWAY=1 并同时关掉 Hermes 的 weixin 轮询(单消费者)。
 export const WEIXIN_TWOWAY_ENABLED = (process.env.WEIXIN_TWOWAY ?? '0') === '1'
+
+// ── Local API channel (Hermes / wechat-io bridge) ─────────────────────────────
+// 本地 HTTP bridge:POST /chat → dispatcher → 等待首个回复。绑定 localhost。
+// 端口占用时只记录 warning,不阻断 Discord 主 daemon。
+export const API_CHANNEL_ENABLED = (process.env.NIMBUS_API_ENABLED ?? '1') !== '0'
+export const API_CHANNEL_HOST = process.env.NIMBUS_API_HOST ?? '127.0.0.1'
+export const API_CHANNEL_PORT = Number(process.env.NIMBUS_API_PORT ?? 8766)
+export const API_CHANNEL_TOKEN = process.env.NIMBUS_API_TOKEN ?? ''
 
 // ── 主人身份(隐私隔离:只有本人能看持仓/资金/记忆) ──────────────────────────
 // 非本人(即便进了白名单/群@)→ 不注入持仓画像/记忆、不存记忆、禁查账户工具、

@@ -1,12 +1,12 @@
 ---
 name: us-screener
-description: 美股 价值/成长选股筛选器（equity-screener 项目的 US 接口）。多因子打分（基本面/估值/技术/动量/热度/宏观）+ SEC companyfacts 财务 + stooq 历史 + forward PE + 概念板块/主题热度 + squeeze watch + 财报临近。当用户要「美股选股/US 选股/找美股价值股成长股/今日美股候选/expert-score 美股/美股核心池/美股盘前扫描」时触发。数仓在 ~/nimbus-stack/equity-screener（DuckDB us_screener.duckdb，自带 venv/CLI/launchd，每日盘前自动跑）。NOT for：A股/港股选股 → ah-screener；简单实时硬条件筛 → futu `get_stock_filter`；个股深度分析 → us-stock-analysis；新闻推演 → research(Scenarios)。
+description: 美股 价值/成长选股筛选器（equity-screener 项目的 US 接口）。多因子打分（基本面/估值/技术/动量/热度/宏观）+ SEC companyfacts 财务 + stooq 历史 + forward PE + 概念板块/主题热度 + squeeze watch + 财报临近。当用户要「美股选股/US 选股/找美股价值股成长股/今日美股候选/expert-score 美股/美股核心池/美股盘前扫描」时触发。数仓在 ~/nimbus-os/equity-screener（DuckDB us_screener.duckdb，自带 venv/CLI/launchd，每日盘前自动跑）。NOT for：A股/港股选股 → ah-screener；简单实时硬条件筛 → futu `get_stock_filter`；个股深度分析 → us-stock-analysis；新闻推演 → research(Scenarios)。
 ---
 
 # us-screener — 美股 价值/成长筛选器（equity-screener 项目的 US 接口）
 
 成熟的美股自建筛选器：DuckDB(`us_screener.duckdb`) + 数据源(SEC companyfacts/stooq/FRED/Nasdaq)，
-多因子模型 + 概念板块/主题热度 + squeeze watch + forward PE。**数仓在 `~/nimbus-stack/equity-screener`**，
+多因子模型 + 概念板块/主题热度 + squeeze watch + forward PE。**数仓在 `~/nimbus-os/equity-screener`**，
 本 skill 是它的 US 可调用接口。每日盘前 launchd 自动跑出报告。A/H 见 `ah-screener`。
 
 ## 看候选（轻、安全、读已生成报告）
@@ -35,7 +35,7 @@ python3 .../value_pipeline.py --market US --min-roe 12 --max-pe 15
 ## 触发/刷新（最重，一般靠 launchd 盘前自动，不手动）
 
 ```bash
-cd ~/nimbus-stack/equity-screener && .venv/bin/python -m us_screener.cli update --json   # 增量+评分+报告
+cd ~/nimbus-os/equity-screener && .venv/bin/python -m us_screener.cli update --json   # 增量+评分+报告
 ```
 首次全量本地化用 `us_screener.cli backfill`；离线批量灌库用 `load-stooq` / `load-sec-facts`。
 可选 MCP server：`us_screener.cli mcp`。

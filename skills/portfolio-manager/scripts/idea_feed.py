@@ -2,7 +2,7 @@
 """
 idea_feed.py — 选股 idea 接入（消费 ah-screener 已产出的候选）
 
-ah-screener(/Users/x/nimbus-stack/equity-screener) 是成熟的 A/H/US 三市筛选器，
+ah-screener(/Users/x/nimbus-os/equity-screener) 是成熟的 A/H/US 三市筛选器，
 定时 launchd 跑出每日报告。本适配器**只读**其 latest 报告，把 top_actions /
 core_candidates 接进投顾日报，填补"找标的"空白。不重跑筛选、不触网。
 

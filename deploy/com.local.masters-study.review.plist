@@ -10,7 +10,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/x/nimbus-stack/nimbus/scripts/masters-study-digest.sh</string>
+    <string>/Users/x/nimbus-os/nimbus/scripts/masters-study-digest.sh</string>
     <string>review</string>
   </array>
 
@@ -21,9 +21,9 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/masters-study.review.out.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/masters-study.review.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/masters-study.review.err.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/masters-study.review.err.log</string>
 </dict>
 </plist>

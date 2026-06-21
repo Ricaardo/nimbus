@@ -3,7 +3,7 @@
 screener.py — equity-screener 项目的 A/H skill 封装（薄接口）
 
 数仓本体（DuckDB ah_screener.duckdb + 自建多因子模型 + 回测）在
-~/nimbus-stack/equity-screener，自带 venv/CLI/launchd。本封装让它的 A/H 选股成为
+~/nimbus-os/equity-screener，自带 venv/CLI/launchd。本封装让它的 A/H 选股成为
 可发现、可调用的 skill：读候选、给报告路径。读为主、安全。美股见 us-screener。
 
 用法：
@@ -17,7 +17,7 @@ import datetime as dt
 import json
 import os
 
-PROJECT_ROOT = os.path.expanduser("~/nimbus-stack/equity-screener")  # A/H 数仓本体
+PROJECT_ROOT = os.path.expanduser("~/nimbus-os/equity-screener")  # A/H 数仓本体
 REPORT_LATEST = os.path.join(PROJECT_ROOT, "reports", "ah-screening-report-latest.json")
 VENV_PY = os.path.join(PROJECT_ROOT, ".venv", "bin", "python")
 TODAY = dt.date.today()

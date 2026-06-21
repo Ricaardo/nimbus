@@ -25,7 +25,7 @@
      │ =btc-guanfu  │  │ =skill      │  │ /futu MCP  │  │ A股扫描+DeepSeek│
      └─────────────┘  └─────────────┘  └───────────┘  └───────┬────────┘
                                                        filefeed │
-                                          ~/nimbus-stack/nimbus/workspace/feed/*.json
+                                          ~/nimbus-os/nimbus/workspace/feed/*.json
                                           (breaking.jsonl + 13f-latest.json)
 
    外部数据源(机会性,不依赖): trump.fm · followserenity.com · QuiverQuant(国会) ·
@@ -38,7 +38,7 @@
 
 ## 2. 组件详解
 
-### 2.1 nimbus（中枢，~/nimbus-stack/nimbus，分支 master）
+### 2.1 nimbus（中枢，~/nimbus-os/nimbus，分支 master）
 - TS/Bun，Claude Agent SDK，复用 ~/.claude 的订阅鉴权/skill/MCP/记忆。
 - 渠道：Discord(Cici#8105) 常驻 + TG。L0(futu行情秒回)/Haiku(闲聊)/Sonnet(轻分析)/Opus(深度全skill)。
 - cron 模块：opportunity(机会引擎) · reports(日报) · alerts(止损/集中度/decay) · portfolio-refresh(futu+IBKR真仓) · reflection(周复盘) · costReport · health。
@@ -47,7 +47,7 @@
 ### 2.2 skill 层（42 投资 skill，vendored 进项目）
 
 **加载机制（关键，曾因搬家踩坑）**：daemon 的 agent 经 SDK `settingSources:['project','local']` 从**项目自带** `.claude/skills` 加载，**不是直接读全局 ~/.claude/skills**。
-- `~/nimbus-stack/nimbus/.claude/skills` 是**软链 → `../skills`**（项目根的 `skills/`，42 个投资 skill，随项目 git 版本化）。
+- `~/nimbus-os/nimbus/.claude/skills` 是**软链 → `../skills`**（项目根的 `skills/`，42 个投资 skill，随项目 git 版本化）。
 - 全局 `~/.claude/skills`（52 个，含 browser-use/github/tmux/weather 等非投资 skill）是**同步源**：`scripts/sync-skills.sh` 把其中已 vendored 的投资 skill 拷进项目（只收投资 skill，不引入元/工具 skill）。
 - ⚠️ **软链 dangling = agent 零 skill（静默降级，bot 照跑但没投资能力）**。搬家/改路径后必查（见 §5.2）。软链用相对 `../skills`、hook 用 `$CLAUDE_PROJECT_DIR` 防再踩。
 - **已与 ~/.claude 解耦**（见 [decouple-from-cc.md](decouple-from-cc.md)）：config.ts 路径走 `SKILLS_ROOT=PROJECT_ROOT/skills`、vendored 脚本内部改 `__file__` 相对、运行态 state 与 Discord 渠道(token/access)搬进项目 `skills/references/state`+`secrets/discord`。`~/.claude/skills` 与 `~/.claude/channels` 可安全删除，CC 回归纯编码（保留订阅鉴权 + 托管连接器）。
@@ -57,13 +57,13 @@
 - 数据：futuapi · market-data · news-dashboard · cmc/longbridge/alpaca MCP。
 
 ### 2.3 引擎（独立仓库，被 nimbus 以 skill 复用，不内嵌不重写）
-- **guanfu**(~/nimbus-stack/guanfu, Go)：BTC/QQQ/SPY/Gold/任意美股 8域指标 + kNN前向收益 + 可靠性标注 + claim校准 + 经典组合(60/40/全天候/永久/巴菲特/全球)偏离。
-- **equity-screener**(~/nimbus-stack/equity-screener, Py+DuckDB, 原 ah-stock-screener)：A/H/US 多因子价值选股数仓 + 风险闸 + 大师框架 + 回测，每日 launchd 自动跑。A/H 与 US 各自独立包/DB/CLI/报告，分别暴露为 `ah-screener` / `us-screener` 两 skill。
+- **guanfu**(~/nimbus-os/guanfu, Go)：BTC/QQQ/SPY/Gold/任意美股 8域指标 + kNN前向收益 + 可靠性标注 + claim校准 + 经典组合(60/40/全天候/永久/巴菲特/全球)偏离。
+- **equity-screener**(~/nimbus-os/equity-screener, Py+DuckDB, 原 ah-stock-screener)：A/H/US 多因子价值选股数仓 + 风险闸 + 大师框架 + 回测，每日 launchd 自动跑。A/H 与 US 各自独立包/DB/CLI/报告，分别暴露为 `ah-screener` / `us-screener` 两 skill。
 
-### 2.4 news（~/nimbus-stack/news, Go, 分支 main）实时 feed 管道
+### 2.4 news（~/nimbus-os/news, Go, 分支 main）实时 feed 管道
 - 26 源：bwenews(ws)/trump.fm/bwe-tradfi/kobeissi/mms/kitco/finnhub/WSJ/Fed/BWE官方RSS + A股扫描×6 + 市场速览 + 观复 + 13F(11基金) + 宏观。
 - DeepSeek 翻译(外文→中文替换正文)+ 报告 pro 解读；多渠道推送(微信/Discord)。
-- **filefeed 渠道** → 写 `~/nimbus-stack/nimbus/workspace/feed/` 供 nimbus 读。
+- **filefeed 渠道** → 写 `~/nimbus-os/nimbus/workspace/feed/` 供 nimbus 读。
 - A股/HK 数据分层(质量优先)：
   - **news 实时报价**：market service 适配器按优先级 **futu OpenD(持牌级·已在线, prio1) 主源 → 出错自动回退 akshare(prio5) → yahoo**；akshare 已非报价主源，仅兜底。
   - **bot/skill 层质量数据**(报价/日线/财务三表/估值)：nimbus 用 **Longbridge MCP**(持牌·最稳，远程 HTTP `openapi.longbridge.com/mcp`)；Go 侧无 longport 凭证故 news 不直连 Longbridge。
@@ -144,10 +144,10 @@
 # nimbus(投顾中枢): tmux 常驻
 tmux attach -t nimbus              # 看实时
 tmux kill-session -t nimbus        # 停
-tmux new-session -d -s nimbus -c ~/nimbus-stack/nimbus 'exec bun run src/main.ts >> ~/nimbus-stack/nimbus/logs/nimbus.stdout.log 2>> ~/nimbus-stack/nimbus/logs/nimbus.stderr.log'   # 起
+tmux new-session -d -s nimbus -c ~/nimbus-os/nimbus 'exec bun run src/main.ts >> ~/nimbus-os/nimbus/logs/nimbus.stdout.log 2>> ~/nimbus-os/nimbus/logs/nimbus.stderr.log'   # 起
 
 # news(实时feed): 二进制
-cd ~/nimbus-stack/news && go build -o bin/platform ./cmd/platform
+cd ~/nimbus-os/news && go build -o bin/platform ./cmd/platform
 pkill -f 'bin/platform -config'; set -a; source .env; set +a
 nohup ./bin/platform -config config.platform.yaml > logs/runtime.$(date +%Y%m%d).log 2>&1 &
 
@@ -161,16 +161,16 @@ curl -s localhost:6901/health                                                   
 ```
 
 ### 5.2 监控
-- nimbus 日志 `~/nimbus-stack/nimbus/logs/nimbus.{stdout,stderr}.log`；health cron 每 20 分自检。
-- news 日志 `~/nimbus-stack/news/logs/runtime.*.log`；`/metrics`(Prometheus)；source_health → 飞书告警。
-- 数据桥 `~/nimbus-stack/nimbus/workspace/feed/` 文件时间戳应每日更新。
+- nimbus 日志 `~/nimbus-os/nimbus/logs/nimbus.{stdout,stderr}.log`；health cron 每 20 分自检。
+- news 日志 `~/nimbus-os/news/logs/runtime.*.log`；`/metrics`(Prometheus)；source_health → 飞书告警。
+- 数据桥 `~/nimbus-os/nimbus/workspace/feed/` 文件时间戳应每日更新。
 - **skill 加载自检**（搬家/改路径后必跑，防 §2.2 软链 dangling 导致 agent 零 skill）：
   ```bash
-  test -e ~/nimbus-stack/nimbus/.claude/skills/research && \
-    echo "✓ skills 加载正常($(ls ~/nimbus-stack/nimbus/.claude/skills | wc -l) 个)" || \
-    echo "✗ skills 软链 dangling — agent 无投资能力，修: ln -sfn ../skills ~/nimbus-stack/nimbus/.claude/skills"
+  test -e ~/nimbus-os/nimbus/.claude/skills/research && \
+    echo "✓ skills 加载正常($(ls ~/nimbus-os/nimbus/.claude/skills | wc -l) 个)" || \
+    echo "✗ skills 软链 dangling — agent 无投资能力，修: ln -sfn ../skills ~/nimbus-os/nimbus/.claude/skills"
   ```
-- **下单安全闸自检**：`test -x ~/nimbus-stack/nimbus/.claude/hooks/trade-guard.sh`（settings.json 用 `$CLAUDE_PROJECT_DIR` 引用，搬家自愈）。
+- **下单安全闸自检**：`test -x ~/nimbus-os/nimbus/.claude/hooks/trade-guard.sh`（settings.json 用 `$CLAUDE_PROJECT_DIR` 引用，搬家自愈）。
 
 ### 5.3 常见故障 → 处理
 | 症状 | 原因 | 处理 |
@@ -187,7 +187,7 @@ curl -s localhost:6901/health                                                   
 | 额度告警 | Opus 用量 | 看 costReport;闲聊降档 Haiku |
 
 ### 5.4 Key 轮换 / 依赖
-- key 在 shell 环境(用户 profile) + `~/nimbus-stack/nimbus/secrets/mcp.json`；轮换后重启对应进程。
+- key 在 shell 环境(用户 profile) + `~/nimbus-os/nimbus/secrets/mcp.json`；轮换后重启对应进程。
 - 强依赖：Claude 订阅登录(发动机) · futu OpenD(行情/持仓) · Surge 代理(墙内)。
 - 弱依赖(挂了降级不崩)：news feed · 各免费第三方源(快照兜底)。
 

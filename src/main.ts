@@ -5,6 +5,7 @@ import './channels/discord/proxy.js'
 import { mkdirSync } from 'fs'
 import { DiscordChannel } from './channels/discord/index.js'
 import { WeixinChannel } from './channels/weixin/index.js'
+import { ApiChannel } from './channels/api.js'
 import { Dispatcher } from './core/dispatcher.js'
 import { SimpleRegistry } from './core/registry.js'
 import { MirroringRegistry } from './core/mirror-registry.js'
@@ -12,7 +13,7 @@ import { agentRunner, assertSubscriptionMode, setUsageLogger } from './core/agen
 import { refreshModels } from './core/models.js'
 import { memory, setMemoryStore } from './core/memory.js'
 import { safety } from './core/safety.js'
-import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_TWOWAY_ENABLED } from './config.js'
+import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_TWOWAY_ENABLED, API_CHANNEL_ENABLED } from './config.js'
 import { defaultDb, closeDb } from './core/db.js'
 import { Scheduler } from './core/scheduler.js'
 import { reportModules } from './modules/reports/index.js'
@@ -73,6 +74,12 @@ const discordChannel = new DiscordChannel()
 const registry = new SimpleRegistry()
 registry.register(discordChannel)
 
+let apiChannel: ApiChannel | undefined
+if (API_CHANNEL_ENABLED) {
+  apiChannel = new ApiChannel()
+  registry.register(apiChannel)
+}
+
 // Phase 2 双向:启用后注册 weixin 渠道(入站 HTTP 端点 + 经 hub 出站回复)。
 let weixinChannel: WeixinChannel | undefined
 if (WEIXIN_TWOWAY_ENABLED) {
@@ -127,6 +134,12 @@ weixinChannel?.onMessage(m => {
   })
 })
 
+apiChannel?.onMessage(m => {
+  dispatcher.dispatch(m).catch(err => {
+    process.stderr.write(`nimbus api: dispatcher error: ${err}\n`)
+  })
+})
+
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 let shuttingDown = false
 function shutdown(): void {
@@ -143,6 +156,7 @@ function shutdown(): void {
   const drainTimeout = new Promise<void>(resolve => setTimeout(resolve, 10_000))
   void Promise.race([dispatcher.drain(), drainTimeout]).finally(() => {
     void Promise.resolve(discordChannel.destroy()).finally(() => {
+      apiChannel?.destroy()
       closeDb()
       process.exit(0)
     })
@@ -153,4 +167,5 @@ process.on('SIGINT', shutdown)
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 await discordChannel.start()
+if (apiChannel) await apiChannel.start()
 if (weixinChannel) await weixinChannel.start()

@@ -6,7 +6,7 @@
   sidecar (RAG: fastembed + sqlite-vec over data/knowledge.db).
 
   INSTALL (run once):
-    cp ~/nimbus-stack/nimbus/deploy/com.nimbus.kb-server.plist ~/Library/LaunchAgents/
+    cp ~/nimbus-os/nimbus/deploy/com.nimbus.kb-server.plist ~/Library/LaunchAgents/
     launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.kb-server.plist
 
   RELOAD after code change:
@@ -28,8 +28,8 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/x/nimbus-stack/nimbus/.venv-kb/bin/python</string>
-    <string>/Users/x/nimbus-stack/nimbus/scripts/kb-server.py</string>
+    <string>/Users/x/nimbus-os/nimbus/.venv-kb/bin/python</string>
+    <string>/Users/x/nimbus-os/nimbus/scripts/kb-server.py</string>
   </array>
 
   <key>KeepAlive</key>
@@ -42,12 +42,12 @@
   <integer>10</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/kb-server.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/kb-server.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/x/nimbus-stack/nimbus/logs/kb-server.log</string>
+  <string>/Users/x/nimbus-os/nimbus/logs/kb-server.log</string>
 
   <key>WorkingDirectory</key>
-  <string>/Users/x/nimbus-stack/nimbus</string>
+  <string>/Users/x/nimbus-os/nimbus</string>
 </dict>
 </plist>

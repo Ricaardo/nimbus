@@ -263,7 +263,7 @@ thesis_vs_price:
 新建 thesis 或里程碑式更新后，入库（kind=thesis），让未来对该标的的分析自动召回历史论点与 decay 轨迹：
 
 ```bash
-bun run ~/nimbus-stack/nimbus/scripts/kb-ingest.ts --kind thesis --ticker CRCL --title "CRCL 多头论点" --file <thesis.md>
+bun run ~/nimbus-os/nimbus/scripts/kb-ingest.ts --kind thesis --ticker CRCL --title "CRCL 多头论点" --file <thesis.md>
 ```
 
 弱依赖，失败不阻塞主流程。

@@ -1,12 +1,12 @@
 ---
 name: ah-screener
-description: A股/港股 价值选股筛选器（equity-screener 项目的 A/H 接口）。自定义多因子打分（基本面/估值/技术/中外投资大师框架）+ value_ratehike 抗加息价值 profile + 板块相对估值分位 + 幸存者偏差回测验证 + A/H 同主体去重。当用户要「A股选股/港股选股/A股H股价值股/抗加息标的/沪深港通筛选/今日A股H股候选/expert-score」时触发。数仓在 ~/nimbus-stack/equity-screener（DuckDB ah_screener.duckdb，自带 venv/CLI/launchd，每日自动跑）。NOT for：美股选股 → us-screener；简单实时硬条件筛(PE/PB/ROE/股息) → futu `get_stock_filter` 更轻；个股深度分析 → us-stock-analysis；新闻推演 → research(Scenarios)。
+description: A股/港股 价值选股筛选器（equity-screener 项目的 A/H 接口）。自定义多因子打分（基本面/估值/技术/中外投资大师框架）+ value_ratehike 抗加息价值 profile + 板块相对估值分位 + 幸存者偏差回测验证 + A/H 同主体去重。当用户要「A股选股/港股选股/A股H股价值股/抗加息标的/沪深港通筛选/今日A股H股候选/expert-score」时触发。数仓在 ~/nimbus-os/equity-screener（DuckDB ah_screener.duckdb，自带 venv/CLI/launchd，每日自动跑）。NOT for：美股选股 → us-screener；简单实时硬条件筛(PE/PB/ROE/股息) → futu `get_stock_filter` 更轻；个股深度分析 → us-stock-analysis；新闻推演 → research(Scenarios)。
 ---
 
 # ah-screener — A股/港股 价值筛选器（equity-screener 项目的 A/H 接口）
 
 成熟的 A/H 自建筛选器：DuckDB(`ah_screener.duckdb`) + 数据源(AKShare/Longbridge/FRED)，
-自定义多因子模型 + 大师框架 + 回测验证。**数仓在 `~/nimbus-stack/equity-screener`**，
+自定义多因子模型 + 大师框架 + 回测验证。**数仓在 `~/nimbus-os/equity-screener`**，
 本 skill 是它的 A/H 可调用接口。每日 launchd 自动跑出报告。美股见 `us-screener`。
 
 ## 看候选（轻、安全、读已生成报告）
@@ -36,11 +36,11 @@ python3 .../value_pipeline.py --market HK --min-roe 12 --max-pe 15   # 自定义
 ## value_ratehike 抗加息价值 profile
 
 长期价值 + 加息姿态的可选 profile（抬基本面/价值大师、压技术/动量；见
-`~/nimbus-stack/equity-screener/docs/value-ratehike-profile.md`）。**评分在管线阶段算**，故要让候选
+`~/nimbus-os/equity-screener/docs/value-ratehike-profile.md`）。**评分在管线阶段算**，故要让候选
 反映该 profile，需带 env 重跑评分（⚠ 重，且覆盖默认分，谨慎；理想用独立 DB）：
 
 ```bash
-cd ~/nimbus-stack/equity-screener
+cd ~/nimbus-os/equity-screener
 AH_PROFILE=value_ratehike .venv/bin/python -m ah_screener.cli expert-score   # 重打分(覆盖默认)
 AH_PROFILE=value_ratehike .venv/bin/python -m ah_screener.cli report --output-dir /tmp/vrh
 ```
@@ -49,7 +49,7 @@ AH_PROFILE=value_ratehike .venv/bin/python -m ah_screener.cli report --output-di
 ## 触发/刷新全量（最重，一般靠 launchd 自动，不手动）
 
 ```bash
-cd ~/nimbus-stack/equity-screener && .venv/bin/python -m ah_screener.cli update-all   # 同步+评分+报告
+cd ~/nimbus-os/equity-screener && .venv/bin/python -m ah_screener.cli update-all   # 同步+评分+报告
 ```
 
 ## 分层用法（重要）

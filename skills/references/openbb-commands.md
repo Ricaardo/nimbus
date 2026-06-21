@@ -7,7 +7,7 @@
 
 **① Python CLI（推荐，任意对话零 MCP 成本）：**
 ```bash
-~/nimbus-stack/nimbus/.venv-openbb/bin/python -c "
+~/nimbus-os/nimbus/.venv-openbb/bin/python -c "
 from openbb import obb
 r = obb.equity.fundamental.metrics('AAPL', provider='fmp')
 print(r.to_df().T)   # 或 r.results

@@ -10,7 +10,7 @@
 ## 〇、外部项目接入（每个项目做成一个 skill）
 
 **约定：投顾依赖的每个独立项目，自己做成一个 skill。** 项目本体留在原处
-（如 `~/nimbus-stack/equity-screener`，自带 venv/CLI/launchd），在 `~/.claude/skills/<项目名>/` 建
+（如 `~/nimbus-os/equity-screener`，自带 venv/CLI/launchd），在 `~/.claude/skills/<项目名>/` 建
 SKILL.md + 薄封装脚本，把它暴露成可发现、可触发的能力。**禁止在消费脚本里硬编码项目路径**
 ——路径只出现在该项目 skill 的封装脚本里（唯一接口点）。
 

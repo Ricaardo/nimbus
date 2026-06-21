@@ -7,11 +7,11 @@
 # 再 POST 到 discord webhook（复用 news 的普通文本频道 webhook）。
 #
 # 由 launchd com.local.lb-research-digest 触发（每交易日盘前）。手动测试：
-#   ~/nimbus-stack/nimbus/scripts/lb-research-digest.sh
-# 仅生成不推送（看效果）：DRY_RUN=1 ~/nimbus-stack/nimbus/scripts/lb-research-digest.sh
+#   ~/nimbus-os/nimbus/scripts/lb-research-digest.sh
+# 仅生成不推送（看效果）：DRY_RUN=1 ~/nimbus-os/nimbus/scripts/lb-research-digest.sh
 set -uo pipefail
 
-ROOT="$HOME/nimbus-stack"
+ROOT="$HOME/nimbus-os"
 LOG="$ROOT/nimbus/logs/lb-research-digest.log"
 mkdir -p "$(dirname "$LOG")"
 
@@ -53,25 +53,14 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
 fi
 
 # ── 也接进 news-feed（news→nimbus 数据桥）──
-# 按 filefeed 的 JSONL schema 追加一行（O_APPEND，与 platform 自身写入同语义）。
 FEED="$ROOT/nimbus/workspace/feed/breaking.jsonl"
+V2_FEED="$ROOT/nimbus/workspace/feed/breaking.v2.jsonl"
 if [ -d "$(dirname "$FEED")" ]; then
-  if printf '%s' "$DIGEST" | python3 -c '
-import json, sys, time
-from datetime import datetime, timezone
-digest = sys.stdin.read().strip()
-title = next((l for l in digest.splitlines() if l.strip()), "盘前机构观点")
-title = title.replace("**", "").replace("📊", "").strip() or "盘前机构观点"
-rec = {
-    "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    "epoch": int(time.time()),
-    "source": "机构观点",
-    "title": title,
-    "zh": digest,
-    "tickers": ["NVDA", "AAPL", "MSFT"],
-}
-print(json.dumps(rec, ensure_ascii=False))
-' >> "$FEED"; then
+  if printf '%s' "$DIGEST" | "$ROOT/nimbus/scripts/news-feed-write.py" \
+      --feed "$FEED" \
+      --v2-feed "$V2_FEED" \
+      --source "机构观点" \
+      --tickers "NVDA,AAPL,MSFT"; then
     log "appended to news-feed"
   else
     log "WARN news-feed append failed"

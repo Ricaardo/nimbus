@@ -24,7 +24,7 @@ export PATH="$HOME/miniforge3/bin:$HOME/.bun/bin:/usr/local/bin:/usr/bin:/bin:$P
 # (single-consumer; Hermes weixin polling must be off).
 export WEIXIN_TWOWAY=1
 
-NIMBUS_DIR="$HOME/nimbus-stack/nimbus"
+NIMBUS_DIR="$HOME/nimbus-os/nimbus"
 LOG_DIR="$NIMBUS_DIR/logs"
 SESSION="nimbus"
 
