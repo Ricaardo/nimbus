@@ -62,18 +62,22 @@ def score(articles):
 
 
 def _get_spy_returns():
-    """获取 SPY 近期日收益率"""
+    """SPY 近期日收益率 — 经 data-access facade(Tier-1，warehouse 缺 ETF 时回退
+    market-data futu K线），Tier-2 不直连数据源。返回 {YYYY-MM-DD: 涨跌%}。"""
     try:
-        import yfinance as yf
-        df = yf.download("SPY", period="5d", progress=False)
-        if df is not None and len(df) >= 2:
+        import sys
+        from datetime import date, timedelta
+        sys.path.insert(0, "/Users/x/nimbus-os/services/data-access")
+        import data_access as data  # noqa: PLC0415
+        bars = data.history("US:SPY", from_=(date.today() - timedelta(days=12)).isoformat())
+        if bars and len(bars) >= 2:
+            bars = sorted(bars, key=lambda b: b.get("trade_date", ""))
             returns = {}
-            close = df["Close"].values.flatten()
-            dates = df.index
-            for i in range(1, len(close)):
-                ret = (float(close[i]) / float(close[i - 1]) - 1) * 100
-                returns[dates[i].strftime("%Y-%m-%d")] = round(ret, 2)
+            for i in range(1, len(bars)):
+                prev, cur = bars[i - 1].get("close"), bars[i].get("close")
+                if prev and cur:
+                    returns[bars[i]["trade_date"]] = round((float(cur) / float(prev) - 1) * 100, 2)
             return returns
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug("SPY 收益率获取失败: %s", e)
     return {}
