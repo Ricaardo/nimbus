@@ -22,63 +22,28 @@ Version: 1.0
 """
 
 import argparse
-import os
 import sys
-import time
 
 import numpy as np
 import pandas as pd
-import requests
 from scipy import stats
 from statsmodels.tsa.ar_model import AutoReg
 from statsmodels.tsa.stattools import adfuller
 
+from _dataclient import price_series
+
 # =============================================================================
-# FMP API Functions
+# Price data (via data-access facade — Tier-1)
 # =============================================================================
 
 
-def get_api_key(args_api_key):
-    """Get API key from args or environment variable"""
-    if args_api_key:
-        return args_api_key
-    api_key = os.environ.get("FMP_API_KEY")
-    if not api_key:
-        print("ERROR: FMP_API_KEY not found. Set environment variable or use --api-key")
-        sys.exit(1)
-    return api_key
-
-
-def fetch_historical_prices(symbol, api_key, lookback_days=365):
-    """Fetch historical adjusted close prices for a symbol"""
-    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}"
-    params = {"apikey": api_key}
-
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        if "historical" not in data:
-            print(f"ERROR: No data found for {symbol}")
-            return None
-
-        # Extract historical prices
-        historical = data["historical"][:lookback_days]
-        historical = historical[::-1]  # Reverse to chronological order
-
-        # Convert to pandas Series
-        prices = pd.Series(
-            [item["adjClose"] for item in historical],
-            index=[pd.to_datetime(item["date"]) for item in historical],
-            name=symbol,
-        )
-
-        return prices
-
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Failed to fetch data for {symbol}: {e}")
+def fetch_historical_prices(symbol, lookback_days=365):
+    """Fetch daily close prices for a symbol via the data-access facade."""
+    prices = price_series(symbol, lookback_days)
+    if prices is None or prices.empty:
+        print(f"ERROR: No data found for {symbol}")
         return None
+    return prices
 
 
 # =============================================================================
@@ -376,19 +341,15 @@ def main():
     parser.add_argument(
         "--exit-zscore", type=float, default=0.0, help="Z-score threshold for exit (default: 0.0)"
     )
-    parser.add_argument("--api-key", type=str, help="FMP API key (or set FMP_API_KEY env variable)")
+    parser.add_argument("--api-key", type=str, help=argparse.SUPPRESS)  # deprecated, ignored
 
     args = parser.parse_args()
 
-    # Get API key
-    api_key = get_api_key(args.api_key)
-
-    # Fetch price data
+    # Fetch price data (via data-access facade)
     print(f"\nFetching price data for {args.stock_a} and {args.stock_b}...")
 
-    prices_a = fetch_historical_prices(args.stock_a, api_key, args.lookback_days)
-    time.sleep(0.3)  # Rate limiting
-    prices_b = fetch_historical_prices(args.stock_b, api_key, args.lookback_days)
+    prices_a = fetch_historical_prices(args.stock_a, args.lookback_days)
+    prices_b = fetch_historical_prices(args.stock_b, args.lookback_days)
 
     if prices_a is None or prices_b is None:
         sys.exit(1)
