@@ -1,26 +1,53 @@
 #!/usr/bin/env python3
 """分析师评级共识与趋势 — Finnhub recommendation(免费,无价格目标)。
-读环境 FINNHUB_API_KEY。用法: ratings.py NVDA
+数据优先经 data-gateway(共享缓存/provenance),不可用时直连 Finnhub。
+用法: ratings.py NVDA [--legacy]
 """
-import argparse, os, sys, urllib.request, urllib.parse, json
+import argparse, os, sys, subprocess, urllib.request, urllib.parse, json
+from pathlib import Path
 
 KEY = os.environ.get("FINNHUB_API_KEY", "")
 URL = "https://finnhub.io/api/v1/stock/recommendation"
+DATA_GATEWAY = Path("/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
+
+
+def fetch_via_gateway(sym):
+    """Finnhub recommendation rows via data-gateway, or None if unavailable."""
+    if not DATA_GATEWAY.exists():
+        return None
+    try:
+        proc = subprocess.run(
+            [str(DATA_GATEWAY), "fetch", "finnhub-ratings", "--symbol", f"US:{sym}", "--limit", "8"],
+            capture_output=True, text=True, timeout=60,
+        )
+        if proc.returncode != 0:
+            return None
+        data = json.loads(proc.stdout).get("data")
+        return data if isinstance(data, list) else None
+    except Exception:
+        return None
+
+
+def fetch_direct(sym):
+    if not KEY:
+        print("FINNHUB_API_KEY 未设", file=sys.stderr); sys.exit(1)
+    q = urllib.parse.urlencode({"symbol": sym, "token": KEY})
+    with urllib.request.urlopen(f"{URL}?{q}", timeout=15) as r:
+        return json.load(r)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("symbol")
+    ap.add_argument("--legacy", action="store_true", help="跳过 data-gateway,直连 Finnhub")
     a = ap.parse_args()
-    if not KEY:
-        print("FINNHUB_API_KEY 未设", file=sys.stderr); sys.exit(1)
     sym = a.symbol.upper()
-    q = urllib.parse.urlencode({"symbol": sym, "token": KEY})
-    try:
-        with urllib.request.urlopen(f"{URL}?{q}", timeout=15) as r:
-            data = json.load(r)
-    except Exception as e:
-        print(f"获取失败: {e}", file=sys.stderr); sys.exit(1)
+    data = None if a.legacy else fetch_via_gateway(sym)
+    if data is None:
+        try:
+            data = fetch_direct(sym)
+        except Exception as e:
+            print(f"获取失败: {e}", file=sys.stderr); sys.exit(1)
     if not data:
         print(f"📋 {sym}：无分析师评级数据"); return
     data = sorted(data, key=lambda x: x.get("period", ""), reverse=True)[:4]

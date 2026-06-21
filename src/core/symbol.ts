@@ -119,6 +119,35 @@ export function normalizeSymbol(token: string): string | null {
 }
 
 /**
+ * Convert a futu-format code (US.X / HK.NNNNN / SH.NNNNNN / SZ.NNNNNN) to the
+ * canonical symbol contract (US:X / HK:NNNNN / CN:NNNNNN) used by the
+ * data-gateway / signal-gateway. This makes symbol.ts the TypeScript adapter
+ * onto the canonical contract (docs/contracts/symbol.md) without changing the
+ * futu-format output the L0 router already depends on. Returns null if the
+ * input is not a recognized futu code.
+ */
+export function toCanonical(futuCode: string): string | null {
+  const t = (futuCode ?? '').trim()
+  const m = t.match(/^(US|HK|SH|SZ)\.([A-Z0-9.\-]{1,8})$/i)
+  if (!m) return null
+  const market = m[1]!.toUpperCase()
+  const local = m[2]!.toUpperCase()
+  if (market === 'US') return `US:${local}`
+  if (market === 'HK') return `HK:${local.padStart(5, '0')}`
+  return `CN:${local}` // SH./SZ. both map to the canonical CN market
+}
+
+/** Convenience: extract symbols from a message as canonical codes. */
+export function extractCanonicalSymbols(content: string): string[] {
+  const out: string[] = []
+  for (const code of extractSymbols(content)) {
+    const c = toCanonical(code)
+    if (c && !out.includes(c)) out.push(c)
+  }
+  return out
+}
+
+/**
  * Extract and normalize ticker-like tokens from a message string.
  *
  * Scans for:

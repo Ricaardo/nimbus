@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { normalizeSymbol, extractSymbols } from './symbol.js'
+import { normalizeSymbol, extractSymbols, toCanonical, extractCanonicalSymbols } from './symbol.js'
 
 describe('normalizeSymbol', () => {
   // Passthrough: already futu format
@@ -96,5 +96,18 @@ describe('extractSymbols', () => {
     const syms = extractSymbols('TSLA 今天行情如何，还有 00700 呢')
     expect(syms).toContain('US.TSLA')
     expect(syms).toContain('HK.00700')
+  })
+})
+
+describe('toCanonical', () => {
+  test('US.NVDA -> US:NVDA', () => expect(toCanonical('US.NVDA')).toBe('US:NVDA'))
+  test('HK.00700 -> HK:00700', () => expect(toCanonical('HK.00700')).toBe('HK:00700'))
+  test('SH.600519 -> CN:600519', () => expect(toCanonical('SH.600519')).toBe('CN:600519'))
+  test('SZ.000001 -> CN:000001', () => expect(toCanonical('SZ.000001')).toBe('CN:000001'))
+  test('garbage -> null', () => expect(toCanonical('not a code')).toBeNull())
+  test('extractCanonicalSymbols', () => {
+    const syms = extractCanonicalSymbols('TSLA 还有 00700')
+    expect(syms).toContain('US:TSLA')
+    expect(syms).toContain('HK:00700')
   })
 })
