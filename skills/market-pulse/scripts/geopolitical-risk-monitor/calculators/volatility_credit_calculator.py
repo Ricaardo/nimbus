@@ -33,13 +33,14 @@ def calculate(fred_client=None, finnhub_client=None, twelvedata_client=None, loo
         except Exception as e:
             logger.debug("TwelveData VIX 获取失败: %s", e)
 
-    # 方案 3: yfinance VIX
+    # 方案 3: data-access facade (Tier-1: VIX via market-hub yahoo)
     if vix_level is None:
         try:
-            import yfinance as yf
-            df = yf.download("^VIX", period="1mo", progress=False)
-            if df is not None and len(df) >= 5:
-                close = df["Close"].values.flatten()
+            import os, sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+            from _dataplatform import closes  # noqa: PLC0415
+            close = closes("^VIX", 25)
+            if len(close) >= 5:
                 vix_level = float(close[-1])
                 vix_5d_change = float(close[-1]) - float(close[-6]) if len(close) >= 6 else 0
         except Exception as e:

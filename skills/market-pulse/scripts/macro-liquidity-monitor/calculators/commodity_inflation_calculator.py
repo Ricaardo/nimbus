@@ -46,32 +46,29 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=90):
         except Exception as e:
             logger.debug("TwelveData 商品数据获取失败: %s", e)
 
-    # 方案 3: yfinance 历史数据（用于计算 30d/60d 收益率）
+    # 方案 3: data-access facade (Tier-1: gold/oil futures via market-hub yahoo)
+    gold_close, oil_close = [], []
     try:
-        import yfinance as yf
-        # 批量下载减少请求次数
-        data = yf.download(["GC=F", "CL=F"], period="3mo", progress=False)
-        if data is not None and len(data) >= 20:
-            gold = data["Close"]["GC=F"].dropna() if "GC=F" in data["Close"].columns else None
-            oil = data["Close"]["CL=F"].dropna() if "CL=F" in data["Close"].columns else None
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+        from _dataplatform import closes  # noqa: PLC0415
+        gold_close = closes("GC=F", 70)
+        oil_close = closes("CL=F", 70)
     except Exception as e:
-        logger.debug("yfinance 商品数据获取失败: %s", e)
+        logger.debug("商品数据获取失败: %s", e)
 
-    # 如果 yfinance 和 Finnhub 都没拿到数据
-    if (gold is None or len(gold) < 20) and fh_oil_price is None:
-        return _empty("商品数据不可用（Finnhub + TwelveData + yfinance 均失败）",
+    # 如果 facade 和 Finnhub 都没拿到数据
+    if len(gold_close) < 20 and fh_oil_price is None:
+        return _empty("商品数据不可用（Finnhub + TwelveData + facade 均失败）",
                       search_hint="gold price today XAU/USD, WTI crude oil price today")
 
     # 如果只有 Finnhub 实时报价（无历史），用简化评分
-    if (gold is None or len(gold) < 20) and fh_oil_price:
+    if len(gold_close) < 20 and fh_oil_price:
         return _score_from_finnhub(fh_gold_price, fh_oil_price, fh_oil_change)
 
-    if gold is None or len(gold) < 20 or oil is None or len(oil) < 20:
+    if len(gold_close) < 20 or len(oil_close) < 20:
         return _empty("商品数据不足",
                       search_hint="gold price today XAU/USD, WTI crude oil price today")
-
-    gold_close = gold["Close"].values.flatten()
-    oil_close = oil["Close"].values.flatten()
 
     # 30 天收益率
     gold_ret_30d = (float(gold_close[-1]) / float(gold_close[-22]) - 1) * 100 if len(gold_close) >= 22 else 0
@@ -85,7 +82,7 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=90):
     oil_price = float(oil_close[-1])
     gold_price = float(gold_close[-1])
 
-    return _score_core(gold_price, gold_ret_30d, gold_ret_60d, oil_price, oil_ret_30d, oil_ret_60d, "yfinance")
+    return _score_core(gold_price, gold_ret_30d, gold_ret_60d, oil_price, oil_ret_30d, oil_ret_60d, "facade")
 
 
 def _score_from_series(gold_series, oil_series, source):

@@ -29,19 +29,32 @@ CORE = ["SPY", "^VIX", "^TNX"]      # 缺这些则判定拉取失败
 
 
 def fetch(retries=2):
-    """批量拉 1 次收盘序列；退避重试(快速降级)。核心 ticker 齐全才算成功，否则 None。"""
-    import yfinance as yf
+    """收盘序列经 data-access facade(Tier-1: ETF→Futu, 指数→yahoo)。核心 ticker
+    齐全才算成功，否则 None。返回 DataFrame(列=ticker 名，与下游 _last/_chg 兼容)。"""
+    import os
+    sys.path.insert(0, os.path.dirname(__file__))
+    from _dataplatform import closes  # noqa: PLC0415
+    import pandas as pd
+
+    def canon(t):
+        # ETF → US:; 指数/期货/外汇(^/=/含-)→ native passthrough。
+        return t if (t.startswith("^") or "=" in t or "-" in t) else f"US:{t}"
+
     for i in range(retries):
-        try:
-            df = yf.download(TICKERS, period="1y", interval="1d", progress=False,
-                             auto_adjust=True, timeout=20)["Close"]
-            if df is not None and all(
-                    c in df.columns and df[c].dropna().shape[0] > 200 for c in CORE):
+        cols = {}
+        for t in TICKERS:
+            try:
+                c = closes(canon(t), 320)
+                if c:
+                    cols[t] = pd.Series(c, dtype="float64")
+            except Exception:  # noqa: BLE001
+                pass
+        if cols:
+            df = pd.DataFrame(cols)
+            if all(c in df.columns and df[c].dropna().shape[0] > 200 for c in CORE):
                 return df
-        except Exception as e:
-            print(f"[warn] yf 重试 {i+1}: {str(e)[:60]}", file=sys.stderr)
         if i < retries - 1:
-            time.sleep(3 * (i + 1))
+            time.sleep(2 * (i + 1))
     return None
 
 

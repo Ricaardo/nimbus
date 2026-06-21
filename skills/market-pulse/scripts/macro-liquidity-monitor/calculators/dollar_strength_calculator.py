@@ -59,20 +59,22 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=180):
         except Exception as e:
             logger.debug("TwelveData UUP 获取失败: %s", e)
 
-    # 方案 3: yfinance（可能被限速）
+    # 方案 3: data-access facade (Tier-1: UUP ETF history via market-hub)
     try:
-        import yfinance as yf
-        df = yf.download("UUP", period="6mo", progress=False)
-        if df is not None and len(df) >= 20:
-            close = df["Close"].values.flatten()
+        import os, sys
+        from datetime import date
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+        from _dataplatform import closes  # noqa: PLC0415
+        close = closes("US:UUP", 130)
+        if len(close) >= 20:
             current = float(close[-1])
             d30_ago = float(close[-22]) if len(close) >= 22 else float(close[0])
             ret_30d = (current / d30_ago - 1) * 100
-            return _score_from_return(current, ret_30d, "yfinance", df.index[-1].strftime("%Y-%m-%d"))
+            return _score_from_return(current, ret_30d, "facade", date.today().isoformat())
     except Exception as e:
-        logger.debug("yfinance UUP 获取失败: %s", e)
+        logger.debug("UUP 获取失败: %s", e)
 
-    return _empty("UUP 数据不可用（Finnhub + TwelveData + yfinance 均失败）",
+    return _empty("UUP 数据不可用（Finnhub + TwelveData + facade 均失败）",
                   search_hint="UUP US dollar index ETF price today")
 
 

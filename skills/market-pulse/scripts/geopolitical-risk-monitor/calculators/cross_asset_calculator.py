@@ -33,16 +33,17 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=30):
             except Exception as e:
                 logger.debug("TwelveData %s 获取失败: %s", ticker, e)
 
-    # 方案 3: yfinance fallback
+    # 方案 3: data-access facade (Tier-1: ETF history via market-hub)
     if len(returns) < 2:
         try:
-            import yfinance as yf
+            import os, sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+            from _dataplatform import closes  # noqa: PLC0415
             for ticker in ["SPY", "EFA", "EEM"]:
                 if ticker in returns:
                     continue
-                df = yf.download(ticker, period="1mo", progress=False)
-                if df is not None and len(df) >= 10:
-                    close = df["Close"].values.flatten()
+                close = closes(f"US:{ticker}", 25)
+                if len(close) >= 10:
                     ret = (float(close[-1]) / float(close[0]) - 1) * 100
                     returns[ticker] = round(ret, 2)
         except Exception as e:

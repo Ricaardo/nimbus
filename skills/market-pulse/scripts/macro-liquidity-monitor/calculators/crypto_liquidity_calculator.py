@@ -129,12 +129,13 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=90):
         except Exception as e:
             logger.debug("TwelveData BTC 获取失败: %s", e)
 
-    # 方案 4: yfinance fallback
+    # 方案 4: data-access facade (Tier-1: BTC via market-hub binance/okx/yahoo)
     try:
-        import yfinance as yf
-        df = yf.download("BTC-USD", period="3mo", progress=False)
-        if df is not None and len(df) >= 30:
-            close = df["Close"].values.flatten()
+        from datetime import date
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+        from _dataplatform import closes  # noqa: PLC0415
+        close = closes("CRYPTO:BTC-USD", 95)
+        if len(close) >= 30:
             current = float(close[-1])
             d30 = float(close[-31]) if len(close) >= 31 else float(close[0])
             d90 = float(close[0])
@@ -142,11 +143,11 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=90):
             ret_30d = (current / d30 - 1) * 100
             ret_90d = (current / d90 - 1) * 100
 
-            return _score(current, ret_30d, ret_90d, "yfinance", df.index[-1].strftime("%Y-%m-%d"))
+            return _score(current, ret_30d, ret_90d, "facade", date.today().isoformat())
     except Exception as e:
-        logger.debug("yfinance BTC 获取失败: %s", e)
+        logger.debug("BTC 获取失败: %s", e)
 
-    return _empty("BTC 数据获取失败（Finnhub + OKX + Binance + TwelveData + yfinance 均失败）",
+    return _empty("BTC 数据获取失败（Finnhub + OKX + Binance + TwelveData + facade 均失败）",
                   search_hint="BTC bitcoin price today USD")
 
 

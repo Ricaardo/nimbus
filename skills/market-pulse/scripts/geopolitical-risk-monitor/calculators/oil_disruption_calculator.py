@@ -60,26 +60,25 @@ def calculate(finnhub_client=None, twelvedata_client=None, lookback_days=30):
         except Exception as e:
             logger.debug("TwelveData 原油数据获取失败: %s", e)
 
-    # 方案 3: yfinance
+    # 方案 3: data-access facade (Tier-1: WTI/Brent futures via market-hub yahoo)
     try:
-        import yfinance as yf
-        wti = yf.download("CL=F", period="1mo", progress=False)
-        brent = yf.download("BZ=F", period="1mo", progress=False)
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+        from _dataplatform import closes  # noqa: PLC0415
+        wti_close = closes("CL=F", 25)
+        brent_close = closes("BZ=F", 25)
     except Exception as e:
         logger.error("原油数据获取失败: %s", e)
-        return _empty("yfinance 不可用",
+        return _empty("facade 不可用",
                       search_hint="WTI crude oil price today, Brent crude oil price")
 
-    if wti is None or len(wti) < 5:
+    if len(wti_close) < 5:
         return _empty("原油数据不足",
                       search_hint="WTI crude oil price today, Brent crude oil price")
+    if len(brent_close) < 6:
+        brent_close = None
 
-    wti_close = list(wti["Close"].values.flatten())
-    brent_close = None
-    if brent is not None and len(brent) >= 6:
-        brent_close = list(brent["Close"].values.flatten())
-
-    return _score_from_prices(wti_close, brent_close, "yfinance")
+    return _score_from_prices(wti_close, brent_close, "facade")
 
 
 def _score_from_prices(wti_close, brent_close, source):
