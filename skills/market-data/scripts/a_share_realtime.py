@@ -94,7 +94,36 @@ def fetch_qq(code: str, market: str) -> dict | None:
         return None
 
 
+def quote_via_facade(code: str) -> dict | None:
+    import os
+    if os.environ.get("MARKET_DATA_LEGACY") == "1":
+        return None
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    try:
+        from _dataclient import to_canonical  # noqa: PLC0415
+        import data_access as data  # noqa: PLC0415
+        rows = data.quote(to_canonical(code))
+        if not rows:
+            return None
+        q = rows[0]
+        last = float(q["last"]) if q.get("last") is not None else None
+        prev = float(q["prev_close"]) if q.get("prev_close") is not None else None
+        chg = (last - prev) if (last is not None and prev) else 0.0
+        return {
+            "symbol": q.get("futu_symbol") or f"A.{code}", "name": "",
+            "last": last or 0.0, "change": chg,
+            "change_pct": (chg / prev * 100) if prev else 0.0,
+            "volume": int(q.get("volume") or 0), "source": "facade",
+        }
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def quote(code: str) -> dict:
+    out = quote_via_facade(code)
+    if out is not None:
+        return out
     market = detect_market(code)
     for fn in (fetch_sina, fetch_qq):
         out = fn(code, market)

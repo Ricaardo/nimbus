@@ -1,14 +1,23 @@
 #!/usr/bin/env python3
 """分析师评级共识与趋势 — Finnhub recommendation(免费,无价格目标)。
-数据优先经 data-gateway(共享缓存/provenance),不可用时直连 Finnhub。
+数据经 data-access facade(Tier-1),不可用时回退 data-gateway。Tier-2 不直连数据源。
 用法: ratings.py NVDA [--legacy]
 """
-import argparse, os, sys, subprocess, urllib.request, urllib.parse, json
+import argparse, sys, subprocess, json
 from pathlib import Path
 
-KEY = os.environ.get("FINNHUB_API_KEY", "")
-URL = "https://finnhub.io/api/v1/stock/recommendation"
 DATA_GATEWAY = Path("/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
+
+
+def fetch_via_facade(sym):
+    """Recommendation rows via the data-access facade (Tier-1), or None."""
+    try:
+        sys.path.insert(0, "/Users/x/nimbus-os/services/data-access")
+        import data_access as data  # noqa: PLC0415
+        rows = data.ratings(f"US:{sym}", limit=8)
+        return rows if isinstance(rows, list) and rows else None
+    except Exception:
+        return None
 
 
 def fetch_via_gateway(sym):
@@ -28,26 +37,15 @@ def fetch_via_gateway(sym):
         return None
 
 
-def fetch_direct(sym):
-    if not KEY:
-        print("FINNHUB_API_KEY 未设", file=sys.stderr); sys.exit(1)
-    q = urllib.parse.urlencode({"symbol": sym, "token": KEY})
-    with urllib.request.urlopen(f"{URL}?{q}", timeout=15) as r:
-        return json.load(r)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("symbol")
-    ap.add_argument("--legacy", action="store_true", help="跳过 data-gateway,直连 Finnhub")
+    ap.add_argument("--legacy", action="store_true", help="跳过 facade,直接走 data-gateway")
     a = ap.parse_args()
     sym = a.symbol.upper()
-    data = None if a.legacy else fetch_via_gateway(sym)
+    data = fetch_via_gateway(sym) if a.legacy else (fetch_via_facade(sym) or fetch_via_gateway(sym))
     if data is None:
-        try:
-            data = fetch_direct(sym)
-        except Exception as e:
-            print(f"获取失败: {e}", file=sys.stderr); sys.exit(1)
+        print(f"获取失败: facade/data-gateway 均不可用", file=sys.stderr); sys.exit(1)
     if not data:
         print(f"📋 {sym}：无分析师评级数据"); return
     data = sorted(data, key=lambda x: x.get("period", ""), reverse=True)[:4]
