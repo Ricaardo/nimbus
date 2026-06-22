@@ -26,7 +26,7 @@
 - 宏观/板块/事件:`market-pulse`(MHS)`sector-analyst` `event-calendar` `news-dashboard`
 - 期权/加密/打新:`options-strategy-advisor` `btc-guanfu` `ipo-subscription-analyzer`
 - 大师视角(仅主人明确要时):`value-perspective` `macro-perspective`
-- 免费数据兜底(美股/宏观/期权/COT/能源):**OpenBB**——经 `~/nimbus-stack/nimbus/.venv-openbb/bin/python -c "from openbb import obb;..."` 调,命令速查 `skills/references/openbb-commands.md`。仅美股/宏观,**A/H 不用**(走 longbridge/futu)。
+- 免费数据兜底(美股/宏观/期权/COT/能源):**OpenBB**——经 `~/nimbus-os/nimbus/.venv-openbb/bin/python -c "from openbb import obb;..."` 调,命令速查 `skills/references/openbb-commands.md`。仅美股/宏观,**A/H 不用**(走 longbridge/futu)。
 路由:个股综合→us-stock-analysis;选股/推演→research;市场温度→market-pulse;BTC→btc-guanfu;SEC文件→filings-pipeline;财报电话会→earnings-call。别让一个问题触发多个重复 skill。
 
 ## 决策留痕(可问责)
