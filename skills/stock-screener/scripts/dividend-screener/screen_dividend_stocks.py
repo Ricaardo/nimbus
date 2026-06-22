@@ -30,7 +30,6 @@ import io
 import json
 import os
 import sys
-import time
 from datetime import datetime
 from typing import Optional
 
@@ -111,111 +110,79 @@ class FINVIZClient:
             return set()
 
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
 class FMPClient:
-    """Client for Financial Modeling Prep API"""
+    """Facade-backed drop-in for the former FMP /stable dividend client.
 
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
+    Reads through the data-access facade: statements/dividends/profile via
+    reference-data, prices via the warehouse, universe via screening. FMP's
+    company-screener and key-metrics are paid with no free equivalent, so those
+    degrade (universe pre-filter widened; key-metrics empty).
+    """
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.session = requests.Session()
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key  # unused; kept for compat
         self.rate_limit_reached = False
         self.retry_count = 0
 
-    def _get(self, endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
-        """Make GET request with rate limiting and error handling"""
-        if self.rate_limit_reached:
-            return None
-
-        if params is None:
-            params = {}
-        params["apikey"] = self.api_key
-
-        url = f"{self.BASE_URL}/{endpoint}"
-
-        try:
-            response = self.session.get(url, params=params, timeout=30)
-            time.sleep(0.3)  # Rate limiting: ~3 requests/second
-
-            if response.status_code == 200:
-                self.retry_count = 0  # Reset retry count on success
-                return response.json()
-            elif response.status_code == 429:
-                self.retry_count += 1
-                if self.retry_count <= 1:  # Only retry once
-                    print("WARNING: Rate limit exceeded. Waiting 60 seconds...", file=sys.stderr)
-                    time.sleep(60)
-                    return self._get(endpoint, params)
-                else:
-                    print(
-                        "ERROR: Daily API rate limit reached. Stopping analysis.", file=sys.stderr
-                    )
-                    self.rate_limit_reached = True
-                    return None
-            else:
-                print(
-                    f"ERROR: API request failed: {response.status_code} - {response.text}",
-                    file=sys.stderr,
-                )
-                return None
-        except requests.exceptions.RequestException as e:
-            print(f"ERROR: Request exception: {e}", file=sys.stderr)
-            return None
-
-    def screen_stocks(
-        self,
-        dividend_yield_min: float,
-        pe_max: float,
-        pb_max: float,
-        market_cap_min: float = 2_000_000_000,
-    ) -> list[dict]:
-        """Screen stocks using Stock Screener API"""
-        params = {
-            "dividendYieldMoreThan": dividend_yield_min,
-            "priceEarningRatioLowerThan": pe_max,
-            "priceToBookRatioLowerThan": pb_max,
-            "marketCapMoreThan": market_cap_min,
-            "exchange": "NASDAQ,NYSE",
-            "limit": 1000,
-        }
-
-        data = self._get("stock-screener", params)
-        return data if data else []
+    def screen_stocks(self, dividend_yield_min: float, pe_max: float, pb_max: float,
+                      market_cap_min: float = 2_000_000_000) -> list[dict]:
+        """US universe via facade screening (FMP company-screener is paid, so the
+        yield/PE/PB pre-filter is dropped; per-symbol dividend/financial checks downstream
+        still apply)."""
+        out = []
+        for r in _facade().screening(market="US", limit=1000) or []:
+            mc = r.get("market_cap") or 0
+            if mc >= market_cap_min:
+                out.append({"symbol": r.get("symbol"), "companyName": r.get("name"),
+                            "marketCap": mc, "sector": r.get("detailed_industry")})
+        return out
 
     def get_income_statement(self, symbol: str, limit: int = 5) -> list[dict]:
-        """Get income statement"""
-        return self._get(f"income-statement/{symbol}", {"limit": limit}) or []
+        return _facade().income_statement(symbol, "annual", limit) or []
 
     def get_balance_sheet(self, symbol: str, limit: int = 5) -> list[dict]:
-        """Get balance sheet"""
-        return self._get(f"balance-sheet-statement/{symbol}", {"limit": limit}) or []
+        return _facade().balance_sheet(symbol, "annual", limit) or []
 
     def get_cash_flow(self, symbol: str, limit: int = 5) -> list[dict]:
-        """Get cash flow statement"""
-        return self._get(f"cash-flow-statement/{symbol}", {"limit": limit}) or []
+        return _facade().cash_flow(symbol, "annual", limit) or []
 
     def get_key_metrics(self, symbol: str, limit: int = 5) -> list[dict]:
-        """Get key metrics"""
-        return self._get(f"key-metrics/{symbol}", {"limit": limit}) or []
+        """FMP key-metrics is a paid endpoint with no free/facade equivalent → empty."""
+        return []
 
-    def get_dividend_history(self, symbol: str) -> list[dict]:
-        """Get dividend history"""
-        return self._get(f"historical-price-full/stock_dividend/{symbol}") or {}
+    def get_dividend_history(self, symbol: str) -> dict:
+        """v3-compatible {symbol, historical:[{date,dividend,...}]} from facade dividends."""
+        return {"symbol": symbol, "historical": _facade().dividends(symbol) or []}
 
     def get_company_profile(self, symbol: str) -> Optional[dict]:
-        """Get company profile including sector information."""
-        result = self._get(f"profile/{symbol}")
-        if result and isinstance(result, list) and len(result) > 0:
-            return result[0]
-        return None
+        rows = _facade().profile(symbol) or []
+        if not rows:
+            return None
+        p = rows[0]
+        return {**p, "companyName": p.get("name"), "mktCap": p.get("marketCap")}
 
     def get_historical_prices(self, symbol: str, days: int = 30) -> list[dict]:
-        """Get historical daily prices for RSI calculation."""
-        result = self._get(f"historical-price-full/{symbol}", {"serietype": "line"})
-        if result and "historical" in result:
-            # Return most recent 'days' entries
-            return result["historical"][:days]
-        return []
+        """Most-recent-first daily bars (v3-compatible) via the facade warehouse."""
+        bars = sorted(_facade().history(symbol, limit=days) or [],
+                      key=lambda b: b.get("trade_date") or "", reverse=True)
+        return [{"date": b.get("trade_date"), "open": b.get("open"), "high": b.get("high"),
+                 "low": b.get("low"), "close": b.get("close"), "adjClose": b.get("close"),
+                 "volume": b.get("volume")} for b in bars]
 
 
 class RSICalculator:

@@ -27,6 +27,8 @@ AH_DB = f"{AH_ROOT}/data/ah_screener.duckdb"      # HK + A
 US_DB = f"{AH_ROOT}/data/us_screener.duckdb"      # US
 VENV_PY = f"{AH_ROOT}/.venv/bin/python"
 
+_data = None  # lazily-imported data-access facade SDK
+
 
 def futu_screen(market, limit, extra):
     """跑 futu 价值粗筛，返回 [(code, name, pe, pb), ...]。"""
@@ -68,43 +70,39 @@ def to_ah_key(code):
     return None
 
 
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)。"""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", f"{HOME}/nimbus-os/services/data-access")
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as _da  # noqa: PLC0415
+        _data = _da
+    return _data
+
+
 def ah_scores(keys):
-    """批量查 ah DB 的最新 expert_score/decision。keys: [(db,market,symbol)]。
-    返回 {(db,market,symbol): (score, decision)}。"""
+    """批量查最新 expert_score/decision（经 facade /screening，按 symbol 查分）。
+    keys: [(db,market,symbol)]；返回 {(db,market,symbol): (score, decision)}。"""
     out = {}
-    by_db = {}
-    for db, mkt, sym in keys:
-        by_db.setdefault(db, []).append((mkt, sym))
-    code = """
-import duckdb, json, sys
-db, pairs = sys.argv[1], json.loads(sys.argv[2])
-con = duckdb.connect(db, read_only=True)
-res = {}
-for mkt, sym in pairs:
-    try:
-        row = con.execute(
-            "SELECT expert_score, decision FROM expert_screening_results "
-            "WHERE market=? AND symbol=? ORDER BY updated_at DESC LIMIT 1",
-            [mkt, sym]).fetchone()
-        if row:
-            res[mkt+'|'+sym] = [round(row[0],1) if row[0] is not None else None, row[1]]
-    except Exception:
-        pass
-con.close()
-print(json.dumps(res))
-"""
-    for db, pairs in by_db.items():
-        if not os.path.exists(db):
-            continue
+    # 按 market 分组（facade 用 market 路由到对应 warehouse DB），保留原 key 元组。
+    by_market = {}
+    for k in keys:
+        _db, mkt, sym = k
+        by_market.setdefault(mkt, {})[sym.upper()] = k
+    data = _facade()
+    for mkt, symmap in by_market.items():
         try:
-            r = subprocess.run([VENV_PY, "-c", code, db, json.dumps(pairs)],
-                               capture_output=True, text=True, timeout=60).stdout
-            res = json.loads(r.strip().splitlines()[-1]) if r.strip() else {}
-            for k, v in res.items():
-                mkt, sym = k.split("|", 1)
-                out[(db, mkt, sym)] = tuple(v)
+            rows = data.screening(market=mkt, symbol=",".join(symmap), limit=len(symmap))
         except Exception as e:
-            print(f"[warn] 查 {os.path.basename(db)} 失败: {e}", file=sys.stderr)
+            print(f"[warn] 查 {mkt} 深度分失败: {e}", file=sys.stderr)
+            continue
+        for r in rows:
+            k = symmap.get(str(r.get("symbol", "")).upper())
+            if k:
+                sc = r.get("expert_score")
+                out[k] = (round(sc, 1) if sc is not None else None, r.get("decision"))
     return out
 
 

@@ -1,38 +1,38 @@
 #!/usr/bin/env python3
-"""Stock news via yfinance. Returns headlines, publishers, dates, links."""
+"""Per-symbol stock news via the data-access facade (Finnhub company-news).
+Returns headlines, publishers, dates, links."""
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 
 
 def get_news(symbol: str, limit: int = 10) -> dict:
+    pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+    if pkg not in sys.path:
+        sys.path.insert(0, pkg)
     try:
-        import yfinance as yf
-    except ImportError:
-        return {"error": "yfinance not installed. Run: pip install yfinance"}
+        import data_access as data
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"data-access facade unavailable: {e}"}
 
     try:
-        t = yf.Ticker(symbol)
-        raw = t.news or []
-    except Exception as e:
+        raw = data.company_news(symbol, limit=limit) or []
+    except Exception as e:  # noqa: BLE001
         return {"error": f"fetch failed: {e}"}
 
     articles = []
-    for item in raw[:limit]:
-        # yfinance returns a nested 'content' structure in newer versions
-        c = item.get("content", item)
-        pub = c.get("pubDate") or c.get("providerPublishTime")
+    for c in raw[:limit]:
+        pub = c.get("datetime")
         if isinstance(pub, (int, float)):
             pub = datetime.fromtimestamp(pub, tz=timezone.utc).isoformat()
-        link_obj = c.get("canonicalUrl") or c.get("clickThroughUrl") or {}
-        link = link_obj.get("url") if isinstance(link_obj, dict) else (c.get("link") or "")
         articles.append({
-            "title": c.get("title", ""),
-            "publisher": (c.get("provider") or {}).get("displayName") if isinstance(c.get("provider"), dict) else c.get("publisher", ""),
+            "title": c.get("headline", ""),
+            "publisher": c.get("source", ""),
             "published": pub,
-            "link": link,
-            "summary": c.get("summary", "")[:300],
+            "link": c.get("url", ""),
+            "summary": (c.get("summary", "") or "")[:300],
         })
     return {"symbol": symbol, "count": len(articles), "articles": articles}
 

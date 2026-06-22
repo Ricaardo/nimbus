@@ -41,40 +41,40 @@ from data_quality import (
 )
 
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
 class SingleStockAnalyzer:
     """Analyze institutional ownership for a single stock"""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.base_url = "https://financialmodelingprep.com/api/v3"
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key  # unused; kept for CLI compat
 
     def get_institutional_holders(self, symbol: str) -> list[dict]:
-        """Get all institutional holders data for a stock"""
-        url = f"{self.base_url}/institutional-holder/{symbol}"
-        params = {"apikey": self.api_key}
-
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching institutional holders for {symbol}: {e}")
-            return []
+        """Per-stock institutional holders — no free/facade source (FMP institutional-
+        holder is paid; the facade exposes 13F by CIK only). Returns []. The supported
+        free institutional signal lives in analyze_institutional_free.py."""
+        return []
 
     def get_company_profile(self, symbol: str) -> dict:
-        """Get company profile information"""
-        url = f"{self.base_url}/profile/{symbol}"
-        params = {"apikey": self.api_key}
-
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            return data[0] if isinstance(data, list) and data else {}
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching company profile for {symbol}: {e}")
+        """Company profile via the facade (/profile → Finnhub), v3-compatible keys."""
+        rows = _facade().profile(symbol) or []
+        if not rows:
             return {}
+        p = rows[0]
+        return {**p, "companyName": p.get("name"), "mktCap": p.get("marketCap")}
 
     def analyze_stock(self, symbol: str, quarters: int = 8) -> dict:
         """Perform comprehensive institutional analysis on a stock.
@@ -525,14 +525,7 @@ Examples:
 
     args = parser.parse_args()
 
-    # Validate API key
-    if not args.api_key:
-        print("Error: FMP API key required")
-        print("Set FMP_API_KEY environment variable or pass --api-key argument")
-        print("Get free API key at: https://financialmodelingprep.com/developer/docs")
-        sys.exit(1)
-
-    # Initialize analyzer
+    # Initialize analyzer (data via the data-access facade; no API key needed)
     analyzer = SingleStockAnalyzer(args.api_key)
 
     # Run analysis

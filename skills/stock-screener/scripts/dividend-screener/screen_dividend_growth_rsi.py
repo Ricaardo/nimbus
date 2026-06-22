@@ -33,7 +33,6 @@ import io
 import json
 import os
 import sys
-import time
 from datetime import date, datetime
 from typing import Optional
 
@@ -114,130 +113,101 @@ class FINVIZClient:
             return set()
 
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
 class FMPClient:
-    """Financial Modeling Prep API client with rate limiting."""
+    """Facade-backed drop-in for the former FMP /stable client.
 
-    BASE_URL = "https://financialmodelingprep.com/api/v3"
+    Reads through the data-access facade (statements/dividends/profile via
+    reference-data, prices via the warehouse, quote via market-hub, universe via
+    screening). FMP's company-screener and key-metrics are paid with no free
+    equivalent, so those degrade (universe pre-filter widened; key-metrics empty).
+    """
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.session = requests.Session()
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key  # unused; kept for compat
         self.rate_limit_reached = False
         self.retry_count = 0
 
-    def _get(self, endpoint: str, params: Optional[dict] = None) -> Optional[dict]:
-        """Execute GET request with rate limiting and error handling."""
-        if self.rate_limit_reached:
-            return None
-
-        if params is None:
-            params = {}
-        params["apikey"] = self.api_key
-
-        url = f"{self.BASE_URL}/{endpoint}"
-
-        try:
-            response = self.session.get(url, params=params, timeout=30)
-
-            if response.status_code == 200:
-                self.retry_count = 0
-                time.sleep(0.3)  # Rate limiting: 0.3s between requests
-                return response.json()
-            elif response.status_code == 429:
-                self.retry_count += 1
-                if self.retry_count <= 1:
-                    print("WARNING: Rate limit exceeded. Waiting 60 seconds...", file=sys.stderr)
-                    time.sleep(60)
-                    return self._get(endpoint, params)
-                else:
-                    print(
-                        "ERROR: Daily API rate limit reached. Stopping analysis.", file=sys.stderr
-                    )
-                    self.rate_limit_reached = True
-                    return None
-            else:
-                print(
-                    f"WARNING: API request failed ({response.status_code}): {url}", file=sys.stderr
-                )
-                return None
-        except Exception as e:
-            print(f"ERROR: Request failed for {url}: {e}", file=sys.stderr)
-            return None
-
     def screen_stocks(self, min_market_cap: int = 2000000000, exchange: str = None) -> list[dict]:
-        """Screen stocks by market cap and exchange."""
-        params = {"marketCapMoreThan": min_market_cap}
-        if exchange:
-            params["exchange"] = exchange
-
-        result = self._get("stock-screener", params)
-        return result if result else []
+        """US universe via facade screening (FMP company-screener is paid)."""
+        out = []
+        for r in _facade().screening(market="US", limit=1000) or []:
+            mc = r.get("market_cap") or 0
+            if mc >= min_market_cap:
+                out.append({"symbol": r.get("symbol"), "companyName": r.get("name"),
+                            "marketCap": mc, "sector": r.get("detailed_industry")})
+        return out
 
     def get_historical_prices(self, symbol: str, days: int = 30) -> Optional[list[dict]]:
-        """Get historical daily prices."""
-        result = self._get(f"historical-price-full/{symbol}", {"timeseries": days})
-        if result and "historical" in result:
-            return result["historical"]
-        return None
+        """Most-recent-first daily bars (v3-compatible) via the facade warehouse."""
+        bars = sorted(_facade().history(symbol, limit=days) or [],
+                      key=lambda b: b.get("trade_date") or "", reverse=True)
+        if not bars:
+            return None
+        return [{"date": b.get("trade_date"), "open": b.get("open"), "high": b.get("high"),
+                 "low": b.get("low"), "close": b.get("close"), "adjClose": b.get("close"),
+                 "volume": b.get("volume")} for b in bars]
 
     def get_dividend_history(self, symbol: str) -> Optional[dict]:
-        """Get historical dividend payments."""
-        result = self._get(f"historical-price-full/stock_dividend/{symbol}")
-        return result
+        """v3-compatible {symbol, historical:[{date,dividend,...}]} via facade dividends."""
+        return {"symbol": symbol, "historical": _facade().dividends(symbol) or []}
 
     def get_income_statement(self, symbol: str, limit: int = 5) -> Optional[list[dict]]:
-        """Get income statement data."""
-        result = self._get(f"income-statement/{symbol}", {"limit": limit})
-        return result if result else []
+        return _facade().income_statement(symbol, "annual", limit) or []
 
     def get_balance_sheet(self, symbol: str, limit: int = 5) -> Optional[list[dict]]:
-        """Get balance sheet data."""
-        result = self._get(f"balance-sheet-statement/{symbol}", {"limit": limit})
-        return result if result else []
+        return _facade().balance_sheet(symbol, "annual", limit) or []
 
     def get_cash_flow(self, symbol: str, limit: int = 5) -> Optional[list[dict]]:
-        """Get cash flow statement data."""
-        result = self._get(f"cash-flow-statement/{symbol}", {"limit": limit})
-        return result if result else []
+        return _facade().cash_flow(symbol, "annual", limit) or []
 
     def get_key_metrics(self, symbol: str, limit: int = 5) -> Optional[list[dict]]:
-        """Get key financial metrics."""
-        result = self._get(f"key-metrics/{symbol}", {"limit": limit})
-        return result if result else []
+        """FMP key-metrics is a paid endpoint with no free/facade equivalent → empty."""
+        return []
 
     def get_company_profile(self, symbol: str) -> Optional[dict]:
-        """Get company profile including sector information."""
-        result = self._get(f"profile/{symbol}")
-        if result and isinstance(result, list) and len(result) > 0:
-            return result[0]
-        return None
+        rows = _facade().profile(symbol) or []
+        if not rows:
+            return None
+        p = rows[0]
+        return {**p, "companyName": p.get("name"), "mktCap": p.get("marketCap")}
 
     def get_quote_with_profile(self, symbol: str) -> Optional[dict]:
-        """
-        Get quote data merged with profile data to include sector information.
-
-        Returns:
-            Dict with quote data + sector/companyName from profile, or None on error
-        """
-        # First get quote data
-        quote = self._get(f"quote/{symbol}")
-        if not quote or not isinstance(quote, list) or len(quote) == 0:
+        """Quote merged with profile sector/companyName (v3-compatible)."""
+        rows = _facade().quote(symbol) or []
+        if not rows:
             return None
-
-        quote_data = quote[0].copy()
-
-        # Then get profile for sector information
+        q = rows[0]
+        quote_data = {
+            "symbol": q.get("symbol"), "name": q.get("name"),
+            "price": q.get("last"), "change": q.get("change"),
+            "changesPercentage": q.get("change_pct"),
+            "dayHigh": q.get("high"), "dayLow": q.get("low"),
+            "open": q.get("open"), "previousClose": q.get("prev_close"),
+            "volume": q.get("volume"),
+        }
         profile = self.get_company_profile(symbol)
         if profile:
-            # Merge profile data into quote (profile has more accurate sector/companyName)
             quote_data["sector"] = profile.get("sector", "Unknown")
             quote_data["companyName"] = profile.get("companyName", quote_data.get("name", ""))
             quote_data["industry"] = profile.get("industry", "")
         else:
-            # Fallback if profile fetch fails
-            quote_data["sector"] = quote_data.get("sector", "Unknown")
-            quote_data["companyName"] = quote_data.get("name", quote_data.get("companyName", ""))
-
+            quote_data["sector"] = "Unknown"
+            quote_data["companyName"] = quote_data.get("name", "")
         return quote_data
 
 

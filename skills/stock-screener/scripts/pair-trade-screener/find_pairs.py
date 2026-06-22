@@ -42,7 +42,6 @@ from itertools import combinations
 
 import numpy as np
 import pandas as pd
-import requests
 from scipy import stats
 from statsmodels.tsa.ar_model import AutoReg
 from statsmodels.tsa.stattools import adfuller
@@ -52,91 +51,68 @@ from statsmodels.tsa.stattools import adfuller
 # =============================================================================
 
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
 def get_api_key(args_api_key):
-    """Get API key from args or environment variable"""
-    if args_api_key:
-        return args_api_key
-    api_key = os.environ.get("FMP_API_KEY")
-    if not api_key:
-        print("ERROR: FMP_API_KEY not found. Set environment variable or use --api-key")
-        sys.exit(1)
-    return api_key
+    """The data-access facade needs no key; kept for CLI backward compatibility."""
+    return args_api_key or ""
 
 
-def fetch_sector_stocks(sector, api_key, min_market_cap=2_000_000_000):
-    """Fetch stocks in a sector from FMP API"""
-    print(f"\n[1/5] Fetching {sector} sector stocks from FMP API...")
+def fetch_sector_stocks(sector, api_key=None, min_market_cap=2_000_000_000):
+    """Sector stocks via the facade screening (US expert universe).
 
-    # Use stock screener to get sector stocks
-    url = "https://financialmodelingprep.com/api/v3/stock-screener"
-    params = {
-        "sector": sector,
-        "marketCapMoreThan": min_market_cap,
-        "limit": 1000,
-        "apikey": api_key,
-    }
-
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        if not data:
-            print(
-                f"ERROR: No stocks found in {sector} sector with market cap > ${min_market_cap:,}"
-            )
-            sys.exit(1)
-
-        # Extract symbols and basic info
-        stocks = []
-        for item in data:
-            if item.get("isActivelyTrading", True):
-                stocks.append(
-                    {
-                        "symbol": item["symbol"],
-                        "name": item.get("companyName", ""),
-                        "marketCap": item.get("marketCap", 0),
-                        "sector": item.get("sector", sector),
-                        "exchange": item.get("exchangeShortName", ""),
-                    }
-                )
-
-        print(f"  → Found {len(stocks)} stocks in {sector} sector")
-        return stocks
-
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Failed to fetch sector stocks: {e}")
-        sys.exit(1)
+    NOTE: FMP's company-screener (precise sector filter) is paid, so we filter the
+    facade's US screening universe by detailed_industry (best-effort substring on the
+    sector name) and market cap, capped for tractable pair combinations.
+    """
+    print(f"\n[1/5] Fetching {sector} sector stocks via the data-access facade...")
+    rows = _facade().screening(market="US", limit=2000) or []
+    key = (sector or "").lower()
+    stocks = []
+    for r in rows:
+        mc = r.get("market_cap") or 0
+        if mc < min_market_cap:
+            continue
+        ind = str(r.get("detailed_industry") or "")
+        if key and key not in ind.lower() and key not in str(r.get("name") or "").lower():
+            continue
+        stocks.append({
+            "symbol": r.get("symbol"), "name": r.get("name", ""),
+            "marketCap": mc, "sector": ind or sector, "exchange": r.get("market", ""),
+        })
+    stocks.sort(key=lambda s: s["marketCap"], reverse=True)
+    stocks = stocks[:60]  # cap: pair combinations grow O(n^2)
+    if not stocks:  # sector substring didn't match -> fall back to top US names
+        stocks = [{"symbol": r.get("symbol"), "name": r.get("name", ""),
+                   "marketCap": r.get("market_cap") or 0, "sector": sector,
+                   "exchange": r.get("market", "")}
+                  for r in rows if (r.get("market_cap") or 0) >= min_market_cap][:60]
+    print(f"  → Found {len(stocks)} stocks for '{sector}' (facade screening)")
+    return stocks
 
 
-def fetch_historical_prices(symbol, api_key, lookback_days=730):
-    """Fetch historical adjusted close prices for a symbol"""
-    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}"
-    params = {"apikey": api_key}
-
-    try:
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-
-        if "historical" not in data:
-            return None
-
-        # Extract historical prices
-        historical = data["historical"][:lookback_days]
-        historical = historical[::-1]  # Reverse to chronological order
-
-        # Convert to pandas Series
-        prices = pd.Series(
-            [item["adjClose"] for item in historical],
-            index=[pd.to_datetime(item["date"]) for item in historical],
-            name=symbol,
-        )
-
-        return prices
-
-    except requests.exceptions.RequestException:
+def fetch_historical_prices(symbol, api_key=None, lookback_days=730):
+    """Historical close prices (chronological pd.Series) via the facade warehouse."""
+    bars = _facade().history(symbol, limit=lookback_days) or []
+    bars = sorted(bars, key=lambda b: b.get("trade_date") or "")  # chronological
+    closes = [(b.get("trade_date"), b.get("close")) for b in bars if b.get("close") is not None]
+    if not closes:
         return None
+    return pd.Series([c for _, c in closes],
+                     index=[pd.to_datetime(d) for d, _ in closes], name=symbol)
 
 
 def fetch_price_data_batch(symbols, api_key, lookback_days=730):

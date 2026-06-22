@@ -457,53 +457,16 @@ class RepresentativeStockSelector:
             return []
 
     def _fetch_etf_holdings(self, etf_symbol: str, limit: int) -> list[dict]:
-        """Fetch top ETF holdings via FMP API."""
-        if requests is None or not self._fmp_api_key:
-            return []
+        """ETF holdings source.
 
-        self._rate_limit()
+        FMP's etf-holder is a paid endpoint and there is no free / data-access-facade
+        equivalent for per-ETF holdings, so this source degrades to empty per the
+        decoupling plan (no direct FMP access in Tier-2). The selector falls back to
+        its FINVIZ Elite / FINVIZ public / static sources, which cover the same need.
+        """
         self._source_states["fmp"].total_queries += 1
-
-        url = (
-            f"https://financialmodelingprep.com/api/v3/etf-holder/{etf_symbol}"
-            f"?apikey={self._fmp_api_key}"
-        )
-
-        try:
-            resp = requests.get(url, timeout=15)
-            if resp.status_code != 200:
-                self._record_failure("fmp")
-                return []
-
-            data = resp.json()
-            if not isinstance(data, list):
-                self._record_failure("fmp")
-                return []
-
-            stocks: list[dict] = []
-            for item in data[:limit]:
-                ticker = item.get("asset", "").strip()
-                if not ticker:
-                    continue
-                stocks.append(
-                    {
-                        "symbol": ticker,
-                        "source": "etf_holdings",
-                        "market_cap": _parse_market_cap(item.get("marketValue")),
-                        "change": None,
-                        "volume": None,
-                        "matched_industries": [],
-                        "reasons": [f"Held by {etf_symbol}"],
-                    }
-                )
-
-            self._record_success("fmp")
-            return stocks
-
-        except Exception:
-            logger.exception("FMP ETF holdings fetch failed for %s", etf_symbol)
-            self._record_failure("fmp")
-            return []
+        self._record_failure("fmp")
+        return []
 
     # -- Scoring & ranking ---------------------------------------------------
 

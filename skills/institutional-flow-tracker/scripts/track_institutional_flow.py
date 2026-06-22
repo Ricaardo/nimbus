@@ -44,39 +44,41 @@ from data_quality import (
 )
 
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
 class InstitutionalFlowTracker:
     """Track institutional ownership changes across stocks"""
 
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.base_url = "https://financialmodelingprep.com/api/v3"
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key  # unused; kept for CLI compat
 
     def get_stock_screener(self, market_cap_min: int = 1000000000, limit: int = 100) -> list[dict]:
-        """Get list of stocks meeting market cap criteria"""
-        url = f"{self.base_url}/stock-screener"
-        params = {"marketCapMoreThan": market_cap_min, "limit": limit, "apikey": self.api_key}
-
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching stock screener: {e}")
-            return []
+        """US universe via the facade screening, shaped like the old FMP screener."""
+        out = []
+        for r in _facade().screening(market="US", limit=limit) or []:
+            mc = r.get("market_cap")
+            if mc is None or mc >= market_cap_min:
+                out.append({"symbol": r.get("symbol"), "companyName": r.get("name"), "marketCap": mc})
+        return out
 
     def get_institutional_holders(self, symbol: str) -> list[dict]:
-        """Get institutional holders for a specific stock"""
-        url = f"{self.base_url}/institutional-holder/{symbol}"
-        params = {"apikey": self.api_key}
-
-        try:
-            response = requests.get(url, params=params, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            return data if isinstance(data, list) else []
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching institutional holders for {symbol}: {e}")
-            return []
+        """Per-stock institutional holders — no free/facade source (FMP institutional-
+        holder is paid; the facade exposes 13F by CIK only). Returns []. The supported
+        free institutional signal lives in analyze_institutional_free.py."""
+        return []
 
     def calculate_ownership_metrics(
         self, symbol: str, company_name: str, market_cap: float
@@ -477,14 +479,7 @@ Examples:
 
     args = parser.parse_args()
 
-    # Validate API key
-    if not args.api_key:
-        print("Error: FMP API key required")
-        print("Set FMP_API_KEY environment variable or pass --api-key argument")
-        print("Get free API key at: https://financialmodelingprep.com/developer/docs")
-        sys.exit(1)
-
-    # Initialize tracker
+    # Initialize tracker (data via the data-access facade; no API key needed)
     tracker = InstitutionalFlowTracker(args.api_key)
 
     # Run screening

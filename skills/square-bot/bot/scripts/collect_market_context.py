@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import re
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -17,9 +19,28 @@ from typing import Any
 from botlib import connect_db, init_db, load_config
 
 
-BINANCE_24H_URL = "https://api.binance.com/api/v3/ticker/24hr"
 BINANCE_ANNOUNCEMENTS_URL = "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
 GDELT_DOC_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
+
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
+
+
+def _to_crypto_symbol(binance_sym: str) -> str:
+    """BTCUSDT -> CRYPTO:BTC-USD (facade canonical crypto symbol)."""
+    base = binance_sym.upper().replace("USDT", "").replace("USD", "").replace("PERP", "")
+    return f"CRYPTO:{base}-USD"
 
 
 def fetch_json(url: str, timeout: int = 10, data: bytes | None = None) -> Any:
@@ -90,26 +111,38 @@ def severity_from_ticker(ticker: dict[str, Any]) -> str:
 
 
 def collect_tickers(config: dict[str, Any], offline: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Watch-symbol quotes via the data-access facade (per-symbol crypto quote).
+
+    The whole-market top-movers scan needed Binance's bulk /ticker/24hr, which the
+    facade has no equivalent for, so top_movers degrades to empty (per the data
+    decoupling: no direct exchange access in Tier-2). Watch symbols are unaffected.
+    """
     symbols = config.get("watch_symbols", ["BTCUSDT", "ETHUSDT", "BNBUSDT"])
-    min_quote_volume = float(config.get("market_filters", {}).get("top_mover_min_quote_volume_usdt", 0))
+    if offline:
+        return [normalize_ticker(t) for t in offline_tickers(symbols)], []
+
+    watch: list[dict[str, Any]] = []
     try:
-        all_tickers = offline_tickers(symbols) if offline else fetch_json(BINANCE_24H_URL)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        all_tickers = offline_tickers(symbols)
-        for item in all_tickers:
+        data = _facade()
+        for symbol in symbols:
+            rows = data.quote(_to_crypto_symbol(symbol)) or []
+            q = rows[0] if rows else {}
+            watch.append({
+                "symbol": symbol,
+                "price": q.get("last") or 0.0,
+                "change_pct": q.get("change_pct") or 0.0,
+                "high_24h": q.get("high") or 0.0,
+                "low_24h": q.get("low") or 0.0,
+                "volume": q.get("volume") or 0.0,
+                "quote_volume": 0.0,
+                "raw": q,
+            })
+    except Exception as exc:  # noqa: BLE001 — degrade gracefully
+        watch = [normalize_ticker(t) for t in offline_tickers(symbols)]
+        for item in watch:
             item["fallback_error"] = str(exc)
 
-    by_symbol = {item.get("symbol"): item for item in all_tickers if item.get("symbol")}
-    watch = [normalize_ticker(by_symbol.get(symbol, {"symbol": symbol})) for symbol in symbols]
-
-    candidates = [
-        normalize_ticker(item)
-        for item in all_tickers
-        if str(item.get("symbol", "")).endswith("USDT")
-        and not str(item.get("symbol", "")).endswith(("UPUSDT", "DOWNUSDT", "BULLUSDT", "BEARUSDT"))
-    ]
-    candidates = [ticker for ticker in candidates if ticker["quote_volume"] >= min_quote_volume]
-    top_movers = sorted(candidates, key=lambda t: abs(t["change_pct"]), reverse=True)[:10]
+    top_movers: list[dict[str, Any]] = []  # no facade bulk-crypto source
     return watch, top_movers
 
 

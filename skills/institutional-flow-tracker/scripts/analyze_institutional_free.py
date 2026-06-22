@@ -19,9 +19,22 @@ import sys
 import urllib.request
 
 FINVIZ = "https://finviz.com/quote.ashx?t={sym}"
-FMP_PROFILE = "https://financialmodelingprep.com/stable/profile?symbol={sym}&apikey={key}"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120 Safari/537.36")
+
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
 
 
 def _get(url: str) -> str:
@@ -53,14 +66,12 @@ def finviz_signal(sym: str) -> dict:
 
 
 def fmp_profile(sym: str) -> dict:
-    key = os.environ.get("FMP_API_KEY", "")
-    if not key:
-        return {}
+    """公司简介经 facade /profile（reference-data → Finnhub）。"""
     try:
-        data = json.loads(_get(FMP_PROFILE.format(sym=sym, key=key)))
-        if isinstance(data, list) and data:
-            p = data[0]
-            return {"name": p.get("companyName"), "sector": p.get("sector"),
+        rows = _facade().profile(sym) or []
+        if rows:
+            p = rows[0]
+            return {"name": p.get("name"), "sector": p.get("sector"),
                     "industry": p.get("industry"), "marketCap": p.get("marketCap")}
     except Exception:  # noqa: BLE001
         pass

@@ -13,7 +13,6 @@ import datetime as dt
 import json
 import os
 import sys
-import time
 
 HOME = os.path.expanduser("~")
 _SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
@@ -64,25 +63,28 @@ def fresh(entry):
         return False
 
 
+EARN_WINDOW_DAYS = 120  # 向前看的财报窗口
+
+
 def next_earnings(tic, cache, retries=2):
-    """返回下次财报日 isoformat 或 None。优先缓存，快速降级。"""
+    """返回下次财报日 isoformat 或 None。优先缓存；经 facade /earnings_calendar
+    (Finnhub，覆盖美股)；非美股无免费源时降级为 None。"""
     if tic in cache and fresh(cache[tic]):
         return cache[tic]["date"]
-    import pandas as pd
-    import yfinance as yf
-    for i in range(retries):
-        try:
-            cal = yf.Ticker(tic).get_earnings_dates(limit=8)
-            if cal is not None and len(cal):
-                now = pd.Timestamp.now(tz=cal.index.tz)
-                fut = cal[cal.index > now]
-                date = fut.index.min().date().isoformat() if len(fut) else None
-                cache[tic] = {"date": date, "fetched": TODAY.isoformat()}
-                return date
-        except Exception as e:
-            print(f"[warn] {tic} 财报重试 {i+1}: {str(e)[:50]}", file=sys.stderr)
-        if i < retries - 1:
-            time.sleep(2)
+    pkg = os.environ.get("DATA_ACCESS_PKG", f"{HOME}/nimbus-os/services/data-access")
+    if pkg not in sys.path:
+        sys.path.insert(0, pkg)
+    try:
+        import data_access as data  # noqa: PLC0415
+        frm = TODAY.isoformat()
+        to = (TODAY + dt.timedelta(days=EARN_WINDOW_DAYS)).isoformat()
+        fut = sorted(e["date"] for e in (data.earnings_calendar(frm, to, tic) or [])
+                     if e.get("date") and e["date"] >= frm)
+        date = fut[0] if fut else None
+        cache[tic] = {"date": date, "fetched": TODAY.isoformat()}
+        return date
+    except Exception as e:  # noqa: BLE001
+        print(f"[warn] {tic} 财报查询失败: {str(e)[:50]}", file=sys.stderr)
     return cache.get(tic, {}).get("date")              # 退回旧缓存(若有)
 
 

@@ -34,50 +34,29 @@ def get_api_key() -> Optional[str]:
     return api_key
 
 
-def fetch_economic_calendar(from_date: str, to_date: str, api_key: str) -> list[dict]:
-    """
-    Fetch economic calendar data from FMP API.
+_data = None
 
-    Args:
-        from_date: Start date in YYYY-MM-DD format
-        to_date: End date in YYYY-MM-DD format
-        api_key: FMP API key
 
-    Returns:
-        List of economic event dictionaries
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as data  # noqa: PLC0415
+        _data = data
+    return _data
 
-    Raises:
-        urllib.error.HTTPError: If API request fails
-        ValueError: If response is invalid
-    """
-    base_url = "https://financialmodelingprep.com/api/v3/economic_calendar"
 
-    # Build query parameters
-    params = {"from": from_date, "to": to_date, "apikey": api_key}
+def fetch_economic_calendar(from_date: str, to_date: str, api_key: str | None = None) -> list[dict]:
+    """US economic data-release calendar via the data-access facade (FRED releases).
 
-    # Construct URL with parameters
-    url = f"{base_url}?{urllib.parse.urlencode(params)}"
-
-    try:
-        # Make API request
-        with urllib.request.urlopen(url) as response:
-            if response.status != 200:
-                raise ValueError(f"API returned status code {response.status}")
-
-            data = json.loads(response.read().decode("utf-8"))
-
-            if not isinstance(data, list):
-                raise ValueError(f"Unexpected API response format: {type(data)}")
-
-            return data
-
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8") if e.fp else "No error details"
-        raise urllib.error.HTTPError(
-            e.url, e.code, f"FMP API error: {e.reason}. Details: {error_body}", e.hdrs, e.fp
-        )
-    except urllib.error.URLError as e:
-        raise ValueError(f"Network error: {e.reason}")
+    [{date, event, country, currency, release_id}], oldest->newest. NOTE: release
+    SCHEDULE only — no estimate/actual/impact (those need a paid feed; FMP/Finnhub
+    economic-calendar are 402/403 on the free tier). `api_key` is accepted but
+    ignored (kept for CLI backward compatibility)."""
+    return _facade().economic_calendar(from_date, to_date) or []
 
 
 def validate_date_range(from_date: str, to_date: str) -> None:
@@ -220,14 +199,9 @@ Examples:
     # Parse arguments
     args = parser.parse_args()
 
-    # Get API key
-    api_key = args.api_key or get_api_key()
-    if not api_key:
-        print(
-            "Error: FMP API key is required. Set FMP_API_KEY environment variable or use --api-key",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    # The data-access facade needs no key (FMP_API_KEY / --api-key are ignored,
+    # kept only for CLI backward compatibility).
+    api_key = args.api_key
 
     try:
         # Validate date range
