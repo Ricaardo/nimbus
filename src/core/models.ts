@@ -10,6 +10,7 @@
 
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL, PROJECT_ROOT } from '../config.js'
+import { getProvider, DEEPSEEK_MODELS } from './provider.js'
 
 export type Tier = 'haiku' | 'sonnet' | 'opus'
 
@@ -51,6 +52,22 @@ function pick(models: Array<{ value: string; displayName?: string }>, family: Ti
  *  supportedModels() does not need any business MCP servers — pass empty map
  *  to avoid loading all tool definitions (省启动 ping 的全量加载). */
 export async function refreshModels(): Promise<Record<Tier, string>> {
+  // ── DeepSeek provider branch ─────────────────────────────────────────────────
+  // When PROVIDER=deepseek, skip supportedModels() entirely (it calls Anthropic
+  // and would fail against the DeepSeek endpoint).  Return fixed model strings
+  // from the provider config instead.  The 'claude' path below is byte-identical
+  // to before this branch was added — no behaviour change when PROVIDER is unset.
+  if (getProvider() === 'deepseek') {
+    resolved.haiku  = DEEPSEEK_MODELS.haiku
+    resolved.sonnet = DEEPSEEK_MODELS.sonnet
+    resolved.opus   = DEEPSEEK_MODELS.opus
+    lastRefresh = Date.now()
+    process.stderr.write(
+      `nimbus: models resolved (deepseek) — haiku=${resolved.haiku} sonnet=${resolved.sonnet} opus=${resolved.opus}\n`,
+    )
+    return { ...resolved }
+  }
+  // ── Claude path (original, unchanged) ───────────────────────────────────────
   try {
     const q = query({
       prompt: 'ping',
