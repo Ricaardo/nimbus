@@ -1,186 +1,240 @@
-# Browser-Use × Claude Code 最终方案(Agent 实时控制 · 无额外 API · 可拓展)
+# 用 Claude Code 替代 browser-use 的 Agent 循环 — 设计方案
 
-> 范围:**只用 Claude Code(CLI 本体)** 实现"自然语言操控浏览器做 Web UI 自动化"。
-> 不集成 nimbus、不写自动化脚本——由 **Claude Code 这个 agent 本人**一步步控制浏览器。
-> 大脑用你的 **Claude 订阅额度**(Max 计划),不另起按量计费 API。
-
----
-
-## 0. 一句话
-
-给 Claude Code 装上 **Playwright MCP**(本地真 Chrome + 持久登录态),然后你用自然语言下指令。
-Claude Code 在它本就有的 **观察→推理→单步动作→再观察** 循环里**亲自**驱动浏览器——
-不是它写一段脚本去跑,而是它每一步都看着页面做决定。
+> 目标:不引入 `browser-use` 框架自带的 LLM 循环(它要计费 API key、且大脑不是 Claude Code),
+> 而是**把 browser-use 那套"循环"逐个部件用 Claude Code 重建**——
+> 大脑 = Claude Code(**订阅额度,无额外 API**),控制 = Claude Code **亲自逐步操作(非脚本生成)**。
 
 ---
 
-## 1. 核心原则:Agent 实时控制,不是脚本生成(你强调的点)
+## 0. 先拆解:browser-use 的"循环"到底由什么组成
 
-| | ❌ 脚本生成式 | ✅ Agent 实时控制(本方案) |
+`browser-use` 不是魔法,它的 `Agent.run()` 循环就是这 6 个部件:
+
+| # | 部件 | browser-use 里是什么 |
 |---|---|---|
-| 谁决定每一步 | 让模型写一段 Playwright/Selenium 脚本,脚本自跑 | Claude Code **每一步**亲自:看当前页 → 决定 → 调一个动作 → 看结果 |
-| 遇到意外 | 脚本崩,不变通 | 当场看到、当场应对(关弹窗/换路径/喊你) |
-| 像什么 | 写菜谱让机器人照做 | 一个会看屏幕的人坐那儿,你说一句它做一步 |
+| ① 感知(Perception) | 把当前页 DOM 抽成**带编号的可交互元素**(`[12]<button>登录</button>`)+ 可选截图 | `DomService` |
+| ② 动作空间(Action space) | 一组**受限高层动作**:`click_element(index)` / `input_text(index,text)` / `scroll` / `go_to_url` / `extract_content` / `done` | `Controller` + 动作注册表 |
+| ③ 决策(Brain) | LLM 看①、从②里挑下一步,输出**结构化动作** | **要你配的 LLM(API key,计费)** ← 就是这里要换掉 |
+| ④ 执行(Execution) | 用 Playwright 把动作打到浏览器 | `BrowserSession`(底层就是 Playwright) |
+| ⑤ 记忆/规划(Memory/Plan) | 维护动作历史、目标、可选 planner | Agent 内部 state |
+| ⑥ 自定义动作(Extensibility) | `@controller.action` 装饰器注册你自己的 Python 动作 | Controller registry |
 
-**Claude Code 天生就是后者**——它是个交互式 agent,工具调用就是"观察→行动"循环。
-所以这条要求**默认满足**,关键是:**用 Playwright MCP 暴露的"原子动作工具"**(navigate/snapshot/click/type…),
-**不要**去封装"跑完整脚本"的工具。Claude 自己拆解任务、逐步操作。
-
----
-
-## 2. 为什么不需要额外 API
-
-- Claude Code(Max 订阅)登录后,所有推理走**订阅额度**。
-- Playwright MCP 是它的**工具**,工具调用的推理由订阅模型完成 → **零额外 API、零按量计费**。
-- 带登录态的浏览**只在本机**(凭证存本地 profile),不碰任何云浏览器服务。
-- 对比社区 `browser-use`/Browserbase:它们自带计费 LLM key + 云端浏览器 → 既花钱又有凭证外泄风险,**不用**。
+**关键洞察**:①②④本质都是 **Playwright 之上的封装**,③才是 browser-use 真正"自带 LLM"的地方。
+**我们要做的,就是把 ③ 换成 Claude Code,其余部件用 Claude Code 生态里现成的等价物顶上。**
 
 ---
 
-## 3. 安装(三步)
+## 1. 逐部件替代映射
 
-### 3.1 给 Claude Code 加 Playwright MCP
+| browser-use 部件 | Claude Code 替代 | 说明 |
+|---|---|---|
+| ③ 决策 LLM(API key) | **Claude Code 本体(订阅)** | 大脑换成 Claude Code,零额外 API。这是整个方案的核心。 |
+| ② 循环 | **Claude Code 原生 agent 循环** | Claude Code 本就是"看工具结果→推理→调下一个工具"的循环,天然就是 browser-use 的 loop。 |
+| ① 感知 | **Playwright MCP 的 `browser_snapshot`** | 它返回**可访问性结构树,每个元素带 `ref`**(如 `ref=e12`)——和 browser-use 的"带编号元素"是一回事。复杂场景退化到 `browser_take_screenshot` 走视觉。 |
+| ② 动作空间 | **Playwright MCP 的 `browser_*` 工具** | `browser_click(ref)` ≈ `click_element(index)`;`browser_type` ≈ `input_text`;`browser_navigate`/`browser_scroll`/`browser_select_option`… 一一对应。Claude 通过 tool-calling 输出结构化动作。 |
+| ④ 执行 | **Playwright MCP 内部的 Playwright** | browser-use 底层也是 Playwright,这层完全一样。 |
+| ⑤ 记忆/规划 | **Claude Code 的会话上下文 + TODO/扩展思考** | 同一任务内,前面每步的结果都在上下文里(=动作历史);规划用它的 reasoning / TodoWrite。 |
+| ⑥ 自定义动作 | **Claude Code Skill(剧本)或自定义 MCP 工具** | 见第 4 节。`@controller.action` 的等价物。 |
 
-```bash
-claude mcp add playwright -- npx -y @playwright/mcp@latest \
-  --browser chrome --channel chrome \
-  --user-data-dir ~/.cc-browser-profile
+> 一句话:**browser-use = Playwright + 自带 LLM 循环;我们 = Playwright(MCP) + Claude Code 当循环。**
+> 同一套感知/动作层,只把"自带计费 LLM"换成"你的订阅 Claude Code",并且每一步都由 Claude Code 现场决策。
+
+---
+
+## 2. 两种落地设计
+
+### 设计 A —— Playwright MCP + Claude Code(推荐,零自定义代码)
+
+直接用微软官方 **Playwright MCP**:它已经把 browser-use 的①②④打包好了(结构化 snapshot + ref 动作 + Playwright 执行),Claude Code 的原生循环顶替③⑤。
+
+```
+你: 自然语言任务
+      ▼
+Claude Code(订阅, 大脑+循环)  ──观察→推理→单步动作→再观察──┐
+      │ 调 browser_* 工具                                   │
+      ▼                                                     │
+Playwright MCP(本地)= 感知(snapshot/ref)+ 动作 + 执行 ────┘
+      ▼
+真实 Chrome(headed, 持久 user-data-dir, 登录态留本机)
 ```
 
-(等价于在 `~/.claude.json` 或项目 `.mcp.json` 的 `mcpServers` 里加一条 `playwright`。)
+装:
+```bash
+claude mcp add playwright -- npx -y @playwright/mcp@latest \
+  --browser chrome --channel chrome --user-data-dir ~/.cc-browser-profile
+```
 
-### 3.2 种登录态(一次)
+**优点**:零自定义代码、官方维护、a11y 树天然防"点错元素"。**适合 95% 场景,先用它。**
 
-第一次 headed 跑起来后,在那个 Chrome 窗口里**手动登录**你要用的站点;
-登录态落进 `~/.cc-browser-profile`,以后 Claude 复用,不必每次登。
+### 设计 B —— browser-use 现成 MCP,砍掉它的 LLM,Claude Code 当大脑(已实测验证)
 
-### 3.3 设权限(关键:读放行、写要确认)
+> ✅ 已在隔离 venv 实装 `browser-use==0.13.1` 验证:它**自带现成 MCP server**(`python -m browser_use.mcp`),
+> **无需任何 API key、不开浏览器即可构造**,暴露 **15 个不依赖 LLM 的低层工具** + 1 个 LLM agent 工具。
+> 所以 **Design B 根本不必改源码**——现成的就能让 Claude Code 当大脑。
 
-在 `~/.claude/settings.json`(或项目 `.claude/settings.json`)里:
+**实测暴露的工具**(`browser_use/mcp/server.py`):
 
+- ✅ 15 个 **keyless** 低层工具,正好给 Claude Code:
+  `browser_get_state`(感知:带 index 的可交互元素)、`browser_click(index|坐标)`、`browser_type(index,text)`、
+  `browser_scroll`、`browser_navigate`、`browser_extract_content`、`browser_get_html`、`browser_screenshot`、
+  `browser_go_back`、`browser_list_tabs`/`browser_switch_tab`/`browser_close_tab`、
+  `browser_list_sessions`/`browser_close_session`/`browser_close_all`。
+- ❌ 1 个要砍/禁的:`retry_with_browser_use_agent` —— 调它**自己的 LLM**(无 key 时自动失效)。
+
+**实测确认的关键事实**:`_init_browser_session()` 里 LLM 是**条件初始化**(`if api_key:` 才建,否则 `self.llm=None`);
+低层工具全程不碰 `self.llm`。**所以只要不配 key,server 就是纯感知/动作引擎,大脑只能是 Claude Code。**
+
+#### 落地(两选一)
+
+**B-1 零改源码(推荐,实测可行)**:用现成 MCP,靠"不配 key + 权限 deny"把 agent 工具关死。
+```bash
+# 在隔离 venv 里(已建于 ~/browser-use-cc/.venv312)
+claude mcp add browser-use -- python -m browser_use.mcp
+# 浏览器内核(首次):playwright install chromium  或用系统 Chrome channel
+```
+`~/.claude/settings.json`:
 ```jsonc
 {
   "permissions": {
-    "allow": [
-      "mcp__playwright__browser_navigate",
-      "mcp__playwright__browser_snapshot",
-      "mcp__playwright__browser_take_screenshot",
-      "mcp__playwright__browser_wait_for"
-    ],
-    "ask": [
-      "mcp__playwright__browser_click",
-      "mcp__playwright__browser_type",
-      "mcp__playwright__browser_file_upload",
-      "mcp__playwright__browser_press_key"
-    ]
+    "deny":  ["mcp__browser-use__retry_with_browser_use_agent"],   // 关死它自带的 LLM 循环
+    "allow": ["mcp__browser-use__browser_get_state","mcp__browser-use__browser_navigate",
+              "mcp__browser-use__browser_screenshot","mcp__browser-use__browser_get_html",
+              "mcp__browser-use__browser_extract_content","mcp__browser-use__browser_list_tabs"],
+    "ask":   ["mcp__browser-use__browser_click","mcp__browser-use__browser_type",
+              "mcp__browser-use__browser_scroll","mcp__browser-use__browser_switch_tab"]
   }
 }
 ```
+绝不配 OpenAI/Anthropic key 给这个 venv → agent 工具即便被调也无脑可用。**大脑只能是 Claude Code。**
 
-读类动作(导航/读结构/截图)自动放行;**写类动作(点击/输入/上传)每次问你** ——
-这就是浏览器版的"护栏",防止它误点误交。觉得太啰嗦可把常用站点的 click/type 也挪进 `allow`。
+**B-2 改源码(你已授权,作硬化)**:若想彻底无此工具,patch `browser_use/mcp/server.py`:
+删 `list_tools` 里 `retry_with_browser_use_agent` 那个 `types.Tool(...)`(~384-457 行)+ `handle_call_tool`
+里 `if tool_name == 'retry_with_browser_use_agent'` 分支(~492-493)+ `_retry_with_browser_use_agent` 方法
++ `Agent`/`ChatOpenAI`/`get_default_llm` 的 import。剩下纯 15 个低层工具。建议用 patch 文件 vendoring,便于跟版本升级。
+
+#### 循环(Claude Code 当大脑)
+Claude Code 调 `browser_get_state()` 看带 index 的元素 → 推理 → `browser_click(12)`/`browser_type(8,"…")` →
+再 `browser_get_state()` → … 直到完成。**感知=browser-use(最强 DOM 抽取),大脑+循环=Claude Code(订阅),零计费 API。**
+
+> 下面这段是早期"自写薄包装"的兜底设计;实测证明现成 MCP 已够用,通常**不需要**自写。保留备参。
+
+#### (兜底备参)自写薄 MCP 包装
+
+上面 B-1 实测已够用,**通常不需要**自写。仅当未来某版 browser-use 的现成 MCP 不再给低层控制、
+或你要定制感知输出时,才自己包一层(用 `mcp`/`fastmcp`),骨架如下:
+
+```python
+# browser_use_mcp.py(骨架,无 LLM)
+from fastmcp import FastMCP
+from browser_use.browser import BrowserSession        # ① 感知+④ 执行
+from browser_use.controller.service import Controller # ② 动作
+
+mcp = FastMCP("browser-use-perception")
+session = BrowserSession(headless=False, user_data_dir="~/.cc-browser-profile")
+controller = Controller()
+
+@mcp.tool()
+async def get_state() -> str:
+    """返回当前页带 index 的可交互元素(+ 可选截图路径)。"""
+    st = await session.get_state_summary()       # browser-use 的 DomService 产物
+    return st.element_tree_as_indexed_text()     # [12]<button>登录</button> 形式
+
+@mcp.tool()
+async def click(index: int) -> str:
+    return await controller.act({"click_element_by_index": {"index": index}}, session)
+
+@mcp.tool()
+async def input_text(index: int, text: str) -> str:
+    return await controller.act({"input_text": {"index": index, "text": text}}, session)
+
+@mcp.tool()
+async def navigate(url: str) -> str:
+    return await controller.act({"go_to_url": {"url": url}}, session)
+
+# scroll / extract_content / get_html… 同理映射 controller 动作
+if __name__ == "__main__":
+    mcp.run()   # stdio
+```
+```bash
+claude mcp add browser-use-perception -- python /path/to/browser_use_mcp.py
+```
+
+**循环**:Claude Code 调 `get_state()` 看带 index 的元素 → 推理 → `click(12)`/`input_text(8,"...")` → 再 `get_state()` → … 直到完成。**大脑/循环=Claude Code(订阅),感知=browser-use,执行=Playwright,零计费 API。**
+
+**优点**:browser-use 最强感知层 + Claude Code 当脑。**代价**:多一个 Python 依赖(独立 venv);B-2 还要写那一百多行。**设计 A 定位不准的站点才上 B。**
 
 ---
 
-## 4. 工具面(Playwright MCP 的原子动作)
+## 3. 循环实际怎么转(一次任务)
 
-| 工具 | 作用 | 省 token 提示 |
-|---|---|---|
-| `browser_navigate(url)` | 打开页面 | |
-| `browser_snapshot()` | 读**可访问性结构树**定位元素 | **优先用它**,结构化、便宜 |
-| `browser_click(ref)` / `browser_type(ref,text)` | 点 / 输入 | |
-| `browser_select_option` / `browser_press_key` | 选择 / 按键 | |
-| `browser_wait_for(text\|time)` | 等渲染/等元素 | 别盲点,先等 |
-| `browser_take_screenshot()` | 截图给"肉眼"看 | **只在结构树不够时**才用,截图烧 token |
-| `browser_tabs` / `browser_file_upload` / `browser_handle_dialog` | 标签/上传/弹窗 | |
+任务:"登录雪球,把 NVDA 最新研报标题给我"。Claude Code **逐步**(每行=一次工具调用+一次观察):
 
-**省额度心法:能用 `snapshot`(结构)就别 `screenshot`(像素)。**
+1. `browser_navigate("https://xueqiu.com/S/NVDA")` → `browser_snapshot()`(读到带 ref 的元素)
+2. 看到登录态有效/或提示你登 → 继续
+3. `browser_click(ref=研报标签)` → `browser_wait_for(...)` → `browser_snapshot()`
+4. 从结构树读前 N 条标题+链接 → 整理 → 返回;判断任务完成(=browser-use 的 `done`)
+
+**②③④⑤全在这一个循环里**:弹窗/改版/验证码当场看到当场应对(对应 browser-use 的自纠错),
+不是写死脚本。**步数 = Claude Code 调用次数**(订阅额度),用 snapshot 优先、截图克制来省。
 
 ---
 
-## 5. 一次任务怎么跑(观察→单步动作循环)
+## 4. ⑥ 自定义动作 = browser-use `@action` 的两种等价物
 
-你:"去雪球登录后,把 NVDA 的最新研报标题给我"。Claude Code 内部**一步步**:
+browser-use 用 `@controller.action("订机票")` 注册自定义动作。在 Claude Code 下你有两条路,都**不写自动化脚本**:
 
-1. `browser_navigate("https://xueqiu.com/S/NVDA")` → `browser_snapshot()`
-2. 看到要登录 → 提示你(或用已存登录态)→ 继续
-3. `browser_click(研报标签)` → `browser_wait_for(...)` → `browser_snapshot()`
-4. 从结构树读出前 N 条标题+链接 → 整理 → 回给你
-
-**第 2/3 步若弹窗、改版、要验证码,它在循环里当场看到并应对**——不是一段写死的脚本崩在那。
-
----
-
-## 6. 拓展性:之后怎么新增"特定操作动作"(用 Skill,不写代码)
-
-你要"以后能加一些特定动作,且完全 agent 控制"。正确姿势是 **加知识(Skill 剧本),不加脚本**:
-
-### 6.1 即兴(零成本)
-直接自然语言:"打开 X,搜 Y,把前 10 条标题给我"。一次性任务够用。
-
-### 6.2 固化成 Claude Code Skill(推荐,可复用)
-建 `~/.claude/skills/snowball-research/SKILL.md`:
-
+**(a) Skill 剧本(首选,零代码)**——新增一个"动作"= 写一份 `~/.claude/skills/<name>/SKILL.md`:
 ```markdown
 ---
 name: snowball-research
-description: 登录雪球抓某标的的最新研报标题+链接。当用户要"雪球研报/雪球讨论"时用。
+description: 登录雪球抓某标的最新研报标题+链接。用户说"雪球研报"时用。
 ---
-# 雪球研报抓取
-前提:已用持久 profile 登录雪球。
-步骤(给你自己的指引,不是脚本):
+步骤(给你自己的指引,用 browser_* 现场执行,不是脚本):
 1. browser_navigate 到 https://xueqiu.com/S/{symbol}
-2. 切到"公告/研报"标签
-3. 用 browser_snapshot 读列表前 N 条标题与链接(别截图)
-4. 若遇登录墙 → 停下提示主人手动登录后再试
-5. 整理成「标题 — 链接」短行返回
-注意:绝不点站内可疑外链;只读不写。
+2. 切"研报"标签;browser_snapshot 读前 N 条标题+链接(别截图)
+3. 遇登录墙→停下提示主人手动登录;只读不写,不点可疑外链
 ```
+Claude Code 自动发现、需要时读它当指引。**新增动作 = 新写一份 SKILL.md。**
 
-Claude Code 会**自动发现**这个 skill,需要时读它当指引、用同一套原子工具**现场执行**。
-**新增一个动作 = 新写一份这样的 SKILL.md**,不写、不跑任何脚本——完全符合"agent 控制"。
+**(b) 自定义 MCP 工具(需要真·新底层能力时)**——把一个确定性强、要复用的复合动作封成 MCP 工具(如 `book_flight(...)`)。等价于 browser-use 的 `@action`,但作为 Claude Code 的工具暴露。
 
-### 6.3 新增"底层能力"(很少需要)
-只有当 Playwright MCP **没有**的底层能力(特殊设备/协议)才在 MCP 层加工具。日常拓展几乎都停在 6.2。
-
-> 拓展心法:**能力边界 = Playwright MCP 的原子工具;玩法 = 无限多的 Skill 剧本;控制权 = 永远在 agent。**
+> 拓展心法:**能力边界 = Playwright/MCP 工具;玩法 = 无限多的 Skill;大脑与控制权 = 永远是 Claude Code。**
 
 ---
 
-## 7. 安全红线
+## 5. browser-use 的"高级特性"在 Claude Code 下怎么覆盖
 
-1. 带登录态的浏览**不出本机**;绝不交云浏览器(Browserbase/Steel)。
-2. **链接安全**:不自动点开邮件/消息里的可疑链接;跟进前看清真实 URL,不明先问。
-3. **不可逆/对外动作**(发帖/提交/删改/转账)→ 靠第 3.3 的 `ask` 权限**每次确认**。
-4. **反爬隔离**:需要 stealth 的匿名公开站,用**另一个匿名 profile**;**绝不在带登录态的 profile 上挂 stealth**(防风控封号 + 指纹串味)。
-5. 涉及**交易/资金**的网页操作一律停下交你本人,不代下单。
-
----
-
-## 8. 失败模式与兜底
-
-| 问题 | 处理 |
+| browser-use 特性 | Claude Code 下 |
 |---|---|
-| 登录态过期 | headed 下你手动登一次,持久 profile 记住;agent 检测到登录页就停下提示 |
-| 验证码/强反爬 | 不硬刚;切匿名 stealth profile 或转人工;别在主 profile 上试 |
-| 结构树定位不到 | 退一步 `browser_take_screenshot` 给 Claude 看一眼(代价:token) |
-| JS 重渲染慢 | `browser_wait_for` 显式等 |
-| 无 Chrome | 把 `--channel chrome` 改 `chromium`(Playwright 自带) |
+| 动作历史/记忆 | 同会话上下文天然保留每步结果;长任务用 TodoWrite/分段总结防上下文膨胀 |
+| Planner(规划) | Claude 的 reasoning / 扩展思考 / 先列 TODO 再执行 |
+| 自纠错 | 循环里看到新状态当场改路径(本来就比脚本强) |
+| 结构化输出动作 | tool-calling 本身就是结构化 |
+| 录制/回放(确定性) | Claude 每次现场重推,**更适应、但确定性弱**;要可复用就固化成 Skill 给"骨架" |
+| 视觉定位(canvas/无 DOM) | `browser_take_screenshot` + Claude 视觉兜底(代价:token) |
+
+**核心取舍**:browser-use 偏"可复现的自动化";Claude Code 偏"现场适应的智能体"。
+你要的是后者(自然语言、agent 实时控制),所以这个替代不仅可行,而且**正是更契合你诉求的形态**。
 
 ---
 
-## 9. 落地清单
+## 6. 安全红线(不变)
 
-1. `claude mcp add playwright …`(第 3.1)。
-2. headed 跑一次,登录目标站,种 profile(第 3.2)。
-3. 在 settings.json 配读放行/写确认权限(第 3.3)。
-4. 按需建 `~/.claude/skills/<name>/SKILL.md` 剧本(第 6.2),一个动作一份。
-5. 直接自然语言用起来。
+1. 带登录态的浏览**不出本机**;绝不交云浏览器。
+2. 链接安全:不自动点邮件/消息里的可疑链接,跟进前看清真实 URL,不明先问。
+3. 写类动作(click/type/提交/上传)→ 用 `settings.json` 的 `permissions.ask` **每次确认**;读类(navigate/snapshot)放行。
+4. 反爬隔离:匿名站用**单独 stealth profile**,**绝不在带登录态 profile 上挂 stealth**。
+5. 交易/资金类网页操作一律停下交你本人,不代下单。
 
 ---
 
-## 10. 待确认
+## 7. 落地清单
 
-1. 第一批要打通登录态的目标站?(决定先种哪些 profile)
-2. 写动作(click/type)默认**每次确认**,还是对你常用站点直接放行?
-3. 要不要我帮你起一个示例 skill(比如雪球/某研报站)当模板?
+1. 设计 A:`claude mcp add playwright …` → headed 跑一次种登录态 → settings.json 配读放行/写确认。
+2. 直接自然语言用;把常用流程逐个写成 `~/.claude/skills/<name>/SKILL.md`。
+3. 若某站点定位不准,再评估设计 B(browser-use 感知层包 MCP)。
+
+## 8. 待确认
+1. 先走设计 A(零代码),还是你要我直接把设计 B 的 browser-use-as-MCP 薄包装也写出来?
+2. 第一批要打通登录态/做成 Skill 的目标站是哪些?
+3. 写动作默认每次确认,还是常用站点直接放行?
