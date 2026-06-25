@@ -6,10 +6,13 @@ import { join } from 'path'
 export const PROJECT_ROOT = '/Users/x/nimbus-os/nimbus'
 export const WORKSPACE = join(PROJECT_ROOT, 'workspace')
 export const DATA_DIR = join(PROJECT_ROOT, 'data')
-export const DB_PATH = join(DATA_DIR, 'state.db')
+/** SQLite state database path.  Override via NIMBUS_DB_PATH for independent
+ *  instances (e.g. the DeepSeek/微信 instance must not share Cici's state.db). */
+export const DB_PATH = process.env.NIMBUS_DB_PATH ?? join(DATA_DIR, 'state.db')
 export const LOG_DIR = join(PROJECT_ROOT, 'logs')
-/** Agent drops charts/files here; dispatcher auto-sends them to the chat. */
-export const OUTBOX_DIR = join(DATA_DIR, 'outbox')
+/** Agent drops charts/files here; dispatcher auto-sends them to the chat.
+ *  Override via NIMBUS_OUTBOX_DIR to give independent instances isolated outboxes. */
+export const OUTBOX_DIR = process.env.NIMBUS_OUTBOX_DIR ?? join(DATA_DIR, 'outbox')
 /** Vendored 投资 skill 根（自包含，不依赖 ~/.claude/skills）。 */
 export const SKILLS_ROOT = join(PROJECT_ROOT, 'skills')
 /** 运行态 state 根（portfolio_state / ibkr_positions / 缓存）。 */
@@ -32,6 +35,14 @@ export const WEIXIN_INBOUND_PORT = Number(process.env.WEIXIN_INBOUND_PORT ?? 878
 // 默认关闭,切换时设 WEIXIN_TWOWAY=1 并同时关掉 Hermes 的 weixin 轮询(单消费者)。
 export const WEIXIN_TWOWAY_ENABLED = (process.env.WEIXIN_TWOWAY ?? '0') === '1'
 
+// Phase 3 DeepSeek/微信:wechat-io 经 OpenAI 兼容口 (POST /v1/chat/completions) 入站。
+// 与 Phase 2 iLink 双向是互斥部署(同一端口 8788),默认关闭(Cici 不起此端点);
+// DeepSeek 第二实例设 WEIXIN_INBOUND=1 开启。
+export const WEIXIN_INBOUND_ENABLED = (process.env.WEIXIN_INBOUND ?? '0') === '1'
+export const WEIXIN_INBOUND_HOST = process.env.WEIXIN_INBOUND_HOST ?? '127.0.0.1'
+// 可选 Bearer 令牌:置空(默认)时仅靠 localhost 绑定保护;设置后强校验 Authorization。
+export const WEIXIN_INBOUND_TOKEN = process.env.WEIXIN_INBOUND_TOKEN ?? ''
+
 // ── Local API channel (Hermes / wechat-io bridge) ─────────────────────────────
 // 本地 HTTP bridge:POST /chat → dispatcher → 等待首个回复。绑定 localhost。
 // 端口占用时只记录 warning,不阻断 Discord 主 daemon。
@@ -39,6 +50,10 @@ export const API_CHANNEL_ENABLED = (process.env.NIMBUS_API_ENABLED ?? '1') !== '
 export const API_CHANNEL_HOST = process.env.NIMBUS_API_HOST ?? '127.0.0.1'
 export const API_CHANNEL_PORT = Number(process.env.NIMBUS_API_PORT ?? 8766)
 export const API_CHANNEL_TOKEN = process.env.NIMBUS_API_TOKEN ?? ''
+
+// Discord 主渠道开关。默认开(Cici 不受影响)。DeepSeek/微信第二实例设
+// NIMBUS_DISCORD_ENABLED=0,即可在无 Discord token 下启动,不抢占第二个 bot 连接。
+export const DISCORD_ENABLED = (process.env.NIMBUS_DISCORD_ENABLED ?? '1') !== '0'
 
 // ── 主人身份(隐私隔离:只有本人能看持仓/资金/记忆) ──────────────────────────
 // 非本人(即便进了白名单/群@)→ 不注入持仓画像/记忆、不存记忆、禁查账户工具、
@@ -223,7 +238,9 @@ try {
 export const TOKEN = process.env.DISCORD_BOT_TOKEN
 export const PROXY_URL = process.env.PROXY_URL || process.env.HTTPS_PROXY || process.env.HTTP_PROXY
 
-if (!TOKEN) {
+// Only enforce when Discord is the active channel. The DeepSeek/微信 instance
+// runs with NIMBUS_DISCORD_ENABLED=0 and legitimately has no Discord token.
+if (DISCORD_ENABLED && !TOKEN) {
   process.stderr.write(
     `discord channel: DISCORD_BOT_TOKEN required\n` +
     `  set in ${ENV_FILE}\n` +

@@ -27,6 +27,7 @@ import { readFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { PROJECT_ROOT, MCP_DEFAULT_ALLOW } from '../config.js'
+import { getProvider, computeCostUsd } from './provider.js'
 import { canUseTool, makeCanUseTool } from './safety.js'
 import type { Approver } from './safety.js'
 import type { AgentRunner } from '../modules/module.js'
@@ -119,6 +120,18 @@ const REPLY_STYLE_APPEND = [
   '• 风控是护栏不是主题:只在主人真要做交易决策时简短带一句,平时别说教。',
   '• Cici 御姐人设,犀利克制,惜字如金。',
   '• AI 绝不下单:给【标的/方向/数量/价格】让主人手动执行;给明确建议时末尾附 ===DECISION=== 块(见 CLAUDE.md)。',
+].join('\n')
+
+// ── 微信群人格(PROVIDER=deepseek 实例)─────────────────────────────────────────
+// 比奇堡群走轻量随性口吻,不是投资顾问工作台;覆盖上面的 Cici 投资风格。
+// 角色名册:群里仅一人是主人;其余为普通群友。内容边界:不产出色情/露骨内容。
+const WEIXIN_PERSONA_APPEND = [
+  '【场景】你在一个微信朋友群(「比奇堡堡外势力」)里随性聊天,不是投资顾问工作台。',
+  '【风格】口语、短句、像群里的朋友;不要用 markdown(粗体/标题/列表/代码块都不要),不长篇大论,一般一两句话。',
+  '  别说教,别用「作为AI/根据我的分析/建议您/综上所述/希望以上」这类腔调。',
+  '【角色记忆】群里只有一个是主人——微信名「其实你也觉得没意思了对吧」;其余是普通群友。',
+  '  对主人更上心;对其他人友好礼貌,但不透露主人的私事、账户、持仓等隐私。',
+  '【内容边界】不发黄色/露骨/色情内容;有人往那个方向带,就轻描淡写带过或转移话题。涉及钱/交易仍不下单,只动嘴给信息。',
 ].join('\n')
 
 // ── Subscription-mode guard ───────────────────────────────────────────────────
@@ -253,7 +266,12 @@ export class AgentRunnerImpl implements AgentRunner {
       // 笨重的全局 CLAUDE.md + R1-R7 军规 hook（省额度 + 去教条）。代价：claude.ai
       // 托管连接器(IBKR/Gmail)随 'user' 一起退出 → IBKR 持仓改由 portfolio_state.json 提供。
       settingSources: settingSources ?? ['project', 'local'],
-      systemPrompt: { type: 'preset', preset: 'claude_code', append: REPLY_STYLE_APPEND },
+      // PROVIDER=deepseek(微信群实例)走 Andy 随性人格;否则 Cici 投资风格。
+      systemPrompt: {
+        type: 'preset',
+        preset: 'claude_code',
+        append: getProvider() === 'deepseek' ? WEIXIN_PERSONA_APPEND : REPLY_STYLE_APPEND,
+      },
       // AI 自适应思考:Claude 自己决定何时/想多深(难题多想、闲聊少想),不硬编码。
       // display:'omitted' 让思考过程不进回复,保持聊天端干净。
       thinking: { type: 'adaptive', display: 'omitted' },
@@ -269,6 +287,10 @@ export class AgentRunnerImpl implements AgentRunner {
           : {}
       })(),
       cwd: cwd ?? PROJECT_ROOT,
+      // PROVIDER=deepseek(微信实例):去掉网页搜索——易致幻、误差大。禁用内置
+      // WebSearch/WebFetch(tavily 也已在 dispatcher 的 mcpAllow 里对 deepseek 去除)。
+      // 保留 futu/longbridge/cmc 等事实类行情 MCP。Claude 路径不受影响。
+      ...(getProvider() === 'deepseek' ? { disallowedTools: ['WebSearch', 'WebFetch'] } : {}),
       permissionMode: 'default',
       // Layer 2: SDK-level trade guard. With an approver, ASK-listed ops get
       // routed to the user for approval; without one, the static guard is used.
@@ -318,12 +340,25 @@ export class AgentRunnerImpl implements AgentRunner {
           resultText = r.result
           const u = (r.usage ?? {}) as Record<string, unknown>
           const n = (k: string): number => Number(u[k] ?? 0) || 0
+          const resolvedModel = Object.keys(r.modelUsage ?? {})[0] ?? model ?? 'inherited'
+          const inputTokens = n('input_tokens') + n('cache_read_input_tokens') + n('cache_creation_input_tokens')
+          const outputTokens = n('output_tokens')
+          const cacheReadTokens = n('cache_read_input_tokens')
+          // The SDK does not recognise deepseek-* model ids and always returns
+          // total_cost_usd=0 for DeepSeek calls.  When running against the
+          // DeepSeek backend, recompute cost from token counts using the
+          // DeepSeek price table so budget tracking reflects real spend.
+          // The Claude path uses the SDK value unchanged.
+          const sdkCost = r.total_cost_usd ?? 0
+          const costUsd = getProvider() === 'deepseek'
+            ? computeCostUsd(resolvedModel, { inputTokens, cacheReadTokens, outputTokens })
+            : sdkCost
           capturedUsage = {
-            model: Object.keys(r.modelUsage ?? {})[0] ?? model ?? 'inherited',
-            costUsd: r.total_cost_usd ?? 0,
-            inputTokens: n('input_tokens') + n('cache_read_input_tokens') + n('cache_creation_input_tokens'),
-            outputTokens: n('output_tokens'),
-            cacheReadTokens: n('cache_read_input_tokens'),
+            model: resolvedModel,
+            costUsd,
+            inputTokens,
+            outputTokens,
+            cacheReadTokens,
           }
         }
         // For error results we fall through to accumulated text.
