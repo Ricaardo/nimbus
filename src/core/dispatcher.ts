@@ -13,7 +13,6 @@ import { kbSearch, formatRecall, kbIngest } from './knowledge.js'
 import { extractSymbols } from './symbol.js'
 import { fetchQuotes as defaultFetchQuotes } from '../modules/quote/index.js'
 import { degradeLevel, applyDegrade } from './budget.js'
-import { getProvider } from './provider.js'
 
 /** Injectable quote fetcher — defaults to real fetchQuotes; override in tests. */
 export type QuoteFetcher = (symbols: string[]) => Promise<string>
@@ -545,12 +544,10 @@ export class Dispatcher {
 
       // Phase 1: 按 tier 注入不同 MCP 白名单(省工具定义 token)。
       // haiku=闲聊:零 MCP,最省。sonnet=分析:tavily。opus=深度:tavily+alpaca。
-      // PROVIDER=deepseek(微信实例):去掉 tavily 搜索(易致幻),只留事实类工具。
-      const isDeepseek = getProvider() === 'deepseek'
       const mcpAllow: readonly string[] =
         tier === 'haiku' ? [] :
-        tier === 'sonnet' ? (isDeepseek ? [] : ['tavily']) :
-        /* opus */ (isDeepseek ? ['alpaca'] : ['tavily', 'alpaca'])
+        tier === 'sonnet' ? ['tavily'] :
+        /* opus */ ['tavily', 'alpaca']
 
       const result = await this.#agent.run({
         prompt,
