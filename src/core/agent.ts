@@ -123,15 +123,19 @@ const REPLY_STYLE_APPEND = [
 ].join('\n')
 
 // ── 微信群人格(PROVIDER=deepseek 实例)─────────────────────────────────────────
-// 比奇堡群走轻量随性口吻,不是投资顾问工作台;覆盖上面的 Cici 投资风格。
-// 角色名册:群里仅一人是主人;其余为普通群友。内容边界:不产出色情/露骨内容。
-const WEIXIN_PERSONA_APPEND = [
-  '【场景】你在一个微信朋友群(「比奇堡堡外势力」)里随性聊天,不是投资顾问工作台。',
+// 比奇堡群的独立轻量 system prompt(PROVIDER=deepseek 用)。
+// 关键:这是【完整 system prompt】,不挂 claude_code 预设——省掉那十几 k 的内置工具定义。
+// 闲聊默认零工具;只有 router 把消息判为分析/行情(sonnet/opus tier)时才注入行情 MCP,
+// 即「分析按需才调用」。角色名册:群里仅一人是主人。内容边界:不产出色情/露骨内容。
+const WEIXIN_SYSTEM_PROMPT = [
+  '你是微信群「比奇堡堡外势力」里的 Andy,一个随性的群友(不是投资顾问工作台)。',
   '【风格】口语、短句、像群里的朋友;不要用 markdown(粗体/标题/列表/代码块都不要),不长篇大论,一般一两句话。',
   '  别说教,别用「作为AI/根据我的分析/建议您/综上所述/希望以上」这类腔调。',
   '【角色记忆】群里只有一个是主人——微信名「其实你也觉得没意思了对吧」;其余是普通群友。',
   '  对主人更上心;对其他人友好礼貌,但不透露主人的私事、账户、持仓等隐私。',
-  '【内容边界】不发黄色/露骨/色情内容;有人往那个方向带,就轻描淡写带过或转移话题。涉及钱/交易仍不下单,只动嘴给信息。',
+  '【分析按需】平时就是闲聊,别主动掉书袋。只有当有人真问到行情/某只股票/投资判断时才认真分析——',
+  '  那种时候你会拿到行情工具,用工具给事实、别瞎编;没工具/不确定就直说。',
+  '【内容边界】不发黄色/露骨/色情内容;有人往那个方向带,就轻描淡写带过或转移话题。涉及钱/交易不下单,只动嘴给信息。',
 ].join('\n')
 
 // ── Subscription-mode guard ───────────────────────────────────────────────────
@@ -265,12 +269,16 @@ export class AgentRunnerImpl implements AgentRunner {
       // settings.json 的 trade-guard hook + IBKR deny）。去掉 'user' 源 → 不再载入
       // 笨重的全局 CLAUDE.md + R1-R7 军规 hook（省额度 + 去教条）。代价：claude.ai
       // 托管连接器(IBKR/Gmail)随 'user' 一起退出 → IBKR 持仓改由 portfolio_state.json 提供。
-      settingSources: settingSources ?? ['project', 'local'],
-      // PROVIDER=deepseek(微信群实例)走 Andy 随性人格;否则 Cici 投资风格。
+      // PROVIDER=deepseek(微信群实例):瘦身——不载项目 skills/CLAUDE.md/hook(闲聊用不上,
+      // 省每条消息的常驻 token);Cici 路径不变。
+      settingSources: getProvider() === 'deepseek' ? [] : (settingSources ?? ['project', 'local']),
+      // 两条都用 claude_code 预设(完整工具脚手架,机器人保有全部能力);只换 append:
+      // deepseek → Andy 群聊人格;Cici → 投资风格。预设那段前缀虽大,但 DeepSeek 提示缓存
+      // 会按 cache_read 计费(便宜 ~50 倍),同群第二条起几乎免费,故不为省 token 而砍能力。
       systemPrompt: {
         type: 'preset',
         preset: 'claude_code',
-        append: getProvider() === 'deepseek' ? WEIXIN_PERSONA_APPEND : REPLY_STYLE_APPEND,
+        append: getProvider() === 'deepseek' ? WEIXIN_SYSTEM_PROMPT : REPLY_STYLE_APPEND,
       },
       // AI 自适应思考:Claude 自己决定何时/想多深(难题多想、闲聊少想),不硬编码。
       // display:'omitted' 让思考过程不进回复,保持聊天端干净。
@@ -287,10 +295,6 @@ export class AgentRunnerImpl implements AgentRunner {
           : {}
       })(),
       cwd: cwd ?? PROJECT_ROOT,
-      // PROVIDER=deepseek(微信实例):去掉网页搜索——易致幻、误差大。禁用内置
-      // WebSearch/WebFetch(tavily 也已在 dispatcher 的 mcpAllow 里对 deepseek 去除)。
-      // 保留 futu/longbridge/cmc 等事实类行情 MCP。Claude 路径不受影响。
-      ...(getProvider() === 'deepseek' ? { disallowedTools: ['WebSearch', 'WebFetch'] } : {}),
       permissionMode: 'default',
       // Layer 2: SDK-level trade guard. With an approver, ASK-listed ops get
       // routed to the user for approval; without one, the static guard is used.

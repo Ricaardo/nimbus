@@ -1,156 +1,186 @@
-# Browser-Use 接入本地 Claude Code 方案（用订阅额度做自然语言 Web UI 操作）
+# Browser-Use × Claude Code 最终方案(Agent 实时控制 · 无额外 API · 可拓展)
 
-> 目标:让你用**自然语言**指挥一个浏览器做 Web UI 操作(登录、点选、填表、抓取墙后数据、
-> 截图核对),而"大脑"用的是**本地 Claude Code 的订阅额度**(Max 订阅),不另起按量计费的
-> API key。本文给出架构选型、推荐方案、安全红线、落地步骤。
->
-> 状态:Playwright MCP 已写入 `secrets/nimbus` 的 `secrets/mcp.json`(见下),即"已半接通"。
-> 本方案把它收口成一个可复用、有护栏的能力。
+> 范围:**只用 Claude Code(CLI 本体)** 实现"自然语言操控浏览器做 Web UI 自动化"。
+> 不集成 nimbus、不写自动化脚本——由 **Claude Code 这个 agent 本人**一步步控制浏览器。
+> 大脑用你的 **Claude 订阅额度**(Max 计划),不另起按量计费 API。
 
 ---
 
-## 0. 一句话结论
+## 0. 一句话
 
-**用"Claude Code(订阅模式)+ Playwright MCP(本地真 Chrome + 持久登录态)"**:
-Claude 自己读页面的可访问性树(a11y snapshot)、决定点哪、填什么,通过 MCP 工具驱动浏览器。
-"大脑"就是已经跑在订阅额度上的那个 agent —— **不引入任何带 API key 的外部 browser-use 库**,
-所以天然"用 CC 的 AI 额度"。
-
----
-
-## 1. 关键约束:为什么不能用现成的 browser-use 库
-
-社区的 `browser-use` / `Browserbase` / `Steel` 等方案,**自己持有一个 LLM API key**(OpenAI/
-Anthropic 按量计费)来做决策循环。这违背你的核心诉求("用 Claude Code 的订阅额度"):
-
-- 它们调的是**计费 API**,不是你的 Max 订阅 → 额外花钱,且账号体系不同。
-- 把**带券商/邮箱登录态**的浏览器交给云端浏览器服务,是凭证外泄风险。
-
-所以"用订阅额度"这条约束,直接锁死了架构:**决策必须由本地 Claude Code / Claude Agent SDK
-(订阅模式,`preset: 'claude_code'`)发出**,浏览器只是它调用的一组工具(MCP)。
-nimbus 现在正是这么跑的(`assertSubscriptionMode()` + `settingSources:['project','local']` +
-preset claude_code),所以**接入点已经存在**。
+给 Claude Code 装上 **Playwright MCP**(本地真 Chrome + 持久登录态),然后你用自然语言下指令。
+Claude Code 在它本就有的 **观察→推理→单步动作→再观察** 循环里**亲自**驱动浏览器——
+不是它写一段脚本去跑,而是它每一步都看着页面做决定。
 
 ---
 
-## 2. 选型对比
+## 1. 核心原则:Agent 实时控制,不是脚本生成(你强调的点)
 
-| 方案 | 大脑 | 计费 | 页面感知 | 登录态 | 适用 | 取舍 |
-|---|---|---|---|---|---|---|
-| **A. Playwright MCP + CC**(推荐) | 本地 CC 订阅 | **订阅额度** | a11y 结构树(省 token) | 持久 user-data-dir(真 Chrome) | 绝大多数 Web UI / 墙后数据 | DOM 驱动、稳、便宜;需本机有 Chrome |
-| B. chrome-devtools-mcp + CC | 本地 CC 订阅 | 订阅额度 | CDP | 可持久 | 调试向 | 能力综合弱于 A(微软 Playwright MCP 更全) |
-| C. computer-use / 视觉点击 | 本地 CC 订阅 | 订阅额度(但**截图烧 token**) | 截图像素 | 跟随真实桌面 | 原生 app / canvas / 无 DOM | 贵、脆;浏览器在本环境是 read tier,点击被挡 |
-| D. browser-use / 云浏览器 | **自带 API key** | ❌ 按量计费 | 视觉+DOM | 云端(凭证外泄) | — | **否决**:不走订阅 + 凭证风险 |
+| | ❌ 脚本生成式 | ✅ Agent 实时控制(本方案) |
+|---|---|---|
+| 谁决定每一步 | 让模型写一段 Playwright/Selenium 脚本,脚本自跑 | Claude Code **每一步**亲自:看当前页 → 决定 → 调一个动作 → 看结果 |
+| 遇到意外 | 脚本崩,不变通 | 当场看到、当场应对(关弹窗/换路径/喊你) |
+| 像什么 | 写菜谱让机器人照做 | 一个会看屏幕的人坐那儿,你说一句它做一步 |
 
-**结论:主选 A**。C 仅在没有 DOM 的场景(原生应用、画布)兜底;D 直接排除。
+**Claude Code 天生就是后者**——它是个交互式 agent,工具调用就是"观察→行动"循环。
+所以这条要求**默认满足**,关键是:**用 Playwright MCP 暴露的"原子动作工具"**(navigate/snapshot/click/type…),
+**不要**去封装"跑完整脚本"的工具。Claude 自己拆解任务、逐步操作。
 
 ---
 
-## 3. 推荐架构(方案 A 细节)
+## 2. 为什么不需要额外 API
 
-```
-你: "Cici,去 X 站登录后把我自选股的研报标题抓下来"
-        │ 自然语言
-        ▼
-Claude Code / nimbus agent  (订阅额度, preset claude_code)
-        │ 调 MCP 工具
-        ▼
-@playwright/mcp  (本地 stdio 进程)
-        │ CDP
-        ▼
-真实 Chrome (--channel chrome, headed)
-   └── 持久 user-data-dir: /Users/x/.playwright-nimbus-profile  (带登录态)
+- Claude Code(Max 订阅)登录后,所有推理走**订阅额度**。
+- Playwright MCP 是它的**工具**,工具调用的推理由订阅模型完成 → **零额外 API、零按量计费**。
+- 带登录态的浏览**只在本机**(凭证存本地 profile),不碰任何云浏览器服务。
+- 对比社区 `browser-use`/Browserbase:它们自带计费 LLM key + 云端浏览器 → 既花钱又有凭证外泄风险,**不用**。
+
+---
+
+## 3. 安装(三步)
+
+### 3.1 给 Claude Code 加 Playwright MCP
+
+```bash
+claude mcp add playwright -- npx -y @playwright/mcp@latest \
+  --browser chrome --channel chrome \
+  --user-data-dir ~/.cc-browser-profile
 ```
 
-### 3.1 它已经接好的部分
+(等价于在 `~/.claude.json` 或项目 `.mcp.json` 的 `mcpServers` 里加一条 `playwright`。)
 
-`~/nimbus-os/nimbus/secrets/mcp.json` 已有:
+### 3.2 种登录态(一次)
 
-```json
-"playwright": {
-  "command": "npx",
-  "args": ["-y","@playwright/mcp@latest",
-           "--browser","chrome","--channel","chrome",
-           "--user-data-dir","/Users/x/.playwright-nimbus-profile"],
-  "type": "stdio"
+第一次 headed 跑起来后,在那个 Chrome 窗口里**手动登录**你要用的站点;
+登录态落进 `~/.cc-browser-profile`,以后 Claude 复用,不必每次登。
+
+### 3.3 设权限(关键:读放行、写要确认)
+
+在 `~/.claude/settings.json`(或项目 `.claude/settings.json`)里:
+
+```jsonc
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_wait_for"
+    ],
+    "ask": [
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_file_upload",
+      "mcp__playwright__browser_press_key"
+    ]
+  }
 }
 ```
 
-`agent.ts` 的 `loadAllMcpServers()` 会自动加载它;只要某次 run 的 `mcpAllow` 含 `'playwright'`,
-Cici 就能用浏览器工具。**Cici(Claude 订阅)和微信 DeepSeek 实例共用这一条配置**。
-
-### 3.2 工具面(Playwright MCP 暴露的能力)
-
-- `browser_navigate(url)` — 打开页面
-- `browser_snapshot()` — 返回**可访问性结构树**(不是截图),Claude 据此定位元素,省 token
-- `browser_click(ref)` / `browser_type(ref, text)` / `browser_select_option` / `browser_press_key`
-- `browser_wait_for(text|time)` — 等渲染/等元素
-- `browser_take_screenshot()` — **仅在需要肉眼核对时**才用(截图才烧 token)
-- `browser_tabs` / `browser_file_upload` / `browser_handle_dialog` 等
-
-**省额度要点:优先 `browser_snapshot`(结构化、廉价),`screenshot` 只在必要时。**
-
-### 3.3 怎么"用订阅额度"——无需额外动作
-
-nimbus/Cici 本来就跑在订阅模式(无 `ANTHROPIC_API_KEY`,走 `claude_code` preset)。
-Playwright MCP 是工具调用,推理由那个订阅 agent 完成 → **天然计在订阅额度上**。
-(微信 DeepSeek 实例若也开 `playwright`,则那条链路计在 DeepSeek key 上——按需选择哪个实例接浏览器。)
-
-### 3.4 两种触发方式
-
-1. **交互式**:你在 Discord/微信对 Cici 说"去某站抓某数据",该 run 的 `mcpAllow` 加 `'playwright'`。
-   建议加一个轻量意图判断:只有当请求明显需要浏览器(给了 URL / "登录后"/"墙后"/"截图核对")才挂,
-   避免每次闲聊都加载浏览器工具定义(省 token)。
-2. **计划任务(module)**:做一个 nimbus module,定时用持久登录态去抓某个付费源(如某研报站),
-   落库后进日报。复用现有 scheduler + module 体系。
+读类动作(导航/读结构/截图)自动放行;**写类动作(点击/输入/上传)每次问你** ——
+这就是浏览器版的"护栏",防止它误点误交。觉得太啰嗦可把常用站点的 click/type 也挪进 `allow`。
 
 ---
 
-## 4. 安全红线(沿用项目既有约定,务必照搬)
+## 4. 工具面(Playwright MCP 的原子动作)
 
-1. **带登录态的浏览不出本机**:凭证只存本地 `user-data-dir`,**绝不交给 Browserbase/Steel 等云浏览器**。
-2. **链接安全**:不自动点开邮件/消息里的可疑链接;跟进前先看清真实 URL,不明就先问你。
-3. **交易红线不变**:浏览器**绝不用于下单/改单/撤单/转账**;涉及资金动作一律停下交给你本人。
-4. **对外/不可逆动作先确认**:发帖、发消息、提交表单、删改数据等,先报"将要做什么"再执行。
-5. **反爬与登录态隔离**:需要反检测(stealth)的匿名公开站,用**另一个匿名 profile** + stealth;
-   **绝不在带登录态的 profile 上挂 stealth**——两套场景物理隔离,避免风控封号 + 指纹串味。
+| 工具 | 作用 | 省 token 提示 |
+|---|---|---|
+| `browser_navigate(url)` | 打开页面 | |
+| `browser_snapshot()` | 读**可访问性结构树**定位元素 | **优先用它**,结构化、便宜 |
+| `browser_click(ref)` / `browser_type(ref,text)` | 点 / 输入 | |
+| `browser_select_option` / `browser_press_key` | 选择 / 按键 | |
+| `browser_wait_for(text\|time)` | 等渲染/等元素 | 别盲点,先等 |
+| `browser_take_screenshot()` | 截图给"肉眼"看 | **只在结构树不够时**才用,截图烧 token |
+| `browser_tabs` / `browser_file_upload` / `browser_handle_dialog` | 标签/上传/弹窗 | |
+
+**省额度心法:能用 `snapshot`(结构)就别 `screenshot`(像素)。**
 
 ---
 
-## 5. 失败模式与兜底
+## 5. 一次任务怎么跑(观察→单步动作循环)
+
+你:"去雪球登录后,把 NVDA 的最新研报标题给我"。Claude Code 内部**一步步**:
+
+1. `browser_navigate("https://xueqiu.com/S/NVDA")` → `browser_snapshot()`
+2. 看到要登录 → 提示你(或用已存登录态)→ 继续
+3. `browser_click(研报标签)` → `browser_wait_for(...)` → `browser_snapshot()`
+4. 从结构树读出前 N 条标题+链接 → 整理 → 回给你
+
+**第 2/3 步若弹窗、改版、要验证码,它在循环里当场看到并应对**——不是一段写死的脚本崩在那。
+
+---
+
+## 6. 拓展性:之后怎么新增"特定操作动作"(用 Skill,不写代码)
+
+你要"以后能加一些特定动作,且完全 agent 控制"。正确姿势是 **加知识(Skill 剧本),不加脚本**:
+
+### 6.1 即兴(零成本)
+直接自然语言:"打开 X,搜 Y,把前 10 条标题给我"。一次性任务够用。
+
+### 6.2 固化成 Claude Code Skill(推荐,可复用)
+建 `~/.claude/skills/snowball-research/SKILL.md`:
+
+```markdown
+---
+name: snowball-research
+description: 登录雪球抓某标的的最新研报标题+链接。当用户要"雪球研报/雪球讨论"时用。
+---
+# 雪球研报抓取
+前提:已用持久 profile 登录雪球。
+步骤(给你自己的指引,不是脚本):
+1. browser_navigate 到 https://xueqiu.com/S/{symbol}
+2. 切到"公告/研报"标签
+3. 用 browser_snapshot 读列表前 N 条标题与链接(别截图)
+4. 若遇登录墙 → 停下提示主人手动登录后再试
+5. 整理成「标题 — 链接」短行返回
+注意:绝不点站内可疑外链;只读不写。
+```
+
+Claude Code 会**自动发现**这个 skill,需要时读它当指引、用同一套原子工具**现场执行**。
+**新增一个动作 = 新写一份这样的 SKILL.md**,不写、不跑任何脚本——完全符合"agent 控制"。
+
+### 6.3 新增"底层能力"(很少需要)
+只有当 Playwright MCP **没有**的底层能力(特殊设备/协议)才在 MCP 层加工具。日常拓展几乎都停在 6.2。
+
+> 拓展心法:**能力边界 = Playwright MCP 的原子工具;玩法 = 无限多的 Skill 剧本;控制权 = 永远在 agent。**
+
+---
+
+## 7. 安全红线
+
+1. 带登录态的浏览**不出本机**;绝不交云浏览器(Browserbase/Steel)。
+2. **链接安全**:不自动点开邮件/消息里的可疑链接;跟进前看清真实 URL,不明先问。
+3. **不可逆/对外动作**(发帖/提交/删改/转账)→ 靠第 3.3 的 `ask` 权限**每次确认**。
+4. **反爬隔离**:需要 stealth 的匿名公开站,用**另一个匿名 profile**;**绝不在带登录态的 profile 上挂 stealth**(防风控封号 + 指纹串味)。
+5. 涉及**交易/资金**的网页操作一律停下交你本人,不代下单。
+
+---
+
+## 8. 失败模式与兜底
 
 | 问题 | 处理 |
 |---|---|
-| 登录态过期 | headed 模式下你本人扫码/输密一次,持久 profile 记住;agent 检测到登录页就停下提示 |
-| 站点强反爬/验证码 | 不硬刚;切匿名 stealth profile 或转人工;别在主 profile 上试 |
-| a11y 树定位不到元素 | 退一步 `browser_take_screenshot` 给 Claude 看一眼再决策(代价:token) |
-| 页面 JS 重渲染慢 | `browser_wait_for` 显式等;别盲点 |
-| Chrome 未装 / channel 不符 | 模板用 `--channel chrome`;无 Chrome 则改 `chromium`(Playwright 自带) |
+| 登录态过期 | headed 下你手动登一次,持久 profile 记住;agent 检测到登录页就停下提示 |
+| 验证码/强反爬 | 不硬刚;切匿名 stealth profile 或转人工;别在主 profile 上试 |
+| 结构树定位不到 | 退一步 `browser_take_screenshot` 给 Claude 看一眼(代价:token) |
+| JS 重渲染慢 | `browser_wait_for` 显式等 |
+| 无 Chrome | 把 `--channel chrome` 改 `chromium`(Playwright 自带) |
 
 ---
 
-## 6. 落地步骤(最小)
+## 9. 落地清单
 
-1. **确认 Chrome 在位**:`--channel chrome` 需要本机 Chrome;否则改 `chromium`。
-2. **首次登录种 profile**:headed 跑一次,手动登录目标站,登录态落进 `/Users/x/.playwright-nimbus-profile`。
-3. **意图门控**(可选但建议):在 dispatcher 给"需要浏览器"的请求把 `'playwright'` 加进 `mcpAllow`;
-   其余请求不加(省工具定义 token)。
-4. **加护栏**:把第 4 节红线接进 `canUseTool`/`safety.ts`(对 `browser_*` 的写动作走确认/拒绝),
-   与现有 trade-guard 一致。
-5. **(可选)计划任务 module**:封一个"墙后数据抓取"module,定时跑 + 落库 + 进日报。
+1. `claude mcp add playwright …`(第 3.1)。
+2. headed 跑一次,登录目标站,种 profile(第 3.2)。
+3. 在 settings.json 配读放行/写确认权限(第 3.3)。
+4. 按需建 `~/.claude/skills/<name>/SKILL.md` 剧本(第 6.2),一个动作一份。
+5. 直接自然语言用起来。
 
 ---
 
-## 7. 与微信 DeepSeek 实例的关系
+## 10. 待确认
 
-- 浏览器能力**默认挂在 Cici(Claude 订阅)实例**——它推理强,适合复杂 Web 操作,且计订阅额度。
-- 微信 DeepSeek 实例**默认不挂浏览器**(那个实例要去搜索、走轻量闲聊);若确需,再单独把
-  `'playwright'` 加进它的 `mcpAllow`,但注意那会计在 DeepSeek key 上、且 DeepSeek 工具调用能力弱于 Claude。
-
----
-
-## 8. 待你确认的点
-
-1. 浏览器能力主要挂在 **Cici(Claude 订阅)** 还是也给微信实例?(建议:仅 Cici)
-2. 第一批要打通登录态的目标站是哪些?(决定先种哪些 profile)
-3. 是否要我把"意图门控 + browser_* 写动作护栏"也实现掉,还是先只保留手动触发?
+1. 第一批要打通登录态的目标站?(决定先种哪些 profile)
+2. 写动作(click/type)默认**每次确认**,还是对你常用站点直接放行?
+3. 要不要我帮你起一个示例 skill(比如雪球/某研报站)当模板?
