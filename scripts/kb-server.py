@@ -48,7 +48,10 @@ PORT = int(os.environ.get("KB_PORT", "6901"))
 HOST = os.environ.get("KB_HOST", "127.0.0.1")
 
 # ── embedding model (dim probed at runtime — fastembed metadata is unreliable) ──
-_model = TextEmbedding(model_name=MODEL_NAME)
+_model = TextEmbedding(
+    model_name=MODEL_NAME,
+    cache_dir=os.environ.get("KB_FASTEMBED_CACHE", str(REPO / ".cache" / "fastembed")),
+)
 DIM = int(np.array(next(_model.embed(["probe"]))).shape[0])
 
 

@@ -26,3 +26,7 @@ workspace/
 .venv-kb/
 .venv-openbb/
 .venv/
+
+# fastembed 模型缓存(~240MB onnx)+ 字节码 — 环境artifact,勿提交
+.cache/
+**/__pycache__/
