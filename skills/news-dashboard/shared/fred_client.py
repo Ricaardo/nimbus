@@ -1,42 +1,53 @@
-"""Minimal FRED API client for news-dashboard Mode 1."""
-import os
-import time
+"""FRED client for news-dashboard, backed by the data-access facade.
+
+Historically this hit the FRED REST API directly; per the decoupling plan it now
+reads through the data-access facade (``import data_access`` -> ``macro()``), the
+single read path the news-dashboard skill already uses (see finnhub_client.py).
+``get_series_observations`` preserves the FRED-native observation shape
+(``{"date", "value"}``, newest-first) so callers need no change.
+"""
 import logging
-import requests
+import os
+import sys
 
 logger = logging.getLogger(__name__)
 
+_data = None
+
+
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as _da  # noqa: PLC0415
+        _data = _da
+    return _data
+
 
 class FREDClient:
-    BASE = "https://api.stlouisfed.org/fred"
-
     def __init__(self, api_key: str = "", timeout: int = 15):
-        self.api_key = api_key or os.environ.get("FRED_API_KEY", "")
+        # Kept for signature compatibility; credentials/transport live in the facade.
+        self.api_key = api_key
         self.timeout = timeout
-        if not self.api_key:
-            logger.warning("FRED_API_KEY not set")
-
-    def _get(self, path: str, params: dict | None = None) -> dict:
-        p = dict(params or {})
-        p["api_key"] = self.api_key
-        p["file_type"] = "json"
-        for attempt in range(3):
-            try:
-                r = requests.get(f"{self.BASE}/{path}", params=p, timeout=self.timeout)
-                if r.status_code == 429:
-                    time.sleep(1.5 * (attempt + 1))
-                    continue
-                r.raise_for_status()
-                return r.json()
-            except requests.RequestException as e:
-                logger.debug("FRED %s failed: %s", path, e)
-                if attempt == 2:
-                    raise
-                time.sleep(0.5)
-        return {}
 
     def get_series_observations(self, series_id: str, limit: int = 10) -> list:
-        data = self._get("series/observations", {
-            "series_id": series_id, "limit": limit, "sort_order": "desc",
-        })
-        return data.get("observations", []) if isinstance(data, dict) else []
+        """Newest-first FRED observations as {"date","value"} dicts.
+
+        The facade returns rows keyed by the series id ({"date", "<series>": v});
+        remap to FRED's native {"date","value"} (value stringified) for callers.
+        """
+        try:
+            rows = _facade().macro(series_id, limit=limit) or []
+        except Exception as e:  # noqa: BLE001
+            logger.debug("FRED macro(%s) via facade failed: %s", series_id, e)
+            return []
+        out = []
+        for r in reversed(rows):  # facade is oldest-first; FRED native is desc
+            val = r.get("value")
+            if val is None:
+                val = next((v for k, v in r.items() if k != "date"), None)
+            out.append({"date": r.get("date"), "value": "" if val is None else str(val)})
+        return out
