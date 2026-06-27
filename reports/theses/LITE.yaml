@@ -1,0 +1,54 @@
+ticker: LITE
+name: Lumentum Holdings Inc.
+position: long
+created: "2026-06-01"
+last_updated: "2026-06-26"
+conviction: medium
+thesis_statement: "Long LITE — AI数据中心光模块/激光器需求爆发受益者，$400M+订单积压支撑，估值偏低"
+
+pillars:
+  - id: P1
+    description: "AI数据中心800G/1.6T光模块需求高速增长，LITE是上游关键器件供应商"
+    status: watch
+    evidence:
+      - date: "2026-06-26"
+        event: "光学估值担忧引发板块抛售，LITE跌8%——市场重新评估AI光学溢价"
+        impact: weakens
+  - id: P2
+    description: "$400M+订单积压提供收入可见性"
+    status: on_track
+    evidence: []
+  - id: P3
+    description: "3D传感/消费业务企稳，不再拖累整体利润"
+    status: watch
+    evidence: []
+
+risks:
+  - id: R1
+    description: "估值压缩风险——光学板块整体re-rating"
+    severity: high
+    status: active
+  - id: R2
+    description: "VCSEL/光模块竞争加剧（II-VI/Coherent, Infinera）"
+    severity: medium
+    status: active
+  - id: R3
+    description: "数据中心CAPEX放缓/AI热度退潮"
+    severity: high
+    status: active
+
+catalysts:
+  - date: "2026-08-01"
+    event: "FQ4 2026财报"
+    expected_impact: high
+
+target_price: 1000
+stop_loss: 700
+entry_price: 825
+current_conviction_score: 48
+
+thesis_vs_price:
+  date: "2026-06-26"
+  thesis_progress_pct: 40
+  price_change_pct: -0.8
+  verdict: bull_correction

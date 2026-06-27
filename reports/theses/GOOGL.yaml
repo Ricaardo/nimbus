@@ -1,0 +1,51 @@
+ticker: GOOGL
+name: Alphabet Inc.
+position: long
+created: "2026-06-01"
+last_updated: "2026-06-26"
+conviction: medium
+thesis_statement: "Long GOOGL — Gemini AI集成Google Search防护壕 + Google Cloud加速增长，广告收入韧性+估值相对合理"
+
+pillars:
+  - id: P1
+    description: "AI Overview增强Search护城河，广告收入韧性"
+    status: on_track
+    evidence: []
+  - id: P2
+    description: "Google Cloud 增速>25%，AI需求驱动"
+    status: on_track
+    evidence: []
+  - id: P3
+    description: "Waymo/DeepMind期权价值，估值未充分反映"
+    status: watch
+    evidence: []
+
+risks:
+  - id: R1
+    description: "DOJ反垄断裁决——Search/广告业务强制拆分风险"
+    severity: high
+    status: active
+  - id: R2
+    description: "AI原生搜索（Perplexity/ChatGPT）蚕食Search份额"
+    severity: medium
+    status: active
+  - id: R3
+    description: "广告市场经济下行周期"
+    severity: medium
+    status: watch
+
+catalysts:
+  - date: "2026-07-22"
+    event: "Q2 2026财报"
+    expected_impact: high
+
+target_price: 210
+stop_loss: 155
+entry_price: 180
+current_conviction_score: 62
+
+thesis_vs_price:
+  date: "2026-06-26"
+  thesis_progress_pct: 55
+  price_change_pct: -1.2
+  verdict: on_track

@@ -1,0 +1,57 @@
+ticker: MRVL
+name: Marvell Technology Inc.
+position: long
+created: "2026-06-01"
+last_updated: "2026-06-26"
+conviction: medium
+thesis_statement: "Long MRVL — 定制AI芯片（ASIC/XPU）+ 数据中心互联（5nm PAM4光通信），云厂商CAPEX持续扩张受益者"
+
+pillars:
+  - id: P1
+    description: "定制AI ASIC份额增长，AWS/Google/微软多客户背书"
+    status: watch
+    evidence:
+      - date: "2026-06-26"
+        event: "CFO Willem Meintjes披露Form 144，计划出售211,329股——内部卖压信号"
+        impact: weakens
+  - id: P2
+    description: "光通信/PAM4交换机芯片受益数据中心高速组网需求"
+    status: watch
+    evidence:
+      - date: "2026-06-26"
+        event: "OpenAI考虑推迟IPO + 整体AI相关股波动，芯片估值承压"
+        impact: weakens
+  - id: P3
+    description: "毛利率向65%+持续改善（结构性，非周期）"
+    status: on_track
+    evidence: []
+
+risks:
+  - id: R1
+    description: "内部人士卖股 = 管理层对短期高点有预期"
+    severity: high
+    status: active
+  - id: R2
+    description: "AI CAPEX周期放缓/云厂商削减定制芯片预算"
+    severity: high
+    status: active
+  - id: R3
+    description: "AMD/Broadcom定制芯片竞争加剧"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-08-26"
+    event: "Q2 FY2027 财报（估计）"
+    expected_impact: high
+
+target_price: 320
+stop_loss: 220
+entry_price: 260
+current_conviction_score: 52
+
+thesis_vs_price:
+  date: "2026-06-26"
+  thesis_progress_pct: 45
+  price_change_pct: -5.0
+  verdict: failed

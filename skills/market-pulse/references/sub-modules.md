@@ -76,11 +76,8 @@ print(gdp.tail(10).to_string())
 
 ## 4. FRED 通用
 
-```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/fred-indicators/<script>.py
-```
-
-利率、CPI、GDP、失业率、PCE。
+利率、CPI、GDP、失业率、PCE 等 FRED 序列经 data-access facade 单一读路径获取
+（`data_access.macro("DGS10")` 等）。Fed/流动性仪表盘见 §1（macro-liquidity-monitor）。
 
 ## 5. 市场情绪 Fear & Greed
 

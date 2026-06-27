@@ -1,0 +1,57 @@
+ticker: RKLB
+name: Rocket Lab Corporation
+position: long
+created: "2026-06-01"
+last_updated: "2026-06-26"
+conviction: high
+thesis_statement: "Long RKLB — 小型卫星发射市场领导者，Neutron火箭商业化 + 政府合同持续增加，Space Systems部门高毛利率扩张"
+
+pillars:
+  - id: P1
+    description: "Electron火箭频发、政府/商业双轨合同增加"
+    status: on_track
+    evidence:
+      - date: "2026-06-26"
+        event: "NASA选定RKLB执行3次Electron发射（PolSIR + TSIS-2任务），2027年初开始"
+        impact: strengthens
+  - id: P2
+    description: "Space Systems（卫星组件/平台）高毛利率业务持续扩张"
+    status: on_track
+    evidence: []
+  - id: P3
+    description: "Neutron火箭开发进展，中型市场潜在颠覆者"
+    status: watch
+    evidence: []
+
+risks:
+  - id: R1
+    description: "SpaceX Falcon 9竞争压力，定价战"
+    severity: high
+    status: active
+  - id: R2
+    description: "Neutron研发超支/延期"
+    severity: medium
+    status: active
+  - id: R3
+    description: "政府预算削减影响NASA合同"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-08-01"
+    event: "Q2 2026 财报"
+    expected_impact: high
+  - date: "2027-01-01"
+    event: "NASA PolSIR/TSIS-2发射开始"
+    expected_impact: medium
+
+target_price: 30
+stop_loss: 16
+entry_price: 22.5
+current_conviction_score: 78
+
+thesis_vs_price:
+  date: "2026-06-26"
+  thesis_progress_pct: 65
+  price_change_pct: 1.1
+  verdict: on_track
