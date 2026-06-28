@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
-"""VIX 期限结构 —— Cboe 官方免费源(替代已付费失效的 FMP ^VIX3M)。
+"""VIX 期限结构 —— 经 Go 数据网关 (datagw /cboe-quote) 取 Cboe 官方免费报价。
 
 返回结构与原 FMPClient.get_vix_term_structure 一致:
     {"vix", "vix3m", "ratio", "classification"}
 classification ∈ {steep_contango, contango, flat, backwardation}
+环境: DATAGW_URL (默认 http://127.0.0.1:8821; datagw 是单一 Cboe 取数口)
 """
 import json
+import os
+import urllib.parse
 import urllib.request
 
-CBOE = "https://cdn.cboe.com/api/global/delayed_quotes/quotes/{}.json"
+DATAGW = os.environ.get("DATAGW_URL", "http://127.0.0.1:8821")
 
 
 def _price(sym: str) -> float | None:
+    url = f"{DATAGW}/cboe-quote?" + urllib.parse.urlencode({"symbol": sym})
     try:
-        req = urllib.request.Request(CBOE.format(sym), headers={"User-Agent": "market-pulse vix"})
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.load(r).get("data", {}).get("current_price")
+        with urllib.request.urlopen(url, timeout=15) as r:
+            return (json.load(r).get("data") or {}).get("current_price")
     except Exception:  # noqa: BLE001
         return None
 
