@@ -37,17 +37,16 @@ def _dp():
 
 
 def _calc_alt_fear_greed():
-    """组件 1: Alternative.me Fear & Greed Index (30%)"""
+    """组件 1: Alternative.me Fear & Greed Index (30%) — 经 data-access facade
+    (facade → reference-data → datagw /feargreed)，不再直连 alternative.me。"""
     name = "Alternative.me 贪恐指数"
     weight = 0.30
 
     try:
-        import requests
-        resp = requests.get("https://api.alternative.me/fng/?limit=1", timeout=10)
-        data = resp.json()
-        if "data" in data and len(data["data"]) > 0:
-            score = int(data["data"][0]["value"])
-            classification = data["data"][0].get("value_classification", "")
+        row = _dp().fear_greed_row()
+        if row and row.get("value") is not None:
+            score = int(row["value"])
+            classification = row.get("classification", "")
 
             signal = "greed" if score >= 60 else "fear" if score < 40 else "neutral"
 
@@ -65,9 +64,9 @@ def _calc_alt_fear_greed():
                 "reasoning": f"Alternative.me 指数={score} ({classification})",
             }
     except Exception as e:
-        logger.debug("Alternative.me API 失败: %s", e)
+        logger.debug("Alternative.me (facade) 失败: %s", e)
 
-    return _empty(name, weight, "Alternative.me API 不可用", "crypto fear and greed index today alternative.me")
+    return _empty(name, weight, "Alternative.me 数据不可用", "crypto fear and greed index today alternative.me")
 
 
 def _calc_funding_rate():
