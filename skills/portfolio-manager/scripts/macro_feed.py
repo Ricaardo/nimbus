@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-macro_feed.py — 宏观/流动性接入（直连官方 FRED API + 本地 FRED_API_KEY）
+macro_feed.py — 宏观/流动性接入（经 Go 数据网关 datagw /macro，单一 FRED 取数口）
 
 自给自足拉真 FRED 宏观并算 fred_score(信用0.45+VIX0.35+曲线0.20)，缓存到
-state/macro_cache.json，投顾读缓存。官方 api.stlouisfed.org 端点在沙箱可达
-(免 key 的 graph CSV 会超时，故用 key)。
+state/macro_cache.json，投顾读缓存。FRED 取数收敛到 Go datagw(8821)——它持有
+FRED_API_KEY 并用 keyed api.stlouisfed.org，本脚本不再直连官方端点/不再需要 key。
 
 序列：DGS10/DGS2/T10Y2Y(曲线)/DFEDTARU(联邦基金上限)/BAMLH0A0HYM2(HY利差)/
 DTWEXBGS(美元)/T10YIE(通胀预期)/CPIAUCSL(CPI)/VIXCLS(VIX)。
@@ -12,7 +12,7 @@ DTWEXBGS(美元)/T10YIE(通胀预期)/CPIAUCSL(CPI)/VIXCLS(VIX)。
 用法：
   python3 macro_feed.py --refresh   # 拉 FRED 写缓存
   python3 macro_feed.py             # 读缓存渲染
-只读，不下单。需 env FRED_API_KEY。
+只读，不下单。需 datagw 可达 (env DATAGW_URL，默认 http://127.0.0.1:8821)。
 """
 import argparse
 import datetime as dt
@@ -24,8 +24,7 @@ HOME = os.path.expanduser("~")
 _SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
 CACHE = f"{_SKILLS}/references/state/macro_cache.json"
 TODAY = dt.date.today()
-API = ("https://api.stlouisfed.org/fred/series/observations"
-       "?series_id={sid}&api_key={key}&file_type=json&sort_order=desc&limit=1")
+DATAGW = os.environ.get("DATAGW_URL", "http://127.0.0.1:8821")
 SERIES = ["DGS10", "DGS2", "T10Y2Y", "DFEDTARU", "BAMLH0A0HYM2",
           "DTWEXBGS", "T10YIE", "CPIAUCSL", "VIXCLS"]
 
@@ -34,14 +33,14 @@ def _clamp(x, lo=0.0, hi=100.0):
     return max(lo, min(hi, x))
 
 
-def fetch_series(sid, key, timeout=15):
-    """返回 (latest_value, date) 或 (None, None)。FRED 缺值标记为 '.'。"""
+def fetch_series(sid, timeout=15):
+    """返回 (latest_value, date) 或 (None, None)。经 datagw /macro;缺值为 null。"""
+    url = f"{DATAGW}/macro?series={sid}&limit=1"
     try:
-        d = json.loads(urllib.request.urlopen(
-            API.format(sid=sid, key=key), timeout=timeout).read())
-        obs = d.get("observations", [])
-        for o in obs:
-            if o.get("value") not in (".", "", None):
+        d = json.loads(urllib.request.urlopen(url, timeout=timeout).read())
+        obs = (d.get("data") or {}).get("observations", [])
+        for o in reversed(obs):  # ascending → newest last; take newest non-null
+            if o.get("value") is not None:
                 return float(o["value"]), o.get("date")
     except Exception as e:
         print(f"[warn] {sid} 拉取失败: {str(e)[:50]}")
@@ -68,14 +67,10 @@ def _score(hy, vix, curve):
 
 
 def refresh():
-    """直连 FRED API 拉序列、算分、写缓存。成功返回 dict，否则 None。"""
-    key = os.environ.get("FRED_API_KEY", "")
-    if not key:
-        print("[warn] 缺 FRED_API_KEY 环境变量")
-        return None
+    """经 datagw /macro 拉序列、算分、写缓存。成功返回 dict，否则 None。"""
     vals, as_of = {}, None
     for sid in SERIES:
-        v, d = fetch_series(sid, key)
+        v, d = fetch_series(sid)
         vals[sid] = v
         if d and (as_of is None or d > as_of):
             as_of = d
@@ -110,7 +105,7 @@ def load():
 def render(snap):
     if snap is None:
         return ("宏观/流动性：无缓存 —— 跑 `macro_feed.py --refresh`"
-                "（或等 ah-screener 定时刷新；FRED 直连易超时）")
+                "（或等 ah-screener 定时刷新；经 datagw 取 FRED）")
     s = snap.get("series", {})
     age = ""
     try:
