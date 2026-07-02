@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""多维异动一站式 — 合并 资金/技术/衍生品 三维异动(futu OpenD)。
-用法: anomaly.py US.NVDA [--dim all|capital|technical|derivatives] [--time-range 7]
-默认 all：依次跑三维并合并。需 OpenD 在线。
+"""多维异动一站式 — 合并 资金/技术/衍生品/情绪 四维异动(futu OpenD)。
+用法: anomaly.py US.NVDA [--dim all|capital|technical|derivatives|sentiment] [--time-range 7]
+默认 all：依次跑四维并合并。需 OpenD 在线。
 """
 import argparse, os, subprocess, sys
 
@@ -10,6 +10,7 @@ DIMS = {
     "capital":     ("💰 资金异动",   "handle_capital_anomaly.py"),
     "technical":   ("📊 技术异动",   "handle_technical_anomaly.py"),
     "derivatives": ("🎲 衍生品异动", "handle_derivatives_anomaly.py"),
+    "sentiment":   ("💬 社区情绪",   "handle_sentiment.py"),
 }
 
 

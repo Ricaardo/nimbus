@@ -1,6 +1,6 @@
 ---
 name: us-stock-analysis
-description: "个股/资产综合分析（数据驱动入口）。整合基本面 + 技术面 + 行情 + 同行对比，输出标准投资分析报告。用法：用户给定 ticker 或 'compare X vs Y'，且**不**指定大师视角时使用。当用户请求 'analyze AAPL'、'compare TSLA vs NVDA'、'评估这只股票'、'AAPL 怎么样'、'看一下 NVDA' 时触发。支持美股/A股/港股/加密/贵金属/外汇。NOT for: (1) 价值派大师 → value-perspective；(2) 宏观派大师 → macro-perspective；(3) 仅查价格 → market-data；(4) 仅算估值 → valuation；(5) 仅看技术指标 → technical-analysis；(6) 选股/找新标的 → research（Ideas）；(7) 新闻推演 → research（Scenarios）。"
+description: "个股/资产综合分析（数据驱动入口）。整合基本面 + 技术面 + 行情 + 同行对比 + 分析师评级，输出标准投资分析报告。用法：用户给定 ticker 或 'compare X vs Y'，且**不**指定大师视角时使用。当用户请求 'analyze AAPL'、'compare TSLA vs NVDA'、'评估这只股票'、'AAPL 怎么样'、'看一下 NVDA'、'NVDA 分析师评级/华尔街怎么看/评级共识/多少家买入' 时触发。支持美股/A股/港股/加密/贵金属/外汇。NOT for: (1) 价值派大师 → value-perspective；(2) 宏观派大师 → macro-perspective；(3) 仅查价格 → market-data；(4) 仅算估值 → valuation；(5) 仅看技术指标 → technical-analysis；(6) 选股/找新标的 → research（Ideas）；(7) 新闻推演 → research（Scenarios）。"
 required_tools: ["yfinance", "futuapi", "tavily", "alpaca", "context7"]
 ---
 
@@ -92,6 +92,14 @@ reports/AAPL_comprehensive_YYYYMMDD.md
 - 🟡 无持仓 → 等回调 PE < 29×
 - 🚫 不追（PE > 30× = fair value）
 ```
+
+**评级共识数据源**：在 full analysis 中，拉分析师评级共识作为标准一节：
+```bash
+python3 ~/.claude/skills/us-stock-analysis/scripts/analyst.py AAPL
+```
+输出：看多/中性/看空家数分布 + 看多占比 + 近 4 月环比趋势 + 方向判断。
+在报告中输出 `### 📊 分析师共识` + 看多占比环比的趋势箭头。
+注意：不含目标价（Finnhub 付费）；评级是滞后指标，趋势变化比绝对值更有信息量。
 
 ### Step E：保存为新文件
 

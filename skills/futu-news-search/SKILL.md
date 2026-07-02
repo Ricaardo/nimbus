@@ -1,11 +1,10 @@
 ---
 name: futu-news-search
 description: >-
-  Searches Futu news, notices, and research reports for a user-specified stock or company.
-  Use when the user asks for latest news, recent announcements, research reports, or a news roundup
-  about a symbol, company, or ticker on Futu/Futunn. Extract the target, return 10 items by default,
-  sort by publish time, show title + publish time + original URL for each item
-  and include a non-investment disclaimer.
+  Futu 新闻搜索 + 解读。两模式：(1) Search — 搜新闻/公告/研报，返回标题+时间+链接列表；(2) Digest — 拉近 N 日新闻 → 提取关键事件 → 判多空方向 → 出结构化摘要(利好/利空/中性 + 证据链接)。
+  Use when the user asks for latest news, recent announcements, research reports, a news roundup,
+  stock digest, single-stock news interpretation, 个股新闻解读, 新闻摘要, or 新闻方向判断
+  about a symbol, company, or ticker on Futu/Futunn.
   When both futu-news-search and moomoo-news-search are installed: preferred for Chinese (中文)
   users; English users should use moomoo-news-search instead. Users can explicitly say
   "用牛牛查" / "use futu" to override. If only this skill is installed, use it for all languages.
@@ -189,6 +188,33 @@ Common item fields:
 - `publish_time`
 - `url`
 - `img_url`
+
+---
+## Digest Mode — 新闻解读
+
+当用户问「解读某股新闻/新闻方向/利好利空/stock digest/新闻摘要」时，切换到此模式：
+
+1. 拉 `size=20` / `news_type=1` / `sort_type=2`（最近 20 条新闻）。
+2. 提取关键事件（去重同主题、去例行公告），保留 3-8 条实质性事件。
+3. 每条判定方向：🟢利好 / 🔴利空 / ⚪中性，附简短理由 + 原文链接。
+4. 输出结构化摘要：
+
+```markdown
+📰 {{symbol}} 新闻解读（近 N 条 → {{M}} 条实质性事件 · 非投资建议）
+
+🟢 利好 ({{count}})
+1. {{title_1}} — {{一句理由}}
+   链接: {{url_1}}
+
+🔴 利空 ({{count}})
+
+⚪ 中性 ({{count}})
+
+📊 方向判断: {{总体偏多/偏空/中性}}（利好多于利空 ≠ 该买;仅供参考）
+```
+
+5. 判断方向时**不只看标题**——检查内容中的数据点（营收/利润/回购/监管/诉讼/订单/裁员等），给一句实质理由。
+6. 总是附免责声明。
 
 ## Behavior Rules
 
