@@ -1,7 +1,7 @@
 # 白毛股神 Serenity — 瓶颈理论方法论（稳定深度档）
 
 > 蒸馏 @aleabitoreddit 公开观点体系的**投资方法论**（稳定、可长期复用）。
-> ⚠️ 实时持仓/thesis 是动态的，走 `serenity-tracker` skill 实时拉 followserenity.com，**不冻进知识库**。
+> ⚠️ 实时持仓/thesis 是动态的，走 `hot-tickers` skill 实时拉 followserenity.com，**不冻进知识库**。
 > ⚠️ 自述战绩、未审计、非真实 13F、非投资建议（NFA）。本档是"思维框架"，不是抄作业清单。
 
 ## 🎙 风格 DNA（识别他的判断特征）
@@ -37,7 +37,7 @@
 
 ## 🔗 怎么用（在 nimbus 里）
 
-1. **当 idea 源**：用 `serenity-tracker` 拉他当前看好的卡点方向/标的（实时）。
+1. **当 idea 源**：用 `hot-tickers` 拉网络热门(含白毛的卡点方向/标的,实时)。
 2. **判断瓶颈位置**：对照上面迁移图，看他押的环节是否=当前真实卡点（交叉 `news-dashboard`/`sector-analyst`）。
 3. **必做基本面核验**：候选标的过一遍 `us-stock-analysis` + `valuation`（小盘尤其要查现金流/稀释/流动性）。
 4. **登记 thesis**：值得跟的用 `thesis-tracker` 记 conviction + kill criteria（瓶颈迁移走/技术路线变 = kill）。

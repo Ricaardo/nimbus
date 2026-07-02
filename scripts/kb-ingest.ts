@@ -50,8 +50,7 @@ const FRAMEWORK_DOCS: Array<{ path: string; title: string }> = [
   // 协议摘要(怎么应用 — 量化门槛/5步检查/失效条件)
   { path: 'value-perspective/SKILL.md', title: '价值投资核心大师协议(Buffett/Lynch/Klarman/Bogle/Templeton/Greenblatt/Ackman/段永平)' },
   { path: 'macro-perspective/SKILL.md', title: '宏观周期6大师协议(Soros/Druckenmiller/Marks/Dalio/Simons/Mauboussin)' },
-  { path: 'serenity-tracker/SKILL.md', title: '白毛股神Serenity瓶颈理论方法论(AI半导体供应链)' },
-  { path: 'serenity-tracker/references/bottleneck-theory.md', title: '白毛股神瓶颈理论深度档:AI算力供应链瓶颈迁移图(光/CPO/HBM/InP衬底/Neocloud/太空)+选股逻辑+误用风险' },
+  { path: 'hot-tickers/references/bottleneck-theory.md', title: '白毛股神瓶颈理论深度档:AI算力供应链瓶颈迁移图(光/CPO/HBM/InP衬底/Neocloud/太空)+选股逻辑+误用风险' },
   // 大师深度档(表达DNA + 成功/失败案例库 + 思维模式 + 常见误用)——分析时浮出真实案例
   { path: 'value-perspective/references/warren-buffett/dna-and-cases.md', title: 'Buffett深度档:护城河类型/See\'s/GEICO/KO/Apple成功·IBM/Kraft/Tesco失败/4道闸门' },
   { path: 'value-perspective/references/warren-buffett/sources/letters/primary-source-map.md', title: 'Buffett原文RAG索引:股东信精选(1983商誉/1989错误/2007护城河/2014五十周年/2024认错与长期持有)' },
