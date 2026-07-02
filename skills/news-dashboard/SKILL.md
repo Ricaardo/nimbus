@@ -1,6 +1,6 @@
 ---
 name: news-dashboard
-description: "Unified news + data intelligence. 5 modes: market (Finnhub macro), deep (event impact 结构化提取), stock (per-ticker sentiment), raw (Jinshi/BlockBeats/Finnhub/Policy feeds — 直连上游), A-share data (龙虎榜/资金流向/热门板块/机构调研/IPO/研报/限售解禁/情绪 — 直连 akshare/futu). 当用户询问市场新闻、龙虎榜、资金流向、热门板块时触发。NOT for: Polymarket/预测市场/赌盘/概率/UpDown/涨跌市场 → polymarket；推演新闻 18 个月二三次影响 → research（Scenarios 模式）；个股深度叙事 → us-stock-analysis；财报具体数据 → event-calendar。"
+description: "Unified news + data intelligence. 5 modes: market (Finnhub macro), deep (event impact 结构化提取), stock (per-ticker sentiment), raw (Jinshi/BlockBeats/Finnhub/Policy feeds — 直连上游), A-share data (龙虎榜/资金流向/热门板块/机构调研/IPO/研报/限售解禁/情绪 — 直连 akshare/futu). 当用户询问市场新闻、龙虎榜、资金流向、热门板块时触发。NOT for: 推演新闻 18 个月二三次影响 → research（Scenarios 模式）；个股深度叙事 → us-stock-analysis；财报具体数据 → event-calendar。"
 required_tools: ["tavily", "websearch", "tavily_extract"]
 ---
 
@@ -402,7 +402,7 @@ print(df.to_string())
 
 ### 5.10 Polymarket / Kalshi 预测市场
 
-**推荐用 `polymarket` skill**。直连：
+直连（Polymarket Gamma / Kalshi API）：
 ```bash
 # Polymarket
 curl -sS "https://gamma-api.polymarket.com/events?closed=false&active=true&limit=20&order=volume" \

@@ -1,6 +1,6 @@
 ---
 name: market-data
-description: 统一行情数据查询。5 种模式：(1) 实时报价 quote — 单股/多股价格/涨跌幅/成交量/市值/52周；(2) 历史 K 线 history — OHLCV 不同周期；(3) 期权 options — 期权链 (calls/puts/strikes/IV/OI/volume) 及希腊字母 (delta/gamma/theta/vega)；(4) 市场摘要 summary — 主要指数/个股/加密一站式；(5) 期货 futures — 合约规格/保证金/基差/升贴水/展期。当用户询问'股价/报价/quote'、'K线/历史/history'、'期权/option chain/Greeks/Delta/IV'、'行情/指数/dashboard'、'期货/futures/合约/保证金/基差/升贴水/contango/backwardation'时触发。支持美股/港股/A股/加密/贵金属/期货。NOT for: Polymarket/预测市场/UpDown/涨跌市场 → polymarket；on-chain token holder/liquidity/security/social/smart-money detail → OKX OnchainOS skills.
+description: 统一行情数据查询。5 种模式：(1) 实时报价 quote — 单股/多股价格/涨跌幅/成交量/市值/52周；(2) 历史 K 线 history — OHLCV 不同周期；(3) 期权 options — 期权链 (calls/puts/strikes/IV/OI/volume) 及希腊字母 (delta/gamma/theta/vega)；(4) 市场摘要 summary — 主要指数/个股/加密一站式；(5) 期货 futures — 合约规格/保证金/基差/升贴水/展期。当用户询问'股价/报价/quote'、'K线/历史/history'、'期权/option chain/Greeks/Delta/IV'、'行情/指数/dashboard'、'期货/futures/合约/保证金/基差/升贴水/contango/backwardation'时触发。支持美股/港股/A股/加密/贵金属/期货。NOT for: on-chain token holder/liquidity/security/social/smart-money detail → OKX OnchainOS skills.
 dependencies: ["trading-skills"]
 required_tools: ["futuapi", "yfinance", "tavily", "alpaca", "stock-data"]
 ---

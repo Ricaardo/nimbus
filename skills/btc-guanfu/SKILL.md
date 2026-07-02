@@ -765,7 +765,6 @@ plt.tight_layout(); plt.savefig('/tmp/guanfu_chart_3_vmp.png', dpi=120); plt.clo
 | `market-pulse` | 跨资产宏观 MHS，与 BTC 局部信号交叉验证 |
 | OnchainOS/DEX 工具 | altcoin/memecoin 的链上池子、holder、安全和社媒/KOL；观复 不覆盖 |
 | `news-dashboard` | 黑天鹅事件 / 监管 / 交易所新闻 |
-| `polymarket` | 加密相关预测市场（btc 价 / ETF 通过率 / 监管） |
 | `trade-execution` | 观复给风险读盘 → 执行层再处理风险预算和执行细节 |
 | `trade-journal` | 决策时 log，事后复盘 |
 | `valuation`（贵金属模式）| BTC 与黄金互补避险，跨资产估值 |
