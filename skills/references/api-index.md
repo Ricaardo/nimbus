@@ -71,7 +71,6 @@
 | **news-dashboard** | Finnhub, 金十, BlockBeats, 证监会 RSS | `FINNHUB_API_KEY` |
 | **institutional-flow-tracker** | SEC 13F filings (via FMP) | `FMP_API_KEY` |
 | **rootdata-crypto** | RootData (Web3 项目/投资人/融资) | `ROOTDATA_SKILL_KEY` |
-| **polymarket** | Polymarket Gamma API (预测市场) | Polymarket 账户 |
 | **ipo-subscription-analyzer** | 港股/美股 IPO 公开数据 | — |
 | **DeFiLlama**（共享 reference，非 skill）| L1 DeFi 宏观：TVL/收益/稳定币/费用/桥；`WebFetch` 直连 api.llama.fi 等 5 host；查协议见 `references/defillama-api.md` | 无 key、无地域限制 |
 
@@ -86,8 +85,6 @@
 | Skill | API / 数据源 | 凭证 |
 |---|---|---|
 | **futuapi** | 富途 OpenAPI 交易 (模拟/正式) | OpenD |
-| **hyperliquid-cli** | Hyperliquid DEX 永续合约 | `hl` CLI 钱包 |
-| **polymarket** | Polymarket CLOB + split 下单 | Polymarket 钱包 |
 | **okx-dex** | OKX DEX 聚合器 (500+ 流动性源) | OKX 钱包 |
 | **okx-wallet** | OKX 钱包 (多链余额/交易广播) | OKX 钱包 |
 | **trade-execution** | 纯计算 (不调用外部 API) | — |
@@ -130,7 +127,6 @@
 |---|---|---|
 | **x** | X (Twitter) API v2 (读+写) | OAuth 2.0 token |
 | **discord** | Discord HTTP API (Bot) | `DISCORD_BOT_TOKEN` |
-| **binance-square** | Binance Square OpenAPI `POST /bapi/composite/v1/public/pgc/openApi/content/add` | `X-Square-OpenAPI-Key` |
 | **bluebubbles** | BlueBubbles 服务端 (iMessage) | 服务器 URL + 密码 |
 | **himalaya** | IMAP/SMTP (邮件) | `~/.config/himalaya/config.toml` |
 | **voice-call** | Twilio / Telnyx / Plivo | 提供商 API key |
@@ -145,7 +141,6 @@
 | **trello** | Trello REST API | `TRELLO_API_KEY` + `TRELLO_TOKEN` |
 | **things-mac** | Things 3 CLI (本地 SQLite) | — |
 | **obsidian** | obsidian-cli (本地 Markdown) | — |
-| **apple-notes** | memo CLI (本地 Apple Notes) | — |
 | **github** | gh CLI → GitHub API | `GH_TOKEN` |
 | **tmux** | tmux (本地终端) | — |
 | **1password** | op CLI → 1Password | 桌面应用已解锁 |

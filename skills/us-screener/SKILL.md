@@ -44,7 +44,7 @@ cd ~/nimbus-os/equity-screener && .venv/bin/python -m us_screener.cli update --j
 
 - **简单硬条件筛**（PE<15、ROE>15%）→ 用 **futu `get_stock_filter --market US`**，别动这个重模型。
 - **深度多因子打分 + 主题热度 + squeeze** → 用本 skill。
-- 候选出来后深析单只 → `us-stock-analysis`；估值 → `valuation`；评级 → `analyst-ratings`。
+- 候选出来后深析单只 → `us-stock-analysis`；估值 → `valuation`。
 - **A股/港股选股** → `ah-screener`。
 
 ## 被谁消费

@@ -22,7 +22,7 @@ const OPP_PROMPT = [
   '2. 用 `news-bridge` 读 news 平台实时 feed(零额度、最快,优先看这个):',
   '   - `feed.py breaking --tickers <持仓代码,逗号分隔>` 看与持仓直接相关的突发催化(已带中文译文+利好/利空简评)。',
   '   - `feed.py 13f` 看名基金(Coatue/Druckenmiller/Burry…)13F 增减仓 = 聪明钱信号。',
-  '   - 交叉验证: `congress-tracker --ticker X`(国会) · `insider-tracker X`(内部人) · `short-interest X`(做空拥挤) · `analyst-ratings X`(评级共识)。',
+  '   - 交叉验证: `insider-tracker X`(内部人) · `short-interest X`(做空拥挤)。',
   '3. 用 `research`(Systematic / Scenarios 模式)+ `stock-screener` + `sector-analyst` 扫:',
   '   - 主人持仓(NVDA/AVGO/MRVL/腾讯/药明等)有无加仓/兑现机会(技术位、催化剂、估值)?',
   '   - 半导体/AI/港股等主人能力圈内,有无新的不对称机会?',

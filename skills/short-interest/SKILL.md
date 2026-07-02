@@ -1,6 +1,6 @@
 ---
 name: short-interest
-description: 查个股做空占比/做空压力——FINRA 每日 ShortVolume/TotalVolume(免费,无key)。当用户问「X 做空/空头/short interest/做空比例/谁在做空/空头拥挤」时触发。先把名字归一为美股 ticker。注意：这是每日"做空成交占比"(反映当日做空压力/拥挤度)，不是双月未平仓 short interest。NOT for: 卖空异动/沽空(港股A股)→futu-capital-anomaly；国会/内部人→congress-tracker/insider-tracker。非投资建议。
+description: 查个股做空占比/做空压力——FINRA 每日 ShortVolume/TotalVolume(免费,无key)。当用户问「X 做空/空头/short interest/做空比例/谁在做空/空头拥挤」时触发。先把名字归一为美股 ticker。注意：这是每日"做空成交占比"(反映当日做空压力/拥挤度)，不是双月未平仓 short interest。NOT for: 卖空异动/沽空(港股A股)→futu-capital-anomaly；内部人→insider-tracker。非投资建议。
 ---
 
 # Short Interest — 做空占比（FINRA 每日）
