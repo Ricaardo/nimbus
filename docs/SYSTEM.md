@@ -52,7 +52,7 @@
 - ⚠️ **软链 dangling = agent 零 skill（静默降级，bot 照跑但没投资能力）**。搬家/改路径后必查（见 §5.2）。软链用相对 `../skills`、hook 用 `$CLAUDE_PROJECT_DIR` 防再踩。
 - **已与 ~/.claude 解耦**（见 [decouple-from-cc.md](decouple-from-cc.md)）：config.ts 路径走 `SKILLS_ROOT=PROJECT_ROOT/skills`、vendored 脚本内部改 `__file__` 相对、运行态 state 与 Discord 渠道(token/access)搬进项目 `skills/references/state`+`secrets/discord`。`~/.claude/skills` 与 `~/.claude/channels` 可安全删除，CC 回归纯编码（保留订阅鉴权 + 托管连接器）。
 - **引擎封装**：btc-guanfu(=guanfu) · ah-screener(=A/H选股) + us-screener(=美股选股)，二者同一 equity-screener 数仓。
-- **本轮新增/重构 7 个**：congress-tracker(国会) · insider-tracker(内部人) · short-interest(做空) · analyst-ratings(评级) · serenity-tracker(白毛股神) · news-bridge(news数据桥) · futu-anomaly(资金/技术/衍生品三维异动 3→1)。
+- **本轮新增/重构**：insider-tracker(内部人) · short-interest(做空) · news-bridge(news数据桥) · futu-anomaly(资金/技术/衍生品三维异动 3→1) · hot-tickers(网络热门标的聚合，由 serenity-tracker 升级)。（2026-07 精简：congress-tracker/analyst-ratings 已删）
 - 分析：research · valuation · market-pulse · sector-analyst · technical-analysis · us-stock-analysis · options-strategy-advisor · institutional-flow-tracker · event-calendar · portfolio-manager · trade-execution · trade-journal · thesis-tracker · value/macro-perspective(大师视角) …
 - 数据：futuapi · market-data · news-dashboard · cmc/longbridge/alpaca MCP。
 
