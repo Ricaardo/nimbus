@@ -4,13 +4,13 @@
 不是双月 short interest(未平仓空头)。当天/周末文件未发布会回退到最近交易日。
 用法: short_vol.py NVDA [--days 5] [--legacy]
 
-数据经 data-access facade(Tier-1),不可用时回退 data-gateway(finra-shortvol,复用每日文件缓存)。
+数据经 data-access facade(Tier-1),不可用时回退 datagw /short(同一 FINRA 聚合,复用每日文件缓存)。
 Tier-2 不直连数据源。
 """
-import argparse, json, subprocess, sys
-from pathlib import Path
+import argparse, json, os, sys
+import urllib.request
 
-DATA_GATEWAY = Path("/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
+DATAGW_URL = os.environ.get("DATAGW_URL", "http://127.0.0.1:8821")
 
 
 def fetch_via_facade(sym, days):
@@ -30,17 +30,10 @@ def fetch_via_facade(sym, days):
 
 
 def fetch_via_gateway(sym, days):
-    """Returns list of {date, short, total, ratio%} via data-gateway, or None."""
-    if not DATA_GATEWAY.exists():
-        return None
+    """Returns list of {date, short, total, ratio%} via datagw /short, or None."""
     try:
-        proc = subprocess.run(
-            [str(DATA_GATEWAY), "fetch", "finra-shortvol", "--symbol", f"US:{sym}", "--days", str(days)],
-            capture_output=True, text=True, timeout=90,
-        )
-        if proc.returncode != 0:
-            return None
-        data = json.loads(proc.stdout).get("data", {})
+        with urllib.request.urlopen(f"{DATAGW_URL}/short?symbol=US:{sym}&days={days}", timeout=90) as r:  # noqa: S310
+            data = json.loads(r.read()).get("data", {})
         daily = data.get("daily") or []
         rows = []
         for r in daily:
@@ -56,7 +49,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("symbol")
     ap.add_argument("--days", type=int, default=5)
-    ap.add_argument("--legacy", action="store_true", help="跳过 facade,直接走 data-gateway")
+    ap.add_argument("--legacy", action="store_true", help="跳过 facade,直接走 datagw")
     a = ap.parse_args()
     sym = a.symbol.upper()
 
