@@ -423,18 +423,10 @@ for sid in WALCL WTREGEN RRPONTSYD; do
 done
 ```
 
-### 5.12 CoinMan 加密决策
+### 5.12 CoinMan 加密决策（已裁撤）
 
-**已拆出为独立 skill** → 用 `coinman` skill。
-
-简版命令速查：
-```bash
-~/news/bin/coinman_score                # 决策版输出
-~/news/bin/coinman_score --json | jq    # JSON
-~/news/bin/coinman_score --halflife 730 # 调 AHR 拟合半衰期
-```
-
-详细文档（决策矩阵、AHR999 升级、子信号语义、反模式）见 [`coinman` skill](../coinman/SKILL.md)。
+coinman skill 与 `coinman_score` 二进制已随 2026 上半年 declutter 移除（源码已不在仓内，
+孤儿二进制 2026-07 清理）。加密盘面判断改用 `btc-guanfu` skill（guanfu 二进制）。
 
 ---
 
