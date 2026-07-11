@@ -459,6 +459,18 @@ describe('thesisDecayDetector', () => {
     expect(result.find(r => r.key === 'thesis_decay:IMP')).toBeDefined()
   })
 
+  test('fires for failed verdict', () => {
+    const recentAsOf = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    const state = baseState({
+      as_of: recentAsOf,
+      positions: [
+        basePosition({ code: 'FAIL', thesis: 'thesis', thesis_verdict: 'failed' }),
+      ],
+    })
+    const result = thesisDecayDetector.detect(makeCtx(state))
+    expect(result.find(r => r.key === 'thesis_decay:FAIL')).toBeDefined()
+  })
+
   test('fires for stale as_of (>90 days) even with on_track verdict', () => {
     // 91 days ago
     const staleAsOf = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000).toISOString()

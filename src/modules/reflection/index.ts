@@ -17,7 +17,7 @@ const REFLECT_PROMPT = [
   '',
   '1. 用 `trade-journal` skill(review + stats 模式)复盘本周交易:成交了吗?走 8 类错误 taxonomy。',
   '2. 可跑 `python3 ' + SKILLS_ROOT + '/trade-journal/scripts/behavior_monitor.py` 看近期行为体检(周转率/纪律破线)。',
-  '3. 用 `thesis-tracker` 核对持仓论点本周有无变化/decay。',
+  '3. 用 `thesis-tracker` 核对持仓论点本周有无变化/decay；对没有论点档案的持仓,用 thesis-tracker 建初始论点,落盘到 `reports/theses/<TICKER>.yaml`。',
   '4. 提炼:**本周主人做对了什么、做错了什么、重复出现的执行弱点、有效的打法**。',
   '',
   '输出两部分:',

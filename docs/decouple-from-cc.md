@@ -29,7 +29,7 @@
 
 ### P1 — state + 渠道数据搬入项目(先搬数据,防丢)
 - `skills/references/state/`:把 `~/.claude/skills/references/state/{portfolio_state,ibkr_positions,earnings_cache,macro_cache}.json` 的 **live 版**拷进项目(覆盖 Jun-12 stale vendored 副本)。
-- 报告目录:`thesis-tracker/reports/theses`、`trade-journal/reports/trades` live→项目(若项目侧更旧)。
+- 报告目录:`reports/theses`(仓库根,canonical)、`trade-journal/reports/trades` live→项目(若项目侧更旧)。
 - 渠道:`~/.claude/channels/discord/{.env,access.json}` → 项目 `secrets/discord/`(.env 含 token,chmod 600;inbox 不搬,运行期重建)。
 
 ### P2 — config.ts repoint(5 路径 + STATE_DIR + env 加载)
