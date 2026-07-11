@@ -39,13 +39,13 @@ required_tools: ["yfinance", "futuapi", "tavily", "alpaca"]
 ### 模式 1：实时报价（quote）
 
 ```bash
-python3 /Users/x/.claude/skills/market-data/scripts/quote.py AAPL 00700.HK 600519.SH
+python3 skills/market-data/scripts/quote.py AAPL 00700.HK 600519.SH
 ```
 
 或直接用 futu helper：
 
 ```bash
-python3 /Users/x/.claude/skills/futuapi/scripts/helpers/get_price.py AAPL NVDA TSLA
+python3 skills/futuapi/scripts/helpers/get_price.py AAPL NVDA TSLA
 ```
 
 返回字段：price / change / change_pct / volume / market_cap / 52w_high / 52w_low
@@ -53,7 +53,7 @@ python3 /Users/x/.claude/skills/futuapi/scripts/helpers/get_price.py AAPL NVDA T
 ### 模式 2：历史 K 线（history）
 
 ```bash
-python3 /Users/x/.claude/skills/market-data/scripts/history.py AAPL --period 6mo --interval 1d
+python3 skills/market-data/scripts/history.py AAPL --period 6mo --interval 1d
 ```
 
 返回 OHLCV pandas dataframe，period 支持 1d/5d/1mo/3mo/6mo/1y/5y/max；interval 支持 1m/5m/15m/30m/1h/1d/1wk/1mo。
@@ -62,10 +62,10 @@ python3 /Users/x/.claude/skills/market-data/scripts/history.py AAPL --period 6mo
 
 ```bash
 # 期权链
-python3 /Users/x/.claude/skills/market-data/scripts/options.py AAPL --expiration 2026-05-16
+python3 skills/market-data/scripts/options.py AAPL --expiration 2026-05-16
 
 # 希腊字母（Black-Scholes）
-python3 /Users/x/.claude/skills/market-data/scripts/greeks.py --underlying AAPL --strike 200 --expiration 2026-05-16 --type call
+python3 skills/market-data/scripts/greeks.py --underlying AAPL --strike 200 --expiration 2026-05-16 --type call
 ```
 
 ### 模式 4：市场摘要（summary）
@@ -74,7 +74,7 @@ python3 /Users/x/.claude/skills/market-data/scripts/greeks.py --underlying AAPL 
 
 ```bash
 # 默认面板
-python3 /Users/x/.claude/skills/futuapi/scripts/helpers/get_price.py ^GSPC ^IXIC ^HSI 000001.SS AAPL NVDA 00700.HK 600519.SH
+python3 skills/futuapi/scripts/helpers/get_price.py ^GSPC ^IXIC ^HSI 000001.SS AAPL NVDA 00700.HK 600519.SH
 
 # 加密：优先调用官方 CoinMarketCap MCP（cmc-mcp）的免费 quotes；MCP 不可用时用 CoinGecko fallback
 curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
@@ -119,8 +119,8 @@ curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,sola
 `mcp__stock-data__stock_realtime` **A股 (sh/sz) 失效**（Not Found）— 上游东财 push2 全市场 cluster 在本机网络返回 empty，akshare/efinance fallback 走同一上游。
 
 **A股 realtime fallback 优先级（已修复）**：
-1. **futu**（首选）：`python3 /Users/x/.claude/skills/futuapi/scripts/quote/get_market_snapshot.py SH.600519`
-2. **本 skill 自带 sina/qq 直连**：`python3 /Users/x/.claude/skills/market-data/scripts/a_share_realtime.py 600519 000858`
+1. **futu**（首选）：`python3 skills/futuapi/scripts/quote/get_market_snapshot.py SH.600519`
+2. **本 skill 自带 sina/qq 直连**：`python3 skills/market-data/scripts/a_share_realtime.py 600519 000858`
 3. **stock-data 历史代替**：`mcp__stock-data__stock_prices(symbol=600519, market=sh, limit=1)` — 拿最近 1 日 K 线，含全部技术指标
 
 港股 realtime（`market=hk`）正常工作。A股**历史数据** `stock_prices` 也正常。
@@ -130,7 +130,7 @@ curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,sola
 
 ```bash
 # 期货合约行情（CME / ICE / HKEX / SHFE 等）
-python3 /Users/x/.claude/skills/market-data/scripts/futures.py --symbol ES --month 202606
+python3 skills/market-data/scripts/futures.py --symbol ES --month 202606
 ```
 
 期货数据源：yfinance（国际）、AKShare（国内）。futu 支持部分 HK 期货。

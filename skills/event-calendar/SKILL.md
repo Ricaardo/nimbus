@@ -14,7 +14,7 @@ required_tools: ["yfinance", "tavily"]
 
 ```bash
 # 本周 + 下周财报 + 宏观事件一览
-python3 /Users/x/.claude/skills/event-calendar/scripts/earnings-calendar/<script>.py --week current
+python3 skills/event-calendar/scripts/earnings-calendar/<script>.py --week current
 ```
 
 **输出必须包含**：
@@ -103,7 +103,7 @@ python3 /Users/x/.claude/skills/event-calendar/scripts/earnings-calendar/<script
 ## 📆 催化日历 + 冲突检测
 
 ```bash
-python3 /Users/x/.claude/skills/event-calendar/scripts/catalyst-calendar/<script>.py
+python3 skills/event-calendar/scripts/catalyst-calendar/<script>.py
 ```
 
 跟踪：

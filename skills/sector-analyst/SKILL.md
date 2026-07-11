@@ -71,7 +71,7 @@ python3 skills/sector-analyst/scripts/analyze_sector_rotation.py
 ## 🌊 3. Theme / Narrative Detection
 
 ```bash
-python3 /Users/x/.claude/skills/sector-analyst/themes/scripts/<script>.py
+python3 skills/sector-analyst/themes/scripts/<script>.py
 ```
 
 跨板块识别：

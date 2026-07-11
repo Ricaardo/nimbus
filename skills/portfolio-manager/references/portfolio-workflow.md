@@ -11,7 +11,7 @@
 ### 1.1 futu 主账户（资金 + 持仓 + 成本）
 
 ```
-python3 ~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL
+python3 skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL
 → 每账户：总资产 / 现金 / 持仓市值 + 逐仓：code / 数量 / 现价 / 市值 / average_cost / unrealized_pl / pl_ratio_avg_cost
 ⚠️ 成本/盈亏用 average_cost / unrealized_pl（均价口径），禁用 cost_price / pl_val（摊薄口径）
 ```

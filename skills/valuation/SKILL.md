@@ -190,7 +190,7 @@ WACC  7.0%   $245    $258    $272    $289
 ### 模式 1：财务数据 + 比率分析（fundamentals）
 
 ```bash
-python3 /Users/x/.claude/skills/valuation/scripts/fundamentals/<script>.py AAPL
+python3 skills/valuation/scripts/fundamentals/<script>.py AAPL
 ```
 
 5 类比率：盈利能力 / 成长性 / 效率 / 杠杆 / 估值。Piotroski F-Score (0-9)。
@@ -198,7 +198,7 @@ python3 /Users/x/.claude/skills/valuation/scripts/fundamentals/<script>.py AAPL
 ### 模式 2：DCF 内在价值（dcf-model）
 
 ```bash
-python3 /Users/x/.claude/skills/valuation/scripts/dcf-model/<script>.py AAPL
+python3 skills/valuation/scripts/dcf-model/<script>.py AAPL
 ```
 
 5-10y FCF 投影、WACC、Terminal Value（永续增长/退出倍数）、敏感性表、Excel 输出。

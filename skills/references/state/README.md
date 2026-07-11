@@ -5,8 +5,8 @@
 
 ## 刷新
 ```bash
-python3 ~/.claude/skills/portfolio-manager/scripts/portfolio_state.py          # 构建+摘要
-python3 ~/.claude/skills/portfolio-manager/scripts/portfolio_state.py --quiet  # 仅写文件
+python3 skills/portfolio-manager/scripts/portfolio_state.py          # 构建+摘要
+python3 skills/portfolio-manager/scripts/portfolio_state.py --quiet  # 仅写文件
 ```
 - **futu** 主账户：脚本自动拉（需 OpenD 运行）。
 - **IBKR** 小号：脚本读 `ibkr_positions.json`。该文件由 **AI 经 MCP**
@@ -31,7 +31,16 @@ python3 ~/.claude/skills/portfolio-manager/scripts/portfolio_state.py --quiet  #
 - `positions[]` — 每仓：`canon`(归一 ticker)、`source`(`futu`/`ibkr`，即账户归属)、`weight_pct`、
   `mv_usd`、`pl_pct`、`pl_usd`(反推的浮盈亏 USD，成本未知时 `null`)、
   `thesis`(关联论点文件或 null)、`conviction_score`、`stop_loss`、`is_option`/`underlying`
-- `reconcile_flags[]` — 裸仓 / 僵尸论点 / 单仓>15% / 行业>30% / 破止损 / 期权
+- `reconcile_flags[]` — 裸仓 / 僵尸论点 / 单仓>15% / 行业>30% / 破止损 / 期权 /
+  `IBKR现金携带`(`accounts.ibkr.cash_carried=true` 时追加，medium，提示连续出现应催一次完整 IBKR 刷新)
+- `fx` — 本次生效汇率口径（2026-07 新增）：`{"rates": {"US":1.0,"HK":…,"CN":…,"SG":…,"JP":…},
+  "source": "live"|"cache"|"static", "as_of": "YYYY-MM-DD HH:MM"|null}`。三级降级：① yfinance 实时拉
+  HKDUSD=X/CNYUSD=X/SGDUSD=X/JPYUSD=X（8s 整体预算内，US 恒 1.0）成功 → `source=live`，写
+  `fx_cache.json`；② 实时失败 → 读 `fx_cache.json`（即使超过 TTL 也照用，仅 stderr 警告）→
+  `source=cache`；③ 缓存也没有 → 静态 `FX_USD`(HK≈1/7.80 等) 兜底 → `source=static`，`as_of=null`。
+  任何一级失败都不抛异常、不明显拖慢脚本。`pull_futu` 的 total_assets/cash 换算与持仓 `mv_usd`
+  换算统一吃这份生效汇率，不再用固定静态值——活汇率会让 nav 相对旧静态口径有一次性小幅偏移，
+  属口径修正，历史 `nav_history.jsonl` 不迁移。
 
 ## canon 归一化规则（跨源匹配键）
 - 美股/字母代码：原样大写（`US.MRVL`→`MRVL`、`NOK`→`NOK`）
@@ -52,6 +61,14 @@ python3 ~/.claude/skills/portfolio-manager/scripts/portfolio_state.py --quiet  #
 - **消费建议**：Cici 可直接读它画净值曲线（`nav_usd` vs `ts`）、算任意区间回报/回撤，
   或用 `portfolio_state.load_nav_history()` / `nav_change_pct()` 复用现成解析逻辑；
   统一封装见 `skills/portfolio-manager/scripts/nav_view.py`。
+
+## fx_cache.json — 活汇率缓存（`portfolio_state.py` 自动写，2026-07 新增）
+- **谁写**：`resolve_fx()` 每次 live 拉取成功后原子写入（临时文件 + `os.replace`）；live 失败时只读不写。
+- **schema**：`{"rates": {"US":1.0,"HK":…,"CN":…,"SG":…,"JP":…}, "as_of": "YYYY-MM-DD HH:MM"}`。
+- **TTL**：12 小时（对齐 07:30/20:30 两次 cron 刷新频率），仅用于陈旧提示——缓存**即使过期也照用**
+  （降级链第二级），不因 TTL 拒绝读取，避免网络/限流波动时口径来回跳。
+- **消费**：仅 `portfolio_state.py` 内部用；下游 skill 应读 `portfolio_state.json` 顶层的 `fx` 字段
+  判断本次口径，不需要直接碰这个缓存文件。
 
 ## flows.jsonl — 出入金流水（手记，可选）
 - **谁写**：目前无自动化，出入金后由 AI/主人手动追加一行（无此文件时相关计算优雅降级为"未剔除出入金"）。

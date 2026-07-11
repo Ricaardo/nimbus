@@ -31,7 +31,7 @@ This skill fetches holdings from the owner's real accounts:
 
 1. **futu (primary, ~USD 22K, HK/US/SG/JP)**
    - OpenD running locally (zero-latency, zero-fee)
-   - Positions: `python3 ~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`
+   - Positions: `python3 skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`
    - Cost basis: use `average_cost` / `unrealized_pl` (均价口径)
 
 2. **IBKR (small account, ~USD 1.4K)** — read-only via MCP
@@ -204,7 +204,7 @@ Before using the skill, verify the real holdings sources:
 
 ```bash
 # futu (primary)
-python3 ~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL
+python3 skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL
 # IBKR (via MCP) — call get_account_positions
 ```
 

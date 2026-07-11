@@ -7,7 +7,7 @@
 ## 1. 流动性 / Fed Dashboard
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/macro-liquidity-monitor/<script>.py
+python3 skills/market-pulse/scripts/macro-liquidity-monitor/<script>.py
 ```
 
 8 因子：Fed BS、净流动性、收益率曲线、信用利差、美元、隔夜利率、商品、加密。
@@ -15,7 +15,7 @@ python3 /Users/x/.claude/skills/market-pulse/scripts/macro-liquidity-monitor/<sc
 ## 2. 宏观周期 Regime
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/macro-regime-detector/<script>.py
+python3 skills/market-pulse/scripts/macro-regime-detector/<script>.py
 ```
 
 RSP/SPY、收益率曲线、信用、size 因子、股债比、行业轮动。
@@ -137,7 +137,7 @@ A股情绪不进 MHS，但触发 alert：
 ## 6. 顶部检测（防御）
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/market-top-detector/<script>.py
+python3 skills/market-pulse/scripts/market-top-detector/<script>.py
 ```
 
 战术（2-8w）：O'Neil 分布日 + Minervini + Monty 防御轮动。
@@ -146,7 +146,7 @@ python3 /Users/x/.claude/skills/market-pulse/scripts/market-top-detector/<script
 ## 7. 底部确认（进攻）
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/ftd-detector/<script>.py
+python3 skills/market-pulse/scripts/ftd-detector/<script>.py
 ```
 
 双指数（SPX + NDX）状态机：rally → FTD qualification → 后续健康度。
@@ -154,7 +154,7 @@ python3 /Users/x/.claude/skills/market-pulse/scripts/ftd-detector/<script>.py
 ## 8. 市场宽度 Breadth
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/market-breadth/<script>.py --mode full
+python3 skills/market-pulse/scripts/market-breadth/<script>.py --mode full
 ```
 
 S&P 500 breadth + 行业上行率 (0-100)。
@@ -162,7 +162,7 @@ S&P 500 breadth + 行业上行率 (0-100)。
 ## 9. 地缘风险
 
 ```bash
-python3 /Users/x/.claude/skills/market-pulse/scripts/geopolitical-risk-monitor/<script>.py
+python3 skills/market-pulse/scripts/geopolitical-risk-monitor/<script>.py
 ```
 
 5 因子加权 (0-100)：新闻情绪、避险流、油价中断、波动率/信用、跨资产确认。

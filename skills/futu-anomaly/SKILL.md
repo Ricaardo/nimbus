@@ -6,9 +6,9 @@ description: 个股多维异动一站式（合并 资金/技术/衍生品/情绪
 # Futu Anomaly — 多维异动（合并资金/技术/衍生品）
 
 ```bash
-python3 ~/.claude/skills/futu-anomaly/scripts/anomaly.py US.NVDA            # 全三维
-python3 ~/.claude/skills/futu-anomaly/scripts/anomaly.py HK.00700 --dim capital,technical
-python3 ~/.claude/skills/futu-anomaly/scripts/anomaly.py US.TSLA --dim derivatives --time-range 14
+python3 skills/futu-anomaly/scripts/anomaly.py US.NVDA            # 全三维
+python3 skills/futu-anomaly/scripts/anomaly.py HK.00700 --dim capital,technical
+python3 skills/futu-anomaly/scripts/anomaly.py US.TSLA --dim derivatives --time-range 14
 ```
 维度：`capital`(资金) · `technical`(技术) · `derivatives`(衍生品) · `all`(默认)。
 

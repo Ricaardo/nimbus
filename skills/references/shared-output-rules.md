@@ -32,10 +32,10 @@
 
 ```bash
 # 实时报价（支持批量，自动映射 ticker）
-python3 /Users/x/.claude/skills/futuapi/scripts/helpers/get_price.py AAPL 600519.SH 00700.HK ^HSI
+python3 skills/futuapi/scripts/helpers/get_price.py AAPL 600519.SH 00700.HK ^HSI
 
 # 历史 OHLCV
-python3 /Users/x/.claude/skills/futuapi/scripts/helpers/get_ohlcv.py AAPL --period 1y --format csv
+python3 skills/futuapi/scripts/helpers/get_ohlcv.py AAPL --period 1y --format csv
 ```
 
 Ticker 自动识别：`AAPL` / `600519.SH` / `000858.SZ` / `00700.HK` / `^HSI` / `^GSPC`（美股指数自动用 ETF 代理：^GSPC→SPY / ^IXIC→QQQ / ^DJI→DIA）。

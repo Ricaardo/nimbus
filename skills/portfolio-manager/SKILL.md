@@ -13,7 +13,7 @@ required_tools: ["futuapi", "alpaca", "tavily"]
 ## 🔌 数据源覆盖（本人专属 · 最高优先级）
 
 **本人真实持仓在 futu（主）+ IBKR（小号），alpaca 是空的。** 下文凡写"Alpaca MCP 拉持仓"一律改用：
-- **futu 主账户**（~USD 22K）：`python3 ~/.claude/skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`（成本用 `average_cost`/`unrealized_pl` 均价口径）
+- **futu 主账户**（~USD 22K）：`python3 skills/futuapi/scripts/trade/get_all_portfolios.py --trd-env REAL`（成本用 `average_cost`/`unrealized_pl` 均价口径）
 - **IBKR 小号**（~USD 1.4K，仅 NOK）：`mcp__claude_ai_Interactive_Brokers_IBKR__get_account_positions`
 - 两账户**合并**后再算配置/集中度/tail risk。HK 仓换算 USD 再与美股加总。
 - ⚠️ 已知画像：几乎满仓（现金~8%）+ 半导体 44% 集中 → 单标的/行业阈值大概率已破，重点给**降集中**建议。
@@ -31,8 +31,8 @@ required_tools: ["futuapi", "alpaca", "tavily"]
 **什么时候跑 `scripts/nav_view.py`**：用户问"净值曲线"/"这周赚了多少"/"最大回撤多大"/"两账户有没有
 重仓同一只票"时，直接跑它（只读，不重算持仓，读 `portfolio_state.json` + `nav_history.jsonl`）：
 ```bash
-python3 ~/.claude/skills/portfolio-manager/scripts/nav_view.py            # markdown
-python3 ~/.claude/skills/portfolio-manager/scripts/nav_view.py --json     # 结构化
+python3 skills/portfolio-manager/scripts/nav_view.py            # markdown
+python3 skills/portfolio-manager/scripts/nav_view.py --json     # 结构化
 ```
 输出：总资产 + futu/IBKR 拆分（市值/现金/浮盈亏）+ 现金占比 + 净值变化(7日/30日/自有史以来) +
 历史最大回撤 + 跨账户重叠标的（同一 canon 同时现身两账户）。历史不足 7/30 天或 `nav_history.jsonl`

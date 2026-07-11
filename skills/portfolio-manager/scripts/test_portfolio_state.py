@@ -126,7 +126,7 @@ _tmp_gate = tempfile.mkdtemp(prefix="ps_gate_")
 _hist_gate = os.path.join(_tmp_gate, "nav_history.jsonl")
 _orig_pull_futu, _orig_load_ibkr = ps.pull_futu, ps.load_ibkr
 ps.NAV_HISTORY_FILE = _hist_gate
-ps.pull_futu = lambda: ([], 0.0, 0.0, False)   # 模拟 futu 拉取失败/OpenD 未运行
+ps.pull_futu = lambda rates=None: ([], 0.0, 0.0, False)   # 模拟 futu 拉取失败/OpenD 未运行
 ps.load_ibkr = lambda: ([], 0.0, False, None)
 try:
     meta = {}
@@ -147,7 +147,7 @@ with open(_hist_carry, "w") as fh:
                           "futu_usd": 23000.0, "ibkr_usd": 2050.0, "ibkr_cash_usd": 360.0,
                           "ibkr_stale": False}) + "\n")
 ps.NAV_HISTORY_FILE = _hist_carry
-ps.pull_futu = lambda: ([], 23000.0, 19800.0, True)     # futu 本次正常
+ps.pull_futu = lambda rates=None: ([], 23000.0, 19800.0, True)     # futu 本次正常
 ps.load_ibkr = lambda: ([], 1690.0, False, None)        # IBKR 本次漏写 total_cash → None
 try:
     st_carry = ps.build()
@@ -161,7 +161,7 @@ ck("carry-forward: nav_usd 未塌陷（23000+1690+360=25050）", st_carry["nav_u
 print("IBKR 现金无前值可携带时：保持原口径，不误 carry:")
 _tmp_nohist = tempfile.mkdtemp(prefix="ps_nocarry_")
 ps.NAV_HISTORY_FILE = os.path.join(_tmp_nohist, "does_not_exist.jsonl")  # 历史文件不存在
-ps.pull_futu = lambda: ([], 23000.0, 19800.0, True)
+ps.pull_futu = lambda rates=None: ([], 23000.0, 19800.0, True)
 ps.load_ibkr = lambda: ([], 1690.0, False, None)
 try:
     st_nohist = ps.build()
@@ -179,7 +179,7 @@ with open(_hist_old, "w") as fh:
     fh.write(json.dumps({"ts": "2026-07-09 07:30", "nav_usd": 24000.0, "cash_usd": 19500.0,
                           "futu_usd": 22500.0, "ibkr_usd": 1500.0, "ibkr_stale": False}) + "\n")
 ps.NAV_HISTORY_FILE = _hist_old
-ps.pull_futu = lambda: ([], 23000.0, 19800.0, True)
+ps.pull_futu = lambda rates=None: ([], 23000.0, 19800.0, True)
 ps.load_ibkr = lambda: ([], 1690.0, False, None)
 try:
     st_oldrow = ps.build()

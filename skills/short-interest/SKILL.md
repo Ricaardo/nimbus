@@ -6,8 +6,8 @@ description: 查个股做空占比/做空压力——FINRA 每日 ShortVolume/To
 # Short Interest — 做空占比（FINRA 每日）
 
 ```bash
-python3 ~/.claude/skills/short-interest/scripts/short_vol.py NVDA           # 近5日
-python3 ~/.claude/skills/short-interest/scripts/short_vol.py TSLA --days 10
+python3 skills/short-interest/scripts/short_vol.py NVDA           # 近5日
+python3 skills/short-interest/scripts/short_vol.py TSLA --days 10
 ```
 输出：近 N 日做空占比 + 趋势条 + 空/总成交量。
 

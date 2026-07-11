@@ -112,7 +112,7 @@ def action_items(state, theses):
         if t["nr_due"] is not None and t["nr_due"] <= 0 and t["type"] == "held":
             items.append((1, f"🟠 复审到期 [{t['ticker']}] — 计划复审 {t['next_review']} 已到"))
     for f in state["reconcile_flags"]:
-        if f["severity"] == "medium" and "裸仓" in f["type"]:
+        if f["severity"] == "medium" and ("裸仓" in f["type"] or "IBKR现金携带" in f["type"]):
             items.append((2, f"🟠 {f['type']} [{f['ticker']}] — {f['detail']}"))
     items.sort(key=lambda x: x[0])
     return [m for _, m in items]

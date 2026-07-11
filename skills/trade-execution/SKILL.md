@@ -50,7 +50,7 @@ required_tools: ["futuapi", "alpaca"]
 - [ ] 现金保留 ≥ 10%（机会储备金）
 
 ```bash
-python3 /Users/x/.claude/skills/trade-execution/scripts/position-sizer/<script>.py \
+python3 skills/trade-execution/scripts/position-sizer/<script>.py \
   --ticker AAPL --portfolio 100000 --risk-pct 1 --stop 245
 ```
 
@@ -71,7 +71,7 @@ python3 /Users/x/.claude/skills/trade-execution/scripts/position-sizer/<script>.
 - 部分止盈：到 2R 卖 50%，剩下移动止损
 
 ```bash
-python3 /Users/x/.claude/skills/trade-execution/scripts/stop-loss-manager/<script>.py \
+python3 skills/trade-execution/scripts/stop-loss-manager/<script>.py \
   --ticker AAPL --entry 250 --rr 2
 ```
 
@@ -125,7 +125,7 @@ python3 /Users/x/.claude/skills/trade-execution/scripts/stop-loss-manager/<scrip
 ## 📐 风险度量基础
 
 ```bash
-python3 /Users/x/.claude/skills/trade-execution/scripts/risk-assessment/<script>.py AAPL
+python3 skills/trade-execution/scripts/risk-assessment/<script>.py AAPL
 ```
 
 输出：

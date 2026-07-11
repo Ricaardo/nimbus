@@ -1064,7 +1064,7 @@ Environment Variables:
 
     # Determine default output directory (project root logs/ folder)
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Navigate from .claude/skills/value-dividend-screener/scripts to project root
+    # Navigate from skills/stock-screener/scripts/dividend-screener to project root
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(script_dir))))
     logs_dir = os.path.join(project_root, "logs")
     default_output = os.path.join(logs_dir, "dividend_screener_results.json")

@@ -95,7 +95,7 @@ reports/AAPL_comprehensive_YYYYMMDD.md
 
 **评级共识数据源**：在 full analysis 中，拉分析师评级共识作为标准一节：
 ```bash
-python3 ~/.claude/skills/us-stock-analysis/scripts/analyst.py AAPL
+python3 skills/us-stock-analysis/scripts/analyst.py AAPL
 ```
 输出：看多/中性/看空家数分布 + 看多占比 + 近 4 月环比趋势 + 方向判断。
 在报告中输出 `### 📊 分析师共识` + 看多占比环比的趋势箭头。

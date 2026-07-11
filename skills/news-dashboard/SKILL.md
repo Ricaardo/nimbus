@@ -83,11 +83,11 @@ tavily web_search "中国人民银行 site:pbc.gov.cn 最新"
 
 ## Mode 1: Market（宏观新闻聚合）
 
-**运行**：`python3 /Users/x/.claude/skills/news-dashboard/scripts/macro_news_dashboard.py --lookback-days 3 --calendar-days 14 --watchlist SPY,QQQ,AAPL --output-dir /tmp/news`
+**运行**：`python3 skills/news-dashboard/scripts/macro_news_dashboard.py --lookback-days 3 --calendar-days 14 --watchlist SPY,QQQ,AAPL --output-dir /tmp/news`
 
 **依赖**：环境变量 `FINNHUB_API_KEY`、`FRED_API_KEY`（已内置于 `shared/finnhub_client.py` 和 `shared/fred_client.py`）。输出 md + json 报告，含市场新闻聚合、板块新闻、经济日历、央行动态、影响力评分、话题聚类。
 
-**如需修复：** 需补回 `~/.claude/skills/shared/finnhub_client.py` + `fred_client.py`。
+**如需修复：** 需补回 `skills/news-dashboard/shared/finnhub_client.py` + `fred_client.py`。
 
 ### 原执行命令（保留备查）
 
@@ -289,7 +289,7 @@ print(df[['代码','名称','上榜日','解读','涨跌幅','龙虎榜净买额
 
 **优先 futu**（实时性更好）：
 ```bash
-python3 /Users/x/.claude/skills/futuapi/scripts/quote/get_capital_flow.py SH.600519 --json
+python3 skills/futuapi/scripts/quote/get_capital_flow.py SH.600519 --json
 ```
 **fallback akshare**：
 ```bash
@@ -305,7 +305,7 @@ print(df.tail(5).to_string())
 
 **优先 futu**：
 ```bash
-python3 /Users/x/.claude/skills/futuapi/scripts/quote/get_plate_list.py --market HK --type INDUSTRY --json
+python3 skills/futuapi/scripts/quote/get_plate_list.py --market HK --type INDUSTRY --json
 ```
 **fallback akshare**（A股板块）：
 ```bash
@@ -321,7 +321,7 @@ print(df.sort_values('涨跌幅', ascending=False).head(10).to_string())
 
 **优先 futu**（港股美股准确）：
 ```bash
-python3 /Users/x/.claude/skills/futuapi/scripts/quote/get_ipo_list.py --market HK --json
+python3 skills/futuapi/scripts/quote/get_ipo_list.py --market HK --json
 ```
 **A股 fallback akshare**：
 ```bash

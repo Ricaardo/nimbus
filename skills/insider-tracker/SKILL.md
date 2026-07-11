@@ -10,13 +10,13 @@ description: 查个股"谁在买卖"——内部人(高管/董事/10%股东，SE
 ## 用法
 ```bash
 # 内部人(高管/董事 Form 4)
-python3 ~/.claude/skills/insider-tracker/scripts/insider.py NVDA            # 近6月
-python3 ~/.claude/skills/insider-tracker/scripts/insider.py AAPL --months 3 --top 10
+python3 skills/insider-tracker/scripts/insider.py NVDA            # 近6月
+python3 skills/insider-tracker/scripts/insider.py AAPL --months 3 --top 10
 
 # 国会议员
-python3 ~/.claude/skills/insider-tracker/scripts/congress.py                # 最新值得注意
-python3 ~/.claude/skills/insider-tracker/scripts/congress.py --ticker NVDA  # 谁在动
-python3 ~/.claude/skills/insider-tracker/scripts/congress.py --rep Pelosi   # 某议员
+python3 skills/insider-tracker/scripts/congress.py                # 最新值得注意
+python3 skills/insider-tracker/scripts/congress.py --ticker NVDA  # 谁在动
+python3 skills/insider-tracker/scripts/congress.py --rep Pelosi   # 某议员
 ```
 
 ## 边界

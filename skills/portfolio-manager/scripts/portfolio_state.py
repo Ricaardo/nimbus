@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 import yaml
 
@@ -35,9 +36,12 @@ STATE_DIR = f"{_SKILLS}/references/state"
 IBKR_FILE = f"{STATE_DIR}/ibkr_positions.json"
 OUT_FILE = f"{STATE_DIR}/portfolio_state.json"
 NAV_HISTORY_FILE = f"{STATE_DIR}/nav_history.jsonl"
+FX_CACHE_FILE = f"{STATE_DIR}/fx_cache.json"
 
-FX_USD = {"US": 1.0, "HK": 1 / 7.80, "CN": 1 / 7.20, "SG": 1 / 1.35, "JP": 1 / 150.0}
-FUTU_BASE_FX = FX_USD["HK"]        # futu 主账户基币 = HKD
+FX_USD = {"US": 1.0, "HK": 1 / 7.80, "CN": 1 / 7.20, "SG": 1 / 1.35, "JP": 1 / 150.0}  # 静态兜底（三级降级的最后一级）
+FX_LIVE_TICKERS = {"HK": "HKDUSD=X", "CN": "CNYUSD=X", "SG": "SGDUSD=X", "JP": "JPYUSD=X"}  # US 恒 1.0，不查
+FX_LIVE_TIMEOUT_SEC = 8    # 整体墙钟预算（非单请求）——不得让脚本明显变慢
+FX_CACHE_TTL_SEC = 12 * 3600  # 仅用于陈旧提示；缓存本身即使过期也照用（降级链见 resolve_fx）
 MARKETS = {"US", "HK", "SG", "JP", "CN", "SH", "SZ"}
 
 # 行业映射（可扩展）— 仅用于集中度对账。数字代码用 market:sym 命名空间（见 canon）。
@@ -102,9 +106,13 @@ def _extract_json(raw):
         return None
 
 
-def pull_futu():
+def pull_futu(rates=None):
     """拉 futu 全账户，返回 (positions[], total_nav_usd, cash_usd, ok)。
-    ok=False 表示拉取失败/无数据（调用方据此判断是否可信，如是否写 nav 历史）。"""
+    ok=False 表示拉取失败/无数据（调用方据此判断是否可信，如是否写 nav 历史）。
+    rates：生效汇率 dict（resolve_fx() 的产物，live/cache/static 三级降级后的结果）；
+    未传时退回静态 FX_USD（供未走 build() 的直接调用方兼容）。"""
+    rates = rates or FX_USD
+    base_fx = rates.get("HK", FX_USD["HK"])   # futu 主账户基币 = HKD
     try:
         raw = subprocess.run([sys.executable, FUTU_PF, "--trd-env", "REAL", "--json"],
                              capture_output=True, text=True, timeout=90).stdout
@@ -118,13 +126,13 @@ def pull_futu():
     positions, nav_usd, cash_usd = [], 0.0, 0.0
     for acc in data["accounts"]:
         funds = acc.get("funds", {}) or {}
-        nav_usd += float(funds.get("total_assets", 0)) * FUTU_BASE_FX
-        cash_usd += float(funds.get("cash", 0)) * FUTU_BASE_FX
+        nav_usd += float(funds.get("total_assets", 0)) * base_fx
+        cash_usd += float(funds.get("cash", 0)) * base_fx
         for p in acc.get("positions", []) or []:
             if float(p.get("qty", 0)) == 0:
                 continue
             code = p.get("code", "")
-            fx = FX_USD.get(market_of(code), 1.0)
+            fx = rates.get(market_of(code), 1.0)
             positions.append({
                 "code": code, "name": p.get("name", ""), "source": "futu",
                 "qty": float(p.get("qty", 0)),
@@ -164,6 +172,88 @@ def load_ibkr():
     cash = d.get("total_cash")
     cash_usd = float(cash) if cash is not None else None
     return out, mv, bool(d.get("stale")), cash_usd
+
+
+# ---------- 活汇率（三级降级：live → cache → 静态兜底） ----------
+def fetch_live_fx(timeout=FX_LIVE_TIMEOUT_SEC):
+    """实时拉 HKD/CNY/SGD/JPY→USD 汇率（yfinance），US 恒 1.0（不查）。
+    每次请求显式限时，且整体墙钟不超过 timeout 秒；任何异常（网络/限流/超时/坏数据）
+    一律返回 None——调用方据此降级到缓存/静态兜底，不得让脚本失败或明显变慢。"""
+    try:
+        import requests
+        import yfinance as yf
+    except Exception as e:
+        print(f"[warn] yfinance/requests 不可用，实时汇率降级: {e}", file=sys.stderr)
+        return None
+    per_req_timeout = min(timeout, 5)   # 单请求硬顶，为多标的循环留总预算余量
+    sess = requests.Session()
+    _orig_get = sess.get
+    sess.get = lambda *a, **kw: _orig_get(*a, **{**kw, "timeout": per_req_timeout})
+    start = time.monotonic()
+    rates = {"US": 1.0}
+    try:
+        for mkt, tk in FX_LIVE_TICKERS.items():
+            if time.monotonic() - start > timeout:
+                raise TimeoutError("实时汇率整体超时预算耗尽")
+            price = yf.Ticker(tk, session=sess).fast_info["last_price"]
+            if not price or price <= 0:
+                raise ValueError(f"{tk} 无有效报价")
+            rates[mkt] = float(price)
+        return rates
+    except Exception as e:
+        print(f"[warn] 实时汇率拉取失败: {str(e)[:120]}", file=sys.stderr)
+        return None
+
+
+def load_fx_cache():
+    """读 fx_cache.json，返回 {"rates","as_of"} 或 None（不存在/损坏）。不判断 TTL——
+    是否仍可用由调用方（resolve_fx）决定，即使过期也照用。"""
+    try:
+        with open(FX_CACHE_FILE) as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+def save_fx_cache(rates, as_of):
+    """原子写 fx_cache.json；写失败只警告，不影响本次已拿到的实时汇率使用。"""
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        tmp = f"{FX_CACHE_FILE}.tmp"
+        with open(tmp, "w") as fh:
+            json.dump({"rates": rates, "as_of": as_of}, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, FX_CACHE_FILE)
+    except Exception as e:
+        print(f"[warn] 写 fx_cache 失败（不影响本次汇率使用）: {e}", file=sys.stderr)
+
+
+def _fx_cache_age_sec(as_of, now=None):
+    """缓存 as_of("YYYY-MM-DD HH:MM") 距 now 的秒数；解析失败返回 None（视为未知新鲜度）。"""
+    now = now or dt.datetime.now()
+    try:
+        return (now - dt.datetime.strptime(as_of, "%Y-%m-%d %H:%M")).total_seconds()
+    except Exception:
+        return None
+
+
+def resolve_fx():
+    """三级降级拿生效汇率：live 成功→用并写缓存；live 失败→读缓存(即使过期也用，仅 stderr 警告)；
+    缓存也没有→静态 FX_USD 兜底。返回 (rates, source, as_of)，source ∈ {live, cache, static}。"""
+    live = fetch_live_fx()
+    if live:
+        as_of = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+        save_fx_cache(live, as_of)
+        return live, "live", as_of
+    cache = load_fx_cache()
+    if cache and cache.get("rates"):
+        age_sec = _fx_cache_age_sec(cache.get("as_of"))
+        stale_note = ""
+        if age_sec is not None and age_sec > FX_CACHE_TTL_SEC:
+            stale_note = f"（已过期 {round(age_sec / 3600, 1)}h，仍降级使用）"
+        print(f"[warn] 实时汇率不可用，降级用缓存{stale_note}", file=sys.stderr)
+        return cache["rates"], "cache", cache.get("as_of")
+    print("[warn] 实时汇率与缓存均不可用，降级用静态汇率", file=sys.stderr)
+    return dict(FX_USD), "static", None
 
 
 def load_theses():
@@ -229,7 +319,8 @@ def _account_pl_usd(positions):
 def build(_meta=None):
     """构建并返回组合单一真相。_meta（可选 dict）用于回传本次构建的内部状态（如 futu 是否拉取成功），
     不进入输出 JSON——供 main() 决定是否追加 nav 历史，不影响既有 build() 无参调用方（briefing.py 等）。"""
-    fpos, fnav, fcash, fok = pull_futu()
+    rates, fx_source, fx_as_of = resolve_fx()
+    fpos, fnav, fcash, fok = pull_futu(rates)
     ipos, imv, istale, icash = load_ibkr()
     theses = load_theses()
     positions = fpos + ipos
@@ -267,6 +358,10 @@ def build(_meta=None):
             held_canons.add(p["canon"])
 
     flags = reconcile(positions, theses, held_canons, nav, cash_usd)
+    if icash_carried:
+        flags.append({"type": "IBKR现金携带", "ticker": "IBKR", "severity": "medium",
+                      "detail": f"本次未拉到 total_cash，携带前值 ${icash:,.2f} 并入 NAV；"
+                                 "连续出现请做一次完整 IBKR 刷新(需含 total_cash)"})
     positions.sort(key=lambda x: x["mv_usd"], reverse=True)
 
     futu_pl = _account_pl_usd(fpos)
@@ -294,6 +389,7 @@ def build(_meta=None):
         "positions": positions,
         "journal": load_journal_stats(),
         "reconcile_flags": flags,
+        "fx": {"rates": rates, "source": fx_source, "as_of": fx_as_of},
     }
 
 

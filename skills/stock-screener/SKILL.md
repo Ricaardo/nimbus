@@ -29,7 +29,7 @@ required_tools: ["yfinance", "tavily", "stock-data"]
 ### 1. 趋势 / 成长（scanner-bullish）
 
 ```bash
-python3 /Users/x/.claude/skills/stock-screener/scripts/scanner-bullish/<script>.py --mode {technical|canslim|vcp}
+python3 skills/stock-screener/scripts/scanner-bullish/<script>.py --mode {technical|canslim|vcp}
 ```
 
 - **Technical**：SMA/RSI/MACD/ADX 综合 0-8 评分
@@ -39,7 +39,7 @@ python3 /Users/x/.claude/skills/stock-screener/scripts/scanner-bullish/<script>.
 ### 2. 股息（dividend-screener）
 
 ```bash
-python3 /Users/x/.claude/skills/stock-screener/scripts/dividend-screener/<script>.py --mode {growth|value}
+python3 skills/stock-screener/scripts/dividend-screener/<script>.py --mode {growth|value}
 ```
 
 - **Growth**：5y 股息 CAGR ≥ 12% + RSI 超卖（<30）回调
@@ -49,7 +49,7 @@ python3 /Users/x/.claude/skills/stock-screener/scripts/dividend-screener/<script
 ### 3. PEAD 财报后漂移（pead-screener）
 
 ```bash
-python3 /Users/x/.claude/skills/stock-screener/scripts/pead-screener/<script>.py --input <FMP|earnings-trade-analyzer-json>
+python3 skills/stock-screener/scripts/pead-screener/<script>.py --input <FMP|earnings-trade-analyzer-json>
 ```
 
 财报跳空高开 → weekly 红 K 回调 → 突破信号。
@@ -57,7 +57,7 @@ python3 /Users/x/.claude/skills/stock-screener/scripts/pead-screener/<script>.py
 ### 4. 配对交易（pair-trade-screener）
 
 ```bash
-python3 /Users/x/.claude/skills/stock-screener/scripts/pair-trade-screener/<script>.py --sector tech
+python3 skills/stock-screener/scripts/pair-trade-screener/<script>.py --sector tech
 ```
 
 行业内协整对、z-score 入场/出场、spread backtest。
@@ -182,7 +182,7 @@ print('条件示例: MACD金叉, RSI 50-70, 均线多头排列, 换手率3%-10%,
 **核心回答**：哪个 ETF 跟踪最准？费率最低？资金在往哪流？
 
 ```bash
-python3 /Users/x/.claude/skills/stock-screener/scripts/<script>.py --mode etf --category {broad|sector|bond|commodity|factor|thematic}
+python3 skills/stock-screener/scripts/<script>.py --mode etf --category {broad|sector|bond|commodity|factor|thematic}
 ```
 
 #### 筛选维度
