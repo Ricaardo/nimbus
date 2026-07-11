@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""分析师评级共识 — Finnhub 免费 recommendation endpoint。
+"""分析师评级共识 — 经 data-access facade /ratings（后端 Finnhub recommendation）。
 用法: analyst.py NVDA
 输出: 当前共识(strongBuy/buy/hold/sell/strongSell 家数 + 看多占比) + 最近 4 月趋势 + 环比方向。
-需要 FINNHUB_API_KEY 环境变量。
+无需本地 API key（FINNHUB_API_KEY 只在 datagw plist,见 docs/ARCHITECTURE.md §5)。
 """
-import argparse, json, os, sys, urllib.error, urllib.request
-
-UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-KEY = os.environ.get("FINNHUB_API_KEY", "")
+import argparse, os, sys
 
 
-def _get(url):
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "X-Finnhub-Token": KEY})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read().decode("utf-8"))
+def _sdk():
+    pkg = os.environ.get("DATA_ACCESS_PKG", os.path.expanduser("~/nimbus-os/services/data-access"))
+    if pkg not in sys.path:
+        sys.path.insert(0, pkg)
+    import data_access  # noqa: PLC0415
+    return data_access
 
 
 def _pct(label, n, total):
@@ -28,18 +27,9 @@ def main():
     a = ap.parse_args()
     sym = a.symbol.upper()
 
-    if not KEY:
-        print("FINNHUB_API_KEY 未设 — 跳过分析师评级;设置后重试。", file=sys.stderr)
-        sys.exit(0)
-
-    try:
-        d = _get(f"https://finnhub.io/api/v1/stock/recommendation?symbol={sym}")
-    except Exception as e:
-        print(f"分析师评级获取失败: {e}", file=sys.stderr)
-        sys.exit(1)
-
+    d = _sdk().ratings(sym)
     if not d:
-        print(f"📊 {sym} 分析师评级: 当前无数据 (Finnhub·非投资建议)")
+        print(f"📊 {sym} 分析师评级: 当前无数据或数据面不可达 (Finnhub·非投资建议)")
         return
 
     latest = d[0]
