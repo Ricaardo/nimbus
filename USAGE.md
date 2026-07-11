@@ -48,7 +48,7 @@ DM **Cici#8105**(Discord),它按问题自动分三档:
 | 早间体检 | 08:00 | market-pulse + 事件 + 论点 decay + 偏离 |
 | 盘前持仓 | 21:00 | 真实持仓 + 止损位 + 催化 + 盘中触发器 |
 | 收盘复盘 | 06:00 | trade-journal + 市场变化 + 论点更新 |
-| 持仓刷新 | 07:30 & 20:30 | 拉 futu+IBKR 写 portfolio_state(数据保鲜) |
+| 持仓刷新 | 07:30 & 20:30 | 拉 futu+IBKR 写 portfolio_state(数据保鲜);统一净值=futu+IBKR(长桥模拟盘不计入),每次同步追加净值历史(`nav_history.jsonl`) |
 | **周反思** 🧠 | 周日 21:00 | 从真实交易学教训 → 存记忆 → 越用越懂你 |
 | 成本周报 | 周一 08:30 | 上周各模型花费/token/缓存命中 |
 | 健康自愈 | 每 20 分钟 | 检 OpenD,异常告警(冷却) |
@@ -56,12 +56,17 @@ DM **Cici#8105**(Discord),它按问题自动分三档:
 
 **主动告警细节**(每 15 分钟用 futu 实时价扫一遍持仓,不再等半天一次的快照):
 - 🔴 **止损触线** — 现价 ≤ 论点止损价 → 立即推送(静默时段也推),复核论点 + 给止损/持有方案
-- 📈 **止盈锁利** — 现价 ≥ 论点目标价(`valuation.target_price`),**或**单票浮盈 ≥30% → 提醒"拿住利润",给上移止损/分批止盈方案。同一标的同一盈利档约 7 天最多提醒一次,不啰嗦
+- 📈 **止盈锁利** — 现价 ≥ 论点目标价(`target_price`),**或**单票浮盈 ≥30% → 提醒"拿住利润",给上移止损/分批止盈方案。同一标的同一盈利档约 7 天最多提醒一次,不啰嗦
 - 📉 **组合回撤** — 总市值从高点(自动记录的高水位)回撤 ≥10% → 推送,判系统性 vs 个别拖累 + 给动作
 - ⚠️ **集中度** — 单票 ≥25% 或半导体桶 >30%;**论点 decay** — 90 天僵尸 / verdict 转 decaying/broken
-- 止损价/止盈价来自论点 YAML(`thesis-tracker/reports/theses/*.yaml` 的 `valuation.stop_loss` / `target_price`),持有且有论点的标的才有
+- 止损价/止盈价来自论点 YAML(`reports/theses/*.yaml` 顶层的 `stop_loss` / `target_price`,旧 `valuation.*` 嵌套写法兼容),持有且有论点的标的才有
 
 改时间/阈值见 `src/config.ts`(`*_CRON` / `QUIET_HOURS` / `*_CONC_PCT` / `GAIN_ALERT_PCT` / `GAIN_COOLDOWN_MS` / `DRAWDOWN_PCT` / `ALERT_DAILY_CAP`)。
+
+**问净值/净值曲线/本周回报** → 直接问 Cici(如"净值曲线""本周净值变化多少""最大回撤")。它会跑
+`skills/portfolio-manager/scripts/nav_view.py`,汇总统一净值(futu+IBKR,长桥模拟盘不计入)+ 7日/30日/
+自有史以来变化 + 历史最大回撤 + 跨账户重仓重叠;历史数据来自持仓刷新作业自动累积的 `nav_history.jsonl`,
+不用你手动记账。
 
 ---
 

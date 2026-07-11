@@ -26,7 +26,8 @@ import yaml
 
 HOME = os.path.expanduser("~")
 _SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # 自包含:相对脚本定位 skills 根,不依赖 ~/.claude
-THESES_DIR = f"{_SKILLS}/thesis-tracker/reports/theses"
+_REPO_ROOT = os.path.dirname(_SKILLS)
+THESES_DIR = f"{_REPO_ROOT}/reports/theses"  # canonical:仓库根 reports/theses(非 skill 内嵌目录,见 thesis-tracker/SKILL.md)
 PM_SCRIPTS = f"{_SKILLS}/portfolio-manager/scripts"
 TJ_SCRIPTS = f"{_SKILLS}/trade-journal/scripts"
 MP_SCRIPTS = f"{_SKILLS}/market-pulse/scripts"
@@ -117,15 +118,37 @@ def action_items(state, theses):
     return [m for _, m in items]
 
 
+# ---------- NAV 行（统一净值：futu + IBKR，长桥模拟盘不并入） ----------
+def _nav_line(state):
+    nav_usd = state["nav_usd"]
+    accounts = state.get("accounts") or {}
+    futu_usd = (accounts.get("futu") or {}).get("total_usd")
+    if futu_usd is not None:
+        ibkr_usd = nav_usd - futu_usd
+        nav_part = f"NAV **${nav_usd:,.0f}**(futu ${futu_usd:,.0f} + IBKR ${ibkr_usd:,.0f})"
+    else:
+        nav_part = f"NAV **${nav_usd:,.0f}**"           # 旧 state（无 accounts 字段）退回旧格式
+    parts = [nav_part, f"现金 {state['cash_pct']}%"]
+    try:
+        week_pct = ps.nav_change_pct(ps.load_nav_history(), nav_usd, 7)
+    except Exception:
+        week_pct = None
+    if week_pct is not None:
+        parts.append(f"7 日 {week_pct:+.1f}%")
+    parts.append(f"{len(state['positions'])} 持仓")
+    line = " · ".join(parts)
+    if state.get("ibkr_stale"):
+        line += "  ⚠IBKR陈旧"
+    return line
+
+
 # ---------- 渲染 ----------
 def render(state, theses, behavior, market=None, earnings=None, macro=None, ideas=None):
     L = [f"# ☀️ 投顾日报 — {TODAY.isoformat()}  ({['周一','周二','周三','周四','周五','周六','周日'][TODAY.weekday()]})", ""]
 
     # 1. 快照
     L.append(f"## 组合快照")
-    L.append(f"NAV **${state['nav_usd']:,.0f}** · 现金 {state['cash_pct']}% · "
-             f"{len(state['positions'])} 持仓"
-             + ("  ⚠IBKR陈旧" if state.get("ibkr_stale") else ""))
+    L.append(_nav_line(state))
     L.append("")
     for p in state["positions"][:6]:
         if p["weight_pct"] < 0.5:

@@ -10,6 +10,7 @@ secrets/
 
 # skills 运行时数据(不入库:实时持仓/缓存/队列/db,含隐私)
 skills/references/state/*.json
+skills/references/state/*.jsonl
 skills/**/bot/posts.db
 skills/**/bot/queue/
 skills/**/bot/data/

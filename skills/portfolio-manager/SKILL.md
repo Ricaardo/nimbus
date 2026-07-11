@@ -23,6 +23,32 @@ required_tools: ["futuapi", "alpaca", "tavily"]
 
 ---
 
+## 📈 统一净值视图（futu + IBKR，长桥模拟盘不并入）
+
+`scripts/portfolio_state.py` 每次成功拉 futu 后，会把统一净值（`nav_usd` = futu 总资产 + IBKR
+市值+现金）追加一行到 `skills/references/state/nav_history.jsonl`（07:30/20:30 cron 自动跑，无需手动）。
+
+**什么时候跑 `scripts/nav_view.py`**：用户问"净值曲线"/"这周赚了多少"/"最大回撤多大"/"两账户有没有
+重仓同一只票"时，直接跑它（只读，不重算持仓，读 `portfolio_state.json` + `nav_history.jsonl`）：
+```bash
+python3 ~/.claude/skills/portfolio-manager/scripts/nav_view.py            # markdown
+python3 ~/.claude/skills/portfolio-manager/scripts/nav_view.py --json     # 结构化
+```
+输出：总资产 + futu/IBKR 拆分（市值/现金/浮盈亏）+ 现金占比 + 净值变化(7日/30日/自有史以来) +
+历史最大回撤 + 跨账户重叠标的（同一 canon 同时现身两账户）。历史不足 7/30 天或 `nav_history.jsonl`
+还没攒够数据时，对应区间优雅省略，不报错。
+
+**净值曲线怎么画**：`nav_history.jsonl` 每行是一个时间点快照（`ts`/`nav_usd`/...），Cici 可以直接
+`Read` 它 + 写个 matplotlib 小脚本画 NAV 曲线（参考 CLAUDE.md「数据工作/编码/画图」能力），不需要额外
+数据源。
+
+**出入金记账（可选，让"净值变化"更准）**：入金/出金后，在 `skills/references/state/flows.jsonl`
+追加一行 `{"ts": "YYYY-MM-DD", "amount_usd": ±数, "note": "..."}`（入金正、出金负）。`nav_view.py` 检测
+到该文件时，会在净值变化旁附一个"剔除出入金后"的修正值（简单法：区间 NAV 变化 − 区间净流入），避免把
+出入金误判成投资收益/亏损。没有这个文件也能正常用，只是少这一项修正。
+
+---
+
 ## 🚨 4 个硬阈值（自动触发联动）
 
 每次 portfolio review 必须扫描以下 4 项；任一触发 → 立即跳到对应 skill：

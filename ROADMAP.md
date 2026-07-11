@@ -249,12 +249,18 @@
 
 ### 数据 / 持仓
 - **长桥持仓 ❌ 不并入(2026-06-12 实测=模拟盘)**:长桥 MCP 账户绑的是**模拟/Paper 账户**(IBIT 1733分数股/现金≈0/净值与持仓矛盾/320万整数融资额=demo 特征;主人确认真实账户无持仓)。**持仓数据不可信,绝不并入真实组合。长桥只当行情/数据源(行情真实)。** 若要真实账户:需真实户开通 OpenAPI 权限后重新 OAuth;但 futu/IBKR 已覆盖真实持仓,长桥保持纯行情源最干净。
-- **三账户统一净值视图**:futu + IBKR + 长桥 总资产/总盈亏/跨账户集中度。
-- 论点 theses 导入:`~/.claude/skills/.../theses/` 现空 → 让 bot 帮你给现有持仓建论点 YAML(thesis-tracker),周反思/decay 才有素材。
+- ~~**三账户统一净值视图**:futu + IBKR + 长桥 总资产/总盈亏/跨账户集中度。~~ ✅ 2026-07-11 完成(长桥
+  模拟盘不并入,见上条裁定):`portfolio_state.py` 输出 `accounts{futu,ibkr}` 拆分(市值/现金/浮盈亏)+
+  顶层 `pl_usd` 合并浮盈亏,IBKR 现金(`ibkr_positions.json.total_cash`)并入 NAV;新增
+  `nav_history.jsonl`(每次成功刷新追加一行,去重幂等,无行数上限)驱动净值曲线/区间回报;新脚本
+  `nav_view.py` 出总资产拆分/7日/30日/自有史以来变化(可选 `flows.jsonl` 剔除出入金)/历史最大回撤/
+  **跨账户重仓重叠**(即"跨账户集中度"——同一 canon 同时现身两账户即合并权重列出，覆盖原诉求)；
+  `briefing.py` NAV 行同步展示 futu/IBKR 拆分 + 7 日变化。
+- ~~**论点 theses 导入**~~ ✅ 2026-07-11 完成:根因是 `portfolio_state.py`/`briefing.py` 的 `THESES_DIR` 误指未跟踪的 `skills/thesis-tracker/reports/theses`(gitignored 陈旧目录),真正 canonical 且 git 跟踪的是仓库根 `reports/theses/`(5 个标的)→ 已改指 + 文档路径对齐(USAGE.md/decouple-from-cc.md);`config.ts` DECAY_VERDICTS 补 `failed`(对齐 thesis YAML 的 `thesis_vs_price.verdict` 词表)使 decay 告警真能触发;周反思 prompt 加"无档案持仓建初始论点"指令。
 
 ### 能力 / 体验
 - **Discord embed 用到更多场景**:机会扫描/告警也可上 embed 卡片(现仅成本周报/健康)。
-- **决策台账结果回填自动化**:现靠周反思人工对照;可让刷新作业按价格自动 closeDecision(命中目标/止损)。
+- ~~**决策台账结果回填自动化**~~ ✅ 2026-07-11 完成:`decision:track` cron 模块(每日 07:45/20:45)按价格自动 closeDecision——===DECISION=== 协议扩展选填 target/stop(rationale 正则兜底,拒百分比语义)+ 决策时价格快照(fire-and-forget)+ 命中目标/止损或 30d 到期结算,结果 DM 通知;周反思自然衔接。678 测试绿。
 - **图表能力增强**:让 agent 默认对深度个股分析配 K 线/对比图(现要显式要求)。
 - browser-use:JS 渲染页/登录抓取/截图(边缘,真遇到再加)。
 - 语音输入(TG/Discord 语音 → STT → 提问)。
