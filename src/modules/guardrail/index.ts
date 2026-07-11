@@ -14,6 +14,24 @@
  */
 
 import { LEVERAGE_BAN_UNTIL } from '../../config.js'
+import { tradeEvidenceString } from './loader.js'
+
+// Cache evidence strings in-process (re-lazied per detect call) to avoid
+// repetitive YAML reads when the user sends multiple messages in one session.
+let _evidenceCache = new Map<string, string | null>()
+
+function getTickerEvidence(ticker: string): string | null {
+  const key = ticker.toUpperCase()
+  if (!_evidenceCache.has(key)) {
+    _evidenceCache.set(key, tradeEvidenceString(key))
+  }
+  return _evidenceCache.get(key) ?? null
+}
+
+/** Reset per-session evidence cache (exported for testing). */
+export function resetEvidenceCache(): void {
+  _evidenceCache = new Map()
+}
 
 // ── Keyword groups ────────────────────────────────────────────────────────────
 
@@ -80,7 +98,23 @@ function isAnyMatch(content: string): boolean {
   return ALL_PATTERNS.some(p => p.test(content))
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
+/** Prefixed tickers whose trade-journal data to check for leverage-trigger messages. */
+const EVIDENCE_TICKERS = ['SOXL', 'SOXS', 'TQQQ', 'SQQQ', 'UPRO', 'SPXL', 'SPXS', 'TSLL', 'NVDL', 'LABU']
+
+function formatLeverageEvidence(): string {
+  const parts: string[] = []
+  for (const ticker of EVIDENCE_TICKERS) {
+    const ev = getTickerEvidence(ticker)
+    if (ev) {
+      parts.push(ev)
+      break // one concrete example is enough
+    }
+  }
+  if (parts.length > 0) {
+    return parts[0] + '，被 3x 每日重置 + 持仓 decay 暴露的风险。'
+  }
+  return '杠杆ETF的每日重置结构叠加方向判断错误可能造成严重亏损。'
+}
 
 /**
  * Scan inbound content for known trading-weakness keywords.
@@ -111,7 +145,7 @@ export function detect(content: string): string | null {
       ? `（他给自己定过到 ${LEVERAGE_BAN_UNTIL} 的杠杆ETF冷静期，可温和提一句）`
       : ''
     lines.push(
-      `• 杠杆/杠杆ETF：历史代价是事实——SOXL/SOXS 月周转 3.6x、净亏 $1,630（账户7.4%），被 3x 每日重置 + 持仓 decay 双杀${banNote}。可顺口问一句"日内还是多日？多日的话正股或小仓更稳"。`,
+      `• 杠杆/杠杆ETF：历史代价是事实——${formatLeverageEvidence()}${banNote}。可顺口问一句"日内还是多日？多日的话正股或小仓更稳"。`,
     )
   }
   lines.push(

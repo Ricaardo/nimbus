@@ -10,6 +10,7 @@
 import { readFileSync } from 'fs'
 import { PORTFOLIO_STATE_PATH, LEVERAGE_BAN_UNTIL } from '../config.js'
 import type { Memory, PortfolioState } from '../modules/module.js'
+import { kbIngest, kbSearch } from './knowledge.js'
 
 // ── Persistent memory store (Phase 2) — wired by main.ts to SqliteDB ──────────
 // Lets the bot remember the master's preferences/lessons ACROSS sessions
@@ -36,9 +37,10 @@ export function openDecisions(limit = 30): Array<{ id: number; ts: number; symbo
 export function closeDecision(id: number, outcome: string): void {
   store?.closeDecision(id, outcome)
 }
-/** Capture a lasting preference (e.g. user says "别教条" / "以后先说市场"). */
+/** Capture a lasting preference (e.g. user says "别教条" / "以后先说市场") — also vectorize for semantic recall. */
 export function rememberPreference(text: string, source = 'user'): void {
   store?.remember({ kind: 'preference', text, source })
+  void kbIngest({ kind: 'memory', body: text, source_path: `memory:preference` })
 }
 /** Recall decision/lesson memories relevant to the current message. */
 export function recallMemories(query: string, limit = 4): string[] {
@@ -47,6 +49,7 @@ export function recallMemories(query: string, limit = 4): string[] {
 /** Generic store (used by the weekly reflection to persist learned lessons). */
 export function rememberMemory(kind: string, text: string, slug?: string, source?: string): void {
   store?.remember({ kind, text, slug, source })
+  void kbIngest({ kind: 'memory', body: text, source_path: `memory:lesson` })
 }
 
 // ── Portfolio state loader ─────────────────────────────────────────────────────

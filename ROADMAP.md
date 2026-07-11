@@ -266,16 +266,16 @@
 - 语音输入(TG/Discord 语音 → STT → 提问)。
 
 ### 架构 / 独立性
-- **完全独立(脱离 ~/.claude)**:7 个 skill 脚本硬编码 ~/.claude 路径 + state/历史数据在 ~/.claude → 改路径 + 数据迁项目。本机部署下非必须,半独立合理。
+- ~~**完全独立(脱离 ~/.claude)**~~ ✅ 2026-07-11 完成:文档层(SKILL.md/README)硬编码 `~/.claude/skills/...`、`/Users/x/.claude/skills/...` 全部改仓库相对路径 `skills/<skill>/...`(21 个文件 70+ 处);脚本层本就已是自包含 pattern(`portfolio_state.py` 等典范),仅补一处 stale 注释。新增 `src/hygiene.test.ts` 防回归守卫(bun test,断言 SKILL.md/scripts 不再出现 `.claude/skills`)。**有意保留、未改**:`~/.claude/channels/discord/.env` token 位置、`scripts/sync-skills.sh` 的同步源(`$HOME/.claude/skills`,反向拉取工具本身就该指向那里)、`portfolio-manager/README.md` 面向外部用户的"装进 `~/.claude/skills/`"安装说明——本机部署下这些属有意设计,半独立即为终态,与本条目原判断一致。
 - vendored skills 自动同步:现 `sync-skills.sh` 手动;可加 cron 定期同步 + 自动 commit。
 - 多用户正式化:现隐私隔离按 OWNER_IDS;若要给家人/朋友只读访问,可加"访客模式"分级。
 
 ### 运维 / 可靠性
 - **代理/连通自愈扩展**:health 现只查 OpenD;可加 gateway/长桥/各 MCP 健康 + 自动重连。
 - 成本预算硬限:现超 $5/天仅提示;可选硬停主动任务(保留红线告警)。
-- 知识库 recall 升级:现关键词;可上 embedding 向量召回(更准,需向量库)。
+- ~~知识库 recall 升级~~ ✅ 2026-07-11:记忆(memories 表)写入即走 `kbIngest(kind=memory)` 自动向量化,无需手动入库;现有 4 条决策/教训已回填;`kbSearch` 的 `kind='memory'` 过滤加上后,语义召回自然覆盖 memories——dispatcher 的既有 `recallMemories + kbSearch` 双通道就是完整的混合召回。升级点:存储即向量,少了一个手动环节。
 
 ### 已知小修(技术债)
-- guardrail/memory 的 SOXL 等具体案例数字是硬编码,应改从 trade-journal 真实数据读。
+- ~~guardrail/memory 的 SOXL 等具体案例数字是硬编码,应改从 trade-journal 真实数据读~~ ✅ 2026-07-11:新建 `loader.ts` 统一解析 `skills/trade-journal/reports/trades/*.yaml`;guardrail 的杠杆 ETF 警示文案改为动态从 loader 合成(找损失最严重的 ticker),不再 hardcode SOXL;`CLAUDE.md` 记录改泛化描述;现有 guardrail 测试 33→45。所有具有 `realized_pnl≤-500` 或 `pct_of_account≤-3%` 的 ticker 都自动进警示名单,不只 SOXL。
 - buildContext 持仓摘要 only top-5 by weight;可配。
 - TG markdown:grammY 的 MarkdownV2 转义未做(现纯文本,主人说不做)。
