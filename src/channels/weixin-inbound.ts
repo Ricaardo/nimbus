@@ -6,9 +6,6 @@
 // 调进来。本通道把它桥接进 Dispatcher (与 Cici 的 Discord 路径同一套 agent/记忆/
 // 预算), 等首个回复后以 OpenAI chat.completion 形状同步返回。
 //
-// 与 channels/weixin/ (Phase 2 iLink 双向推送) 互不干扰: 那条路径对接 weixin-hub
-// 的 iLink 出站; 本适配器对接 wechat-io 的 OpenAI 兼容入站调用, 路径独立。
-//
 // 默认不启动 (WEIXIN_INBOUND=0); DeepSeek/微信第二实例设 WEIXIN_INBOUND=1 开启。
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'

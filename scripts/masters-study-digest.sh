@@ -3,7 +3,7 @@
 #
 # 形态:取相关大师的【深度档】(skills/*/references/<master>/dna-and-cases.md,已入 kb-server)
 #   + 今日聚合 news(news-feed breaking.jsonl)→ 内联进 prompt → headless `claude -p` 合成
-#   一条中文学习短文 → 推个人微信(weixin-hub /send, 8787)+ 追加 news-feed(给 Cici)。
+#   一条中文学习短文 → 追加 news-feed(给 Cici)。
 #
 # 三槽(launchd 传 MODE,或按当前小时推断):
 #   ah     (~08:00) A股/港股 → 段永平 视角
@@ -19,8 +19,6 @@ NIMBUS="$ROOT/nimbus"
 REFS="$NIMBUS/skills"
 LOG="$NIMBUS/logs/masters-study-digest.log"
 FEED="$NIMBUS/workspace/feed/breaking.jsonl"
-HUB_URL="http://127.0.0.1:8787"
-HUB_TOKEN_FILE="$HOME/.weixin-hub/api_token.txt"
 mkdir -p "$(dirname "$LOG")"
 log() { echo "$(date -u +%FT%TZ) $*" >> "$LOG"; }
 
@@ -141,18 +139,6 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   printf '%s\n' "$DIGEST"; log "DRY_RUN ok (not pushed)"; exit 0
 fi
 
-# ── 推 weixin-hub (/send, 8787) ──
-TOKEN="$(tr -d '[:space:]' < "$HUB_TOKEN_FILE" 2>/dev/null || true)"
-PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read(), "priority":"now", "title":"大师研习", "source":"masters-study"}))' <<<"$DIGEST")"
-CURL_ARGS=(-s -o /dev/null -w '%{http_code}' --max-time 20 -X POST "$HUB_URL/send" -H "Content-Type: application/json" -d "$PAYLOAD")
-[ -n "$TOKEN" ] && CURL_ARGS+=(-H "Authorization: Bearer $TOKEN")
-HTTP=$(curl "${CURL_ARGS[@]}" || echo "000")
-log "weixin-hub /send http=$HTTP"
-case "$HTTP" in
-  2*) ;;
-  *) log "ERROR weixin-hub failed http=$HTTP"; exit 1;;
-esac
-
 # ── 追加 news-feed(给 nimbus / Cici 当资料)──
 if [ -d "$(dirname "$FEED")" ]; then
   printf '%s' "$DIGEST" | "$NIMBUS/scripts/news-feed-write.py" \
@@ -173,4 +159,4 @@ if printf '%s' "$DIGEST" | bun run "$NIMBUS/scripts/kb-ingest.ts" \
 else
   log "WARN kb-ingest failed source=masters-study:${MODE}:${DATE_CN}"
 fi
-log "done MODE=$MODE http=$HTTP"
+log "done MODE=$MODE"

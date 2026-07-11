@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildEnvelope, toWeixinHub, validateEnvelope } from './pushEnvelope.js'
+import { buildEnvelope, validateEnvelope } from './pushEnvelope.js'
 
 describe('pushEnvelope', () => {
   test('buildEnvelope fills version, priority and a stable request_id', () => {
@@ -14,13 +14,6 @@ describe('pushEnvelope', () => {
   test('explicit request_id is preserved', () => {
     const env = buildEnvelope({ source: 'news', text: 'x', request_id: 'evt-1' })
     expect(env.request_id).toBe('evt-1')
-  })
-
-  test('toWeixinHub maps to the hub /send contract', () => {
-    const env = buildEnvelope({ source: 'Cici', text: 'hi', title: 'T', priority: 'digest', to: 'userA' })
-    const p = toWeixinHub(env)
-    expect(p).toMatchObject({ text: 'hi', title: 'T', source: 'Cici', priority: 'digest', to: 'userA' })
-    expect(p.request_id).toBe(env.request_id)
   })
 
   test('validateEnvelope rejects empty payloads', () => {

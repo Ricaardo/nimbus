@@ -2,7 +2,7 @@
  * pushEnvelope.ts — PushEnvelope v1 builder + channel adapters.
  *
  * The envelope is the single push contract shared across producers (news,
- * nimbus) and transports (weixin-hub, wechat-io). Producers construct an
+ * nimbus) and transports (wechat-io). Producers construct an
  * envelope and map it to a channel payload here; they never reimplement
  * rate-limit / merge logic (that stays in the transports).
  *
@@ -13,7 +13,7 @@
 import { createHash } from 'crypto'
 
 export type PushPriority = 'now' | 'digest'
-export type ChannelHint = 'weixin-hub' | 'wechat-io' | 'discord' | 'feishu' | 'telegram' | 'wecom'
+export type ChannelHint = 'wechat-io' | 'discord' | 'feishu' | 'telegram' | 'wecom'
 
 export interface PushEnvelope {
   version: 1
@@ -69,18 +69,4 @@ export function validateEnvelope(env: PushEnvelope): void {
   if (!env.source?.trim()) throw new Error('PushEnvelope.source required')
   if (!env.text?.trim() && !env.title?.trim()) throw new Error('PushEnvelope needs text or title')
   if (env.priority !== 'now' && env.priority !== 'digest') throw new Error('PushEnvelope.priority must be now|digest')
-}
-
-/** Map an envelope to the weixin-hub /send payload contract. */
-export function toWeixinHub(env: PushEnvelope): Record<string, string> {
-  validateEnvelope(env)
-  const payload: Record<string, string> = {
-    text: env.text ?? '',
-    title: env.title ?? '',
-    source: env.source,
-    priority: env.priority,
-    request_id: env.request_id,
-  }
-  if (env.to) payload.to = env.to
-  return payload
 }

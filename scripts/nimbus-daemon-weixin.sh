@@ -5,8 +5,8 @@
 # Why a separate script (Cici's nimbus-daemon.sh is deliberately left untouched):
 #   • Cici's script `unset ANTHROPIC_API_KEY` — but this instance AUTHENTICATES
 #     with that var (set to the DeepSeek key), so it must survive.
-#   • Cici's script forces WEIXIN_TWOWAY=1 + Cici's owner IDs; this instance must
-#     not.  All config comes from the launchd plist EnvironmentVariables instead.
+#   • Cici's script forces Cici's owner IDs; this instance must not.  All config
+#     comes from the launchd plist EnvironmentVariables instead.
 #   • Distinct tmux session name so the two supervisors never collide.
 #
 # Behaviour mirrors nimbus-daemon.sh:
@@ -76,8 +76,6 @@ NIMBUS_API_ENABLED='${NIMBUS_API_ENABLED:-0}' \
 WEIXIN_INBOUND='${WEIXIN_INBOUND:-1}' \
 WEIXIN_INBOUND_PORT='${WEIXIN_INBOUND_PORT:-8770}' \
 WEIXIN_INBOUND_TOKEN='$WEIXIN_INBOUND_TOKEN' \
-WEIXIN_TWOWAY='${WEIXIN_TWOWAY:-0}' \
-WEIXIN_MIRROR='${WEIXIN_MIRROR:-0}' \
 NIMBUS_DB_PATH='$NIMBUS_DB_PATH' \
 NIMBUS_OUTBOX_DIR='$NIMBUS_OUTBOX_DIR' \
 NIMBUS_OWNER_IDS='$NIMBUS_OWNER_IDS' \

@@ -1,6 +1,7 @@
 # 微信群投顾：DeepSeek 接入与 Hermes 退役技术方案
 
 > 状态：已定稿 · 日期：2026-06-25 · 工程根：`~/nimbus-os/nimbus/`
+> **weixin-hub 已于 2026-07-11 退役删除**——本文出现的 weixin-hub/iLink 出站推送路径为历史记录，不代表现状。
 
 ---
 

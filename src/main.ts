@@ -4,17 +4,15 @@ import './channels/discord/proxy.js'
 
 import { mkdirSync } from 'fs'
 import { DiscordChannel } from './channels/discord/index.js'
-import { WeixinChannel } from './channels/weixin/index.js'
 import { ApiChannel } from './channels/api.js'
 import { WeixinInboundChannel } from './channels/weixin-inbound.js'
 import { Dispatcher } from './core/dispatcher.js'
 import { SimpleRegistry } from './core/registry.js'
-import { MirroringRegistry } from './core/mirror-registry.js'
 import { agentRunner, assertSubscriptionMode, setUsageLogger } from './core/agent.js'
 import { refreshModels } from './core/models.js'
 import { memory, setMemoryStore } from './core/memory.js'
 import { safety } from './core/safety.js'
-import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_TWOWAY_ENABLED, WEIXIN_INBOUND_ENABLED, API_CHANNEL_ENABLED, DISCORD_ENABLED } from './config.js'
+import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_INBOUND_ENABLED, API_CHANNEL_ENABLED, DISCORD_ENABLED } from './config.js'
 import { defaultDb, closeDb } from './core/db.js'
 import { getProvider } from './core/provider.js'
 import { Scheduler } from './core/scheduler.js'
@@ -88,13 +86,6 @@ if (API_CHANNEL_ENABLED) {
   registry.register(apiChannel)
 }
 
-// Phase 2 双向:启用后注册 weixin 渠道(入站 HTTP 端点 + 经 hub 出站回复)。
-let weixinChannel: WeixinChannel | undefined
-if (WEIXIN_TWOWAY_ENABLED) {
-  weixinChannel = new WeixinChannel()
-  registry.register(weixinChannel)
-}
-
 // Phase 3:wechat-io 经 OpenAI 兼容口入站(/v1/chat/completions)。DeepSeek 实例开。
 let weixinInboundChannel: WeixinInboundChannel | undefined
 if (WEIXIN_INBOUND_ENABLED) {
@@ -102,8 +93,7 @@ if (WEIXIN_INBOUND_ENABLED) {
   registry.register(weixinInboundChannel)
 }
 
-// 主动推送(无 replyTo)镜像到个人微信 weixin-hub;交互式回复不镜像。失败静默。
-const channels = new MirroringRegistry(registry)
+const channels = registry
 
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
 const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...decisionTrackerModules, ...costReportModules, ...healthModules, ...alertModules]
@@ -150,12 +140,6 @@ discordChannel?.onMessage(m => {
   })
 })
 
-weixinChannel?.onMessage(m => {
-  dispatcher.dispatch(m).catch(err => {
-    process.stderr.write(`nimbus: dispatcher error: ${err}\n`)
-  })
-})
-
 apiChannel?.onMessage(m => {
   dispatcher.dispatch(m).catch(err => {
     process.stderr.write(`nimbus api: dispatcher error: ${err}\n`)
@@ -197,5 +181,4 @@ process.on('SIGINT', shutdown)
 // ── Start ─────────────────────────────────────────────────────────────────────
 if (discordChannel) await discordChannel.start()
 if (apiChannel) await apiChannel.start()
-if (weixinChannel) await weixinChannel.start()
 if (weixinInboundChannel) await weixinInboundChannel.start()

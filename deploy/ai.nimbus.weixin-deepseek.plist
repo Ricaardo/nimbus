@@ -25,8 +25,7 @@
        from the two instances never mix.
     5. wechat-io POSTs OpenAI-compatible requests to the WeixinInboundChannel on
        WEIXIN_INBOUND_PORT (8770).  This is the /v1/chat/completions endpoint —
-       NOT the local ApiChannel (/chat) which is disabled here.  8770 avoids the
-       8788 default used by the Phase-2 iLink two-way channel.
+       NOT the local ApiChannel (/chat) which is disabled here.
        After installing, update ~/.wechat-io/config.yaml:
          agent:
            openai_base_url: "http://127.0.0.1:8770/v1"   # → POST /v1/chat/completions
@@ -94,8 +93,7 @@
     <key>WEIXIN_INBOUND</key>
     <string>1</string>
     <!-- Port wechat-io POSTs to.  Must match ~/.wechat-io/config.yaml
-         (agent.openai_base_url = http://127.0.0.1:8770/v1).  8770 avoids the
-         8788 default used by the Phase-2 iLink two-way channel. -->
+         (agent.openai_base_url = http://127.0.0.1:8770/v1). -->
     <key>WEIXIN_INBOUND_PORT</key>
     <string>8770</string>
     <!-- Shared bearer secret for /v1/chat/completions.  Put the SAME value in
@@ -107,12 +105,6 @@
     <string>0</string>
     <!-- Disable the local ApiChannel (/chat); wechat-io uses the OpenAI endpoint. -->
     <key>NIMBUS_API_ENABLED</key>
-    <string>0</string>
-    <!-- Disable the iLink two-way WeChat channel (Phase 2 — not used here). -->
-    <key>WEIXIN_TWOWAY</key>
-    <string>0</string>
-    <!-- Disable WeChat mirror pushes (this instance IS the WeChat instance). -->
-    <key>WEIXIN_MIRROR</key>
     <string>0</string>
   </dict>
 

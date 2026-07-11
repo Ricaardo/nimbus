@@ -21,23 +21,11 @@ export const STATE_ROOT = join(SKILLS_ROOT, 'references', 'state')
 // ── Discord / channel config ──────────────────────────────────────────────────
 export const REPORT_DM = '1484554871800725624'
 
-// ── 个人微信镜像 (weixin-hub) ─────────────────────────────────────────────────
-// 把发给主人 DM 的【主动推送】(日报/告警/机会/反思 — 即 replyTo 为空的发送) 镜像
-// 一份到个人微信 (经本地 weixin-hub / 官方 iLink)。交互式回复 (带 replyTo) 不镜像。
-// 失败静默, 永不影响 Discord。WEIXIN_MIRROR=0 关闭。
-export const WEIXIN_MIRROR_ENABLED = (process.env.WEIXIN_MIRROR ?? '1') !== '0'
-export const WEIXIN_MIRROR_CHATS: string[] = (process.env.WEIXIN_MIRROR_CHATS ?? REPORT_DM)
-  .split(',').map(s => s.trim()).filter(Boolean)
-export const WEIXIN_HUB_URL = process.env.WEIXIN_HUB_URL ?? 'http://127.0.0.1:8787'
-// Phase 2 双向:nimbus 暴露的入站端点端口(weixin-hub getupdates 把微信入站 POST 到这里)。
+// ── 微信入站端点 (wechat-io) ─────────────────────────────────────────────────
 export const WEIXIN_INBOUND_PORT = Number(process.env.WEIXIN_INBOUND_PORT ?? 8788)
-// Phase 2 总开关:启用后 nimbus 注册 weixin 渠道并起入站端点(Cici 在微信里直接答)。
-// 默认关闭,切换时设 WEIXIN_TWOWAY=1 并同时关掉 Hermes 的 weixin 轮询(单消费者)。
-export const WEIXIN_TWOWAY_ENABLED = (process.env.WEIXIN_TWOWAY ?? '0') === '1'
 
 // Phase 3 DeepSeek/微信:wechat-io 经 OpenAI 兼容口 (POST /v1/chat/completions) 入站。
-// 与 Phase 2 iLink 双向是互斥部署(同一端口 8788),默认关闭(Cici 不起此端点);
-// DeepSeek 第二实例设 WEIXIN_INBOUND=1 开启。
+// 默认关闭(Cici 不起此端点);DeepSeek 第二实例设 WEIXIN_INBOUND=1 开启。
 export const WEIXIN_INBOUND_ENABLED = (process.env.WEIXIN_INBOUND ?? '0') === '1'
 export const WEIXIN_INBOUND_HOST = process.env.WEIXIN_INBOUND_HOST ?? '127.0.0.1'
 // 可选 Bearer 令牌:置空(默认)时仅靠 localhost 绑定保护;设置后强校验 Authorization。
