@@ -315,4 +315,38 @@ describe('decision ledger (可问责)', () => {
     expect(db.openDecisions()).toHaveLength(1)
     db.close()
   })
+
+  test('migration columns exist (price_at_decision/target/stop default null)', () => {
+    const db = openDb(':memory:')
+    db.recordDecision({ symbol: 'NVDA', direction: 'buy' })
+    const open = db.openDecisions()
+    expect(open[0]!.price_at_decision).toBeNull()
+    expect(open[0]!.target).toBeNull()
+    expect(open[0]!.stop).toBeNull()
+    db.close()
+  })
+
+  test('recordDecision returns the new row id and stores target/stop/priceAtDecision', () => {
+    const db = openDb(':memory:')
+    const id1 = db.recordDecision({ symbol: 'NVDA', direction: 'buy' })
+    const id2 = db.recordDecision({ symbol: 'AVGO', direction: 'sell', priceAtDecision: 250.5, target: 300, stop: 220 })
+    expect(typeof id1).toBe('number')
+    expect(id2).toBeGreaterThan(id1)
+    const open = db.openDecisions()
+    const avgo = open.find(d => d.symbol === 'AVGO')!
+    expect(avgo.price_at_decision).toBe(250.5)
+    expect(avgo.target).toBe(300)
+    expect(avgo.stop).toBe(220)
+    db.close()
+  })
+
+  test('updateDecisionPrice only fills when currently NULL (never overwrites)', () => {
+    const db = openDb(':memory:')
+    const id = db.recordDecision({ symbol: 'NVDA', direction: 'buy' })
+    db.updateDecisionPrice(id, 145.2)
+    expect(db.openDecisions()[0]!.price_at_decision).toBe(145.2)
+    db.updateDecisionPrice(id, 999) // late snapshot must not clobber
+    expect(db.openDecisions()[0]!.price_at_decision).toBe(145.2)
+    db.close()
+  })
 })

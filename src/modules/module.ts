@@ -169,11 +169,13 @@ export interface DB {
   getKv?(key: string): string | null
   setKv?(key: string, value: string): void
   /** Decision ledger: open recommendations for reflection to score. */
-  openDecisions?(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }>
-  /** Record an explicit trade recommendation. */
-  recordDecision?(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void
+  openDecisions?(limit?: number): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null; price_at_decision: number | null; target: number | null; stop: number | null }>
+  /** Record an explicit trade recommendation. Returns the new row id. */
+  recordDecision?(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string; priceAtDecision?: number; target?: number; stop?: number }): number
   /** Resolve a ledger entry with an outcome (weekly reflection closes scored ones). */
   closeDecision?(id: number, outcome: string): void
+  /** Backfill decision-time price snapshot — only fills if currently NULL. */
+  updateDecisionPrice?(id: number, price: number): void
   /** Per-model usage summary over last N days (weekly cost report). */
   getUsageSummary?(days: number): Array<{ model: string; calls: number; cost: number; inTok: number; outTok: number; cacheRead: number }>
 }

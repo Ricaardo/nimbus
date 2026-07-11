@@ -119,6 +119,26 @@ export function normalizeSymbol(token: string): string | null {
 }
 
 /**
+ * Convert a decision-ledger symbol to futu format for price lookups.
+ * Handles the "<digits>.SH/.SZ/.HK" suffix format the agent sometimes stores
+ * (e.g. "601975.SH", "06651.HK"), falling back to normalizeSymbol for
+ * everything else (bare US ticker, bare HK/A-share digits, already-futu code).
+ * Returns null if the symbol can't be mapped to a supported market code.
+ */
+export function toFutuCode(symbol: string): string | null {
+  const s = (symbol ?? '').trim().toUpperCase()
+  if (!s) return null
+  // HK suffix: allow 3-6 digits (e.g. "700.HK") — HK codes are commonly written
+  // without leading zeros; left-pad to the futu 5-digit format.
+  const hkSuffix = s.match(/^(\d{3,6})\.HK$/)
+  if (hkSuffix) return `HK.${hkSuffix[1]!.padStart(5, '0')}`
+  // A-share (SH/SZ) suffix — always 6 digits, unchanged.
+  const cnSuffix = s.match(/^(\d{4,6})\.(SH|SZ)$/)
+  if (cnSuffix) return `${cnSuffix[2]}.${cnSuffix[1]}`
+  return normalizeSymbol(s)
+}
+
+/**
  * Convert a futu-format code (US.X / HK.NNNNN / SH.NNNNNN / SZ.NNNNNN) to the
  * canonical symbol contract (US:X / HK:NNNNN / CN:NNNNNN) used by the
  * data-gateway / signal-gateway. This makes symbol.ts the TypeScript adapter

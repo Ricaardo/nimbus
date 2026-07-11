@@ -160,6 +160,11 @@ export const OPPORTUNITY_CRON = '0 9 * * 1-5'
 export const REFLECTION_CRON = '0 21 * * 0'
 /** 成本周报 — 周一 08:30 CST,汇总上周各模型用量/成本/缓存命中。 */
 export const COST_REPORT_CRON = '30 8 * * 1'
+/** 决策自动结算(可问责闭环)— 07:45 & 20:45 CST,紧跟持仓刷新之后跑。 */
+export const DECISION_TRACK_CRON = process.env.DECISION_TRACK_CRON ?? '45 7,20 * * *'
+/** 无目标/止损位的建议,持仓超过这么多天后按盈亏方向自动结算(天)。非法 env 值兜底 30。 */
+const _decisionAutoCloseDaysEnv = parseInt(process.env.DECISION_AUTO_CLOSE_DAYS ?? '30', 10)
+export const DECISION_AUTO_CLOSE_DAYS = Number.isFinite(_decisionAutoCloseDaysEnv) ? _decisionAutoCloseDaysEnv : 30
 
 /** 披露追踪(Tier 4):每周一 07:00 CST,追踪持仓/观察名单的财报+SEC 文件 → 入知识库。 */
 export const DISCLOSURE_CRON = '0 7 * * 1'
@@ -202,7 +207,7 @@ export const SEMIS_CONC_PCT = 40
 
 /** Thesis verdict strings considered as decaying / broken. */
 export const DECAY_VERDICTS: readonly string[] = [
-  'decaying', 'broken', 'thesis_broken', 'decay', 'impaired',
+  'decaying', 'broken', 'thesis_broken', 'decay', 'impaired', 'failed',
 ]
 
 /** Disclaimer appended to investment-related AI responses. */

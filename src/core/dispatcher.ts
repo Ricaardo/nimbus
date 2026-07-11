@@ -10,8 +10,8 @@ import { maybeAppendDisclaimer } from './disclaimer.js'
 import { classify, type Tier } from './router.js'
 import { recallMemories, rememberPreference, recordDecision, nowLine } from './memory.js'
 import { kbSearch, formatRecall, kbIngest } from './knowledge.js'
-import { extractSymbols } from './symbol.js'
-import { fetchQuotes as defaultFetchQuotes } from '../modules/quote/index.js'
+import { extractSymbols, toFutuCode } from './symbol.js'
+import { fetchQuotes as defaultFetchQuotes, fetchPriceMap } from '../modules/quote/index.js'
 import { degradeLevel, applyDegrade } from './budget.js'
 
 /** Injectable quote fetcher — defaults to real fetchQuotes; override in tests. */
@@ -119,14 +119,20 @@ const stubSafety: Safety = {
  * limits get a clear explanation + a reminder that L0 quotes still work
  * (they don't consume the model quota). Everything else stays generic.
  */
+/** Coerce a JSON value to a finite positive number, else undefined (reject NaN/≤0). */
+function coercePositive(x: unknown): number | undefined {
+  const n = Number(x)
+  return Number.isFinite(n) && n > 0 ? n : undefined
+}
+
 /** Parse a trailing ===DECISION=== JSON block (one or array) → ledger rows,
  *  and return the text with the block stripped (so users don't see machine JSON). */
-export function extractDecisions(text: string): { clean: string; decisions: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string }> } {
+export function extractDecisions(text: string): { clean: string; decisions: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string; target?: number; stop?: number }> } {
   const idx = text.indexOf('===DECISION===')
   if (idx < 0) return { clean: text, decisions: [] }
   const clean = text.slice(0, idx).trimEnd()
   const blob = text.slice(idx + '===DECISION==='.length).trim()
-  const out: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string }> = []
+  const out: Array<{ symbol: string; direction?: string; rationale?: string; confidence?: string; target?: number; stop?: number }> = []
   try {
     const parsed = JSON.parse(blob) as unknown
     const arr = Array.isArray(parsed) ? parsed : [parsed]
@@ -141,10 +147,35 @@ export function extractDecisions(text: string): { clean: string; decisions: Arra
         direction: typeof o['direction'] === 'string' ? (o['direction'] as string) : undefined,
         rationale: typeof o['rationale'] === 'string' ? (o['rationale'] as string) : undefined,
         confidence: typeof conf === 'string' ? conf : typeof conf === 'number' ? String(conf) : undefined,
+        // target/stop 选填(自动结算作业用):只接受有限正数,格式不对就丢弃(用理由文本兜底提取)。
+        target: coercePositive(o['target']),
+        stop: coercePositive(o['stop']),
       })
     }
   } catch { /* malformed → just strip, store nothing */ }
   return { clean, decisions: out }
+}
+
+/** Best-effort fallback: extract target/stop levels from free-text rationale
+ *  when the JSON block didn't carry them explicitly (agent wrote "止损75" /
+ *  "目标价103" inline instead). Keyword must directly precede the number
+ *  (allowing 位/价/一个空格 in between). Takes the first match of each kind. */
+export function extractLevelsFromRationale(rationale: string): { target?: number; stop?: number } {
+  const out: { target?: number; stop?: number } = {}
+  // (?![\d.])(?![%％]):"止盈20%"/"止损8.5%" 是涨跌幅描述,不是绝对价位 → 排除,否则会把百分比误当
+  // 目标价触发误结算。(?![\d.]) 防止贪婪匹配回退到部分数字/丢小数点从而绕过百分号排除
+  // (如 "20.5%" 误回退成 "20" 或 "20.5%" 的整数部分)。
+  const stopM = rationale.match(/止损(?:位|价)?\s?(\d+(?:\.\d+)?)(?![\d.])(?![%％])/)
+  if (stopM) {
+    const n = Number(stopM[1])
+    if (Number.isFinite(n) && n > 0) out.stop = n
+  }
+  const targetM = rationale.match(/(?:目标|止盈)(?:位|价)?\s?(\d+(?:\.\d+)?)(?![\d.])(?![%％])/)
+  if (targetM) {
+    const n = Number(targetM[1])
+    if (Number.isFinite(n) && n > 0) out.target = n
+  }
+  return out
 }
 
 /** Short one-line summary of a tool input for an approval prompt. */
@@ -599,7 +630,24 @@ export class Dispatcher {
     const { clean, decisions } = extractDecisions(text || '(no response)')
     if (isOwner) {
       for (const d of decisions) {
-        recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale, confidence: d.confidence })
+        // target/stop: JSON 字段优先,缺了就从理由文本兜底提取(供自动结算作业用)。
+        const fallback = extractLevelsFromRationale(d.rationale ?? '')
+        const target = d.target ?? fallback.target
+        const stop = d.stop ?? fallback.stop
+        const id = recordDecision({ channel: inbound.channel, chatId, symbol: d.symbol, direction: d.direction, rationale: d.rationale, confidence: d.confidence, target, stop })
+
+        // 建议时价格快照:fire-and-forget,绝不拖慢/拖垮回复路径。
+        const code = toFutuCode(d.symbol)
+        if (code) {
+          void fetchPriceMap([code])
+            .then(map => {
+              const price = map.get(code)
+              if (price != null && Number.isFinite(price) && price > 0) {
+                this.#db.updateDecisionPrice?.(id, price)
+              }
+            })
+            .catch(() => {})
+        }
       }
 
       // 知识层自动入库:把主人在分析档(sonnet/opus)产出的实质分析沉淀为可召回资产,

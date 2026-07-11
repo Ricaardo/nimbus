@@ -126,6 +126,10 @@ class SqliteDB implements DB {
     this.#db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_slug ON memories(slug) WHERE slug IS NOT NULL')
     // 命中率闭环(Tier 3b):记录建议时的研究置信度,周复盘对照结果评校准。
     try { this.#db.run('ALTER TABLE decisions ADD COLUMN confidence TEXT') } catch { /* column exists */ }
+    // 自动结算(decision:track):建议时价格快照 + 目标/止损位,供作业按行情自动收口。
+    try { this.#db.run('ALTER TABLE decisions ADD COLUMN price_at_decision REAL') } catch { /* column exists */ }
+    try { this.#db.run('ALTER TABLE decisions ADD COLUMN target REAL') } catch { /* column exists */ }
+    try { this.#db.run('ALTER TABLE decisions ADD COLUMN stop REAL') } catch { /* column exists */ }
   }
 
   getSession(channel: string, chatId: string): { sdkSessionId?: string; model?: string; cwd?: string } | null {
@@ -306,23 +310,30 @@ class SqliteDB implements DB {
 
   // ── Decision ledger (可问责) ───────────────────────────────────────────────
 
-  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string }): void {
-    this.#db
-      .prepare('INSERT INTO decisions (ts, channel, chat_id, symbol, direction, rationale, confidence, status) VALUES (?, ?, ?, ?, ?, ?, ?, \'open\')')
-      .run(Date.now(), d.channel ?? null, d.chatId ?? null, d.symbol.toUpperCase(), d.direction ?? null, d.rationale ?? null, d.confidence ?? null)
+  recordDecision(d: { channel?: string; chatId?: string; symbol: string; direction?: string; rationale?: string; confidence?: string; priceAtDecision?: number; target?: number; stop?: number }): number {
+    const result = this.#db
+      .prepare('INSERT INTO decisions (ts, channel, chat_id, symbol, direction, rationale, confidence, price_at_decision, target, stop, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'open\')')
+      .run(Date.now(), d.channel ?? null, d.chatId ?? null, d.symbol.toUpperCase(), d.direction ?? null, d.rationale ?? null, d.confidence ?? null, d.priceAtDecision ?? null, d.target ?? null, d.stop ?? null)
+    return Number(result.lastInsertRowid)
   }
 
   /** Open decisions (newest first) for the weekly reflection to score. */
-  openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }> {
+  openDecisions(limit = 30): Array<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null; price_at_decision: number | null; target: number | null; stop: number | null }> {
     return this.#db
-      .prepare<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null }, [number]>(
-        "SELECT id, ts, symbol, direction, rationale, confidence FROM decisions WHERE status='open' ORDER BY id DESC LIMIT ?",
+      .prepare<{ id: number; ts: number; symbol: string; direction: string | null; rationale: string | null; confidence: string | null; price_at_decision: number | null; target: number | null; stop: number | null }, [number]>(
+        "SELECT id, ts, symbol, direction, rationale, confidence, price_at_decision, target, stop FROM decisions WHERE status='open' ORDER BY id DESC LIMIT ?",
       )
       .all(limit)
   }
 
   closeDecision(id: number, outcome: string): void {
     this.#db.prepare("UPDATE decisions SET status='closed', closed_ts=?, outcome=? WHERE id=?").run(Date.now(), outcome, id)
+  }
+
+  /** Backfill the decision-time price snapshot — only if not already set, so a
+   *  late async snapshot never clobbers an earlier (or manually-set) value. */
+  updateDecisionPrice(id: number, price: number): void {
+    this.#db.prepare('UPDATE decisions SET price_at_decision=? WHERE id=? AND price_at_decision IS NULL').run(price, id)
   }
 
   /** Per-model usage summary over the last `days` (for the weekly cost report). */

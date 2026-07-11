@@ -3,7 +3,7 @@
  */
 
 import { describe, test, expect } from 'bun:test'
-import { normalizeSymbol, extractSymbols, toCanonical, extractCanonicalSymbols } from './symbol.js'
+import { normalizeSymbol, extractSymbols, toCanonical, extractCanonicalSymbols, toFutuCode } from './symbol.js'
 
 describe('normalizeSymbol', () => {
   // Passthrough: already futu format
@@ -110,4 +110,12 @@ describe('toCanonical', () => {
     expect(syms).toContain('US:TSLA')
     expect(syms).toContain('HK:00700')
   })
+})
+
+describe('toFutuCode', () => {
+  test('bare US ticker → US.X', () => expect(toFutuCode('NVDA')).toBe('US.NVDA'))
+  test('601975.SH → SH.601975', () => expect(toFutuCode('601975.SH')).toBe('SH.601975'))
+  test('06651.HK → HK.06651', () => expect(toFutuCode('06651.HK')).toBe('HK.06651'))
+  test('700.HK (3-digit, no leading zeros) → HK.00700', () => expect(toFutuCode('700.HK')).toBe('HK.00700'))
+  test('already futu-prefixed passthrough', () => expect(toFutuCode('US.NVDA')).toBe('US.NVDA'))
 })

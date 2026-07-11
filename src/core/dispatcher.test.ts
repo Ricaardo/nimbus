@@ -5,7 +5,7 @@
  */
 
 import { describe, test, expect, afterEach } from 'bun:test'
-import { Dispatcher, buildStreamingOnText, formatAgentError, extractDecisions, helpCard, formatLedger } from './dispatcher.js'
+import { Dispatcher, buildStreamingOnText, formatAgentError, extractDecisions, extractLevelsFromRationale, helpCard, formatLedger } from './dispatcher.js'
 import type { QuoteFetcher } from './dispatcher.js'
 import { REPORT_DM, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, HAIKU_MODEL, SONNET_MODEL, OPUS_MODEL } from '../config.js'
 import type { ChannelRegistry, AgentRunner, Memory, Safety, DB, Module, ModuleContext, EventPayload } from '../modules/module.js'
@@ -1571,6 +1571,48 @@ describe('extractDecisions', () => {
     expect(clean).toBe('ok')
     expect(decisions).toHaveLength(0)
   })
+  test('parses target/stop numbers', () => {
+    const { decisions } = extractDecisions('===DECISION=== {"symbol":"NVDA","direction":"buy","target":220,"stop":165}')
+    expect(decisions[0]!.target).toBe(220)
+    expect(decisions[0]!.stop).toBe(165)
+  })
+  test('rejects non-finite (NaN) / negative target-stop', () => {
+    const { decisions } = extractDecisions('===DECISION=== {"symbol":"NVDA","target":"abc","stop":-5}')
+    expect(decisions[0]!.target).toBeUndefined()
+    expect(decisions[0]!.stop).toBeUndefined()
+  })
+  test('rejects zero target-stop', () => {
+    const { decisions } = extractDecisions('===DECISION=== {"symbol":"NVDA","target":0,"stop":0}')
+    expect(decisions[0]!.target).toBeUndefined()
+    expect(decisions[0]!.stop).toBeUndefined()
+  })
+})
+
+describe('extractLevelsFromRationale', () => {
+  test('stop from 硬止损 with no separator', () => {
+    expect(extractLevelsFromRationale('成本92现-6%,持有设硬止损75')).toEqual({ stop: 75 })
+  })
+  test('target from 目标价', () => {
+    expect(extractLevelsFromRationale('目标价103')).toEqual({ target: 103 })
+  })
+  test('no levels → empty object', () => {
+    expect(extractLevelsFromRationale('单纯一句话理由,没有数字')).toEqual({})
+  })
+  test('both target and stop present', () => {
+    expect(extractLevelsFromRationale('目标 220,止损 165')).toEqual({ target: 220, stop: 165 })
+  })
+  test('percentage phrasing is not mistaken for an absolute price', () => {
+    expect(extractLevelsFromRationale('止盈20%')).toEqual({})
+    expect(extractLevelsFromRationale('目标20%')).toEqual({})
+    expect(extractLevelsFromRationale('止损8%')).toEqual({})
+  })
+  test('decimal percentage phrasing is not mistaken for an absolute price', () => {
+    expect(extractLevelsFromRationale('止盈20.5%')).toEqual({})
+    expect(extractLevelsFromRationale('止损8.5%')).toEqual({})
+  })
+  test('decimal absolute price is still accepted', () => {
+    expect(extractLevelsFromRationale('目标103.5')).toEqual({ target: 103.5 })
+  })
 })
 
 describe('privacy isolation by sender identity', () => {
@@ -1664,7 +1706,7 @@ describe('command fast-paths', () => {
   })
 
   test('我的建议 (owner) → sends ledger from openDecisions', async () => {
-    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.parse('2026-04-02T00:00:00Z'), symbol: 'AVGO', direction: 'sell', rationale: '估值高', confidence: null }] }
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.parse('2026-04-02T00:00:00Z'), symbol: 'AVGO', direction: 'sell', rationale: '估值高', confidence: null, price_at_decision: null, target: null, stop: null }] }
     const { agent, calls: aCalls } = agentSpy()
     const { registry, calls } = makeRegistry()
     const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)
@@ -1699,7 +1741,7 @@ describe('command fast-paths', () => {
   })
 
   test('我的建议 (non-owner) → locked, no ledger', async () => {
-    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.now(), symbol: 'AVGO', direction: 'sell', rationale: 'secret', confidence: null }] }
+    const db: DB = { ...nullDb, openDecisions: () => [{ id: 1, ts: Date.now(), symbol: 'AVGO', direction: 'sell', rationale: 'secret', confidence: null, price_at_decision: null, target: null, stop: null }] }
     const { agent, calls: aCalls } = agentSpy()
     const { registry, calls } = makeRegistry()
     const d = new Dispatcher([], registry, agent, db, passMemory, passSafety)

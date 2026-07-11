@@ -23,6 +23,7 @@ import { portfolioRefreshModules } from './modules/portfolio-refresh/index.js'
 import { opportunityModules } from './modules/opportunity/index.js'
 import { reflectionModules } from './modules/reflection/index.js'
 import { disclosureTrackerModules } from './modules/disclosure-tracker/index.js'
+import { decisionTrackerModules } from './modules/decision-tracker/index.js'
 import { costReportModules } from './modules/ops/cost-report.js'
 import { healthModules } from './modules/ops/health.js'
 import { paperModules } from './modules/paper/index.js'
@@ -105,7 +106,7 @@ if (WEIXIN_INBOUND_ENABLED) {
 const channels = new MirroringRegistry(registry)
 
 // All modules: reports + refresh + opportunity + reflection + ops + alert handlers
-const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...costReportModules, ...healthModules, ...alertModules]
+const allModules = [...paperModules, ...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...decisionTrackerModules, ...costReportModules, ...healthModules, ...alertModules]
 
 // Human-in-the-loop approval: ASK-listed ops (publish/send/destructive) prompt
 // the user over their chat and wait for `y/n <code>` before the agent proceeds.
@@ -123,7 +124,7 @@ const dispatcher = new Dispatcher(
 )
 
 // ── Scheduler ──────────────────────────────────────────────────────────────────
-const cronModules = [...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...costReportModules, ...healthModules]
+const cronModules = [...reportModules, ...portfolioRefreshModules, ...opportunityModules, ...reflectionModules, ...disclosureTrackerModules, ...decisionTrackerModules, ...costReportModules, ...healthModules]
 const scheduler = new Scheduler(dispatcher, db)
 // PROVIDER=deepseek(微信群实例)不跑 Cici 的自动推送(日报/告警/反思 cron)——
 // 那些会在 DeepSeek 上空跑、无渠道投递、白烧 token。on-demand 模块路由仍保留。
