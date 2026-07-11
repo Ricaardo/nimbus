@@ -1,0 +1,57 @@
+ticker: NBIS
+name: Nebius Group
+position: long
+created: "2026-07-11"
+last_updated: "2026-07-11"
+conviction: medium
+thesis_statement: "长 NBIS — 从 Yandex 重组剥离后的 AI 基础设施纯正标的，欧洲 GPU 云/推理算力稀缺供给方；NVDA 合作 + 自研 AI infra 能力被低估，等待 Nasdaq 流动性回归和 first major enterprise contract 验证商业模型"
+
+pillars:
+  - id: P1
+    description: "欧洲 AI 算力缺口：Nebius 是 NATO/欧盟合规的少数 GPU 云供给方"
+    status: on_track
+    evidence: []
+  - id: P2
+    description: "NVDA 合作 + 自研推理栈，大客户合同落地"
+    status: on_track
+    evidence: []
+  - id: P3
+    description: "估值收缩到合理区间（重组后资产清理干净，无遗留风险）"
+    status: on_track
+    evidence:
+      - date: "2026-07-11"
+        event: "当前持仓浮亏 -6.1%，小幅回调属正常"
+        impact: neutral
+
+risks:
+  - id: R1
+    description: "Yandex 遗留关联风险（俄罗斯税务/制裁涟漪）"
+    severity: medium
+    status: active
+  - id: R2
+    description: "GPU 云供给过剩（如果北美云厂商大规模进入欧洲）"
+    severity: medium
+    status: monitoring
+  - id: R3
+    description: "Nasdaq 流动性不足以支持估值重估"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-Q3"
+    event: "首个大型企业 AI 推理合同公告（估计）"
+    expected_impact: high
+  - date: "2026-08"
+    event: "Q2 财报（估计），看 GPU 利用率和收入环比"
+    expected_impact: high
+
+target_price: 350
+stop_loss: 150
+entry_price: 224.87
+current_conviction_score: 62
+
+thesis_vs_price:
+  date: "2026-07-11"
+  thesis_progress_pct: 40
+  price_change_pct: -6.1
+  verdict: bull_correction

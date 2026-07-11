@@ -1,0 +1,61 @@
+ticker: "HK:6651"
+name: 五一视界 (51WORLD)
+position: long
+created: "2026-07-11"
+last_updated: "2026-07-11"
+conviction: low
+thesis_statement: "观望 HK:6651 — 数字孪生赛道储备性布局,但当前-29%浮亏证明入场过早且方向未确认。标的本身(稀缺性/赛道)仍有价值,但不对称性极差(30% upside vs 51% downside),不作为加仓目标,以被动等待半年报验证,破止损即认错离场"
+
+pillars:
+  - id: P1
+    description: "数字孪生赛道渗透率提升，政务/园区订单增长"
+    status: behind
+    evidence:
+      - date: "2026-07-11"
+        event: "持仓浮亏 -29%，入场过早，未见基本面拐点"
+        impact: weakens
+  - id: P2
+    description: "AI+VR 应用层主题催化（港股科技板块情绪）"
+    status: behind
+    evidence: []
+  - id: P3
+    description: "IPO 后估值收缩到合理区间，等待业绩兑现"
+    status: behind
+    evidence: []
+  - id: P4
+    description: "仓位收缩约束：不加仓、不等额补仓、破止损即离场"
+    status: active
+    evidence:
+      - date: "2026-07-11"
+        event: "论点建档日即确认：不对称性差，只出不进"
+        impact: neutral
+
+risks:
+  - id: R1
+    description: "数字孪生商业化进度慢于预期，尚处投入期"
+    severity: high
+    status: active
+  - id: R2
+    description: "港股流动性边缘化，小盘科技股估值折价持续"
+    severity: high
+    status: active
+  - id: R3
+    description: "入场过早，-29% 浮亏已构成实质性压力"
+    severity: high
+    status: active
+
+catalysts:
+  - date: "2026-08"
+    event: "半年报业绩（估计），看订单 backlog 和毛利率"
+    expected_impact: medium
+
+target_price: 100
+stop_loss: 45
+entry_price: 92.2
+current_conviction_score: 25
+
+thesis_vs_price:
+  date: "2026-07-11"
+  thesis_progress_pct: 20
+  price_change_pct: -29.1
+  verdict: failed

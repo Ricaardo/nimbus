@@ -1,0 +1,54 @@
+ticker: "HK:6880"
+name: 迈博药业 — B (MOMENTA-W)
+position: long
+created: "2026-07-11"
+last_updated: "2026-07-11"
+conviction: low
+thesis_statement: "长 HK:6880 — 港股生物医药 Biotech 小仓位布局：核心管线（自主免疫/肿瘤）临床进展尚可，估值处于港股生物医药板块底部区间；但流动性极差、短期无催化剂，属于深度左侧配置，设定小仓位不可再加"
+
+pillars:
+  - id: P1
+    description: "核心管线临床 II/III 期推进，数据读出节点"
+    status: behind
+    evidence: []
+  - id: P2
+    description: "港股生物医药板块估值处于历史低位，均值回归可能"
+    status: on_track
+    evidence: []
+  - id: P3
+    description: "小仓位试仓，风控已做（占比<3%，损失不影响组合）"
+    status: on_track
+    evidence:
+      - date: "2026-07-11"
+        event: "当前持仓 2.9%，浮亏 -6.3%，在风控阈值内"
+        impact: neutral
+
+risks:
+  - id: R1
+    description: "港股 Biotech 流动性枯竭，极端行情下可能无法止损"
+    severity: high
+    status: active
+  - id: R2
+    description: "管线失败/数据 miss，归零风险（Biotech 固有）"
+    severity: high
+    status: active
+  - id: R3
+    description: "港股整体医疗板块持续被杀估值"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-H2"
+    event: "关键管线数据读出（估计）"
+    expected_impact: high
+
+target_price: 450
+stop_loss: 180
+entry_price: 315.6
+current_conviction_score: 28
+
+thesis_vs_price:
+  date: "2026-07-11"
+  thesis_progress_pct: 15
+  price_change_pct: -6.3
+  verdict: bear_trap
