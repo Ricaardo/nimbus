@@ -2,7 +2,7 @@
 
 > 基于 Claude Agent SDK 的常驻多渠道 AI agent（首发 Discord），复用 Claude Code 的订阅鉴权 / MCP / skill / 记忆 / 缓存 / 上下文压缩，并复用现有官方 Discord 插件的连接层（代理 + DM 修复 + 白名单）。Bot 人设仍是 Cici；项目/进程名为 Nimbus（与人设/渠道解耦，便于扩 TG）。
 >
-> 状态：Draft v1 · 日期：2026-06-07 · 首发渠道：Discord · 工程根：`~/nimbus/`
+> 状态：Draft v1 · 日期：2026-06-07 · 首发渠道：Discord · 工程根：`~/nimbus-os/nimbus/`
 
 ---
 
@@ -175,7 +175,7 @@ async function dispatch(chatId: string, content: string, meta: Meta) {
     options: {
       ...(prior ? { resume: prior } : {}),            // 续接 or 新开
       settingSources: ['user', 'project'],            // ← 复用 MCP/skill/memory/hooks
-      cwd: WORKSPACE,                                  // 工作目录（§12-决策1: ~/nimbus/workspace）
+      cwd: WORKSPACE,                                  // 工作目录（§12-决策1: ~/nimbus-os/nimbus/workspace）
       permissionMode: 'default',
       canUseTool,                                      // ← 安全闸（§5.6）
       ...(modelOverride ? { model: modelOverride } : {}), // §12-决策2: 默认省略→继承 ~/.claude；per-chat/job 可覆盖
@@ -262,7 +262,7 @@ CREATE TABLE jobs (
 ```
 
 - **不入库**：会话正文（SDK jsonl 已存）、access.json（复用文件，语义一致）。
-- 位置：`~/nimbus/data/state.db`。
+- 位置：`~/nimbus-os/nimbus/data/state.db`。
 
 ---
 
@@ -303,7 +303,7 @@ bot 常驻持连接后，加内部 cron（如 `croner`）：
 launchd (com.nimbus.daemon, KeepAlive/RunAtLoad)
   └─ supervisor 脚本 (tmux 幂等：会话在则只 supervise)
        └─ tmux session 'nimbus'
-            └─ bun run ~/nimbus/src/main.ts
+            └─ bun run ~/nimbus-os/nimbus/src/main.ts
                  (.env: DISCORD_BOT_TOKEN + PROXY_URL=http://127.0.0.1:6152)
 ```
 真重载 = `tmux kill-session -t nimbus`（supervisor while 退 → launchd 拉新）。
@@ -324,7 +324,7 @@ launchd (com.nimbus.daemon, KeepAlive/RunAtLoad)
 | MCP 子进程代理 | 注意：bot 进程的 MCP server 若也需墙外网络，继承代理环境变量 |
 
 ### 9.4 可观测
-- stderr → `~/nimbus/logs/nimbus.stderr.log`
+- stderr → `~/nimbus-os/nimbus/logs/nimbus.stderr.log`
 - 代理连接数自检：`lsof -nP -iTCP@127.0.0.1:6152 -sTCP:ESTABLISHED | grep bun`
 - 审计查询：`sqlite3 data/state.db "select * from audit order by ts desc limit 20"`
 
@@ -357,7 +357,7 @@ launchd (com.nimbus.daemon, KeepAlive/RunAtLoad)
 ---
 
 ## 12. 决策记录（2026-06-07 已拍板）
-1. **项目名 = `nimbus`**，工程根 `~/nimbus/`，workspace cwd = `~/nimbus/workspace`（与 `~` 隔离，相对路径脚本统一在此）。
+1. **项目名 = `nimbus`**，工程根 `~/nimbus-os/nimbus/`，workspace cwd = `~/nimbus-os/nimbus/workspace`（与 `~` 隔离，相对路径脚本统一在此）。
 2. **model**：默认省略 → 继承 `~/.claude`；`sessions.model` / `jobs` 可 per-chat / per-job 覆盖（日报、深度分析走 Opus）。
 3. **进度反馈**：v1 = typing 续命 + 占位消息 edit 成终答；token 级流式留 v2。
 4. **M0 起手**：进 full-dev-cycle 建骨架（搬连接层 → DM 回显）。
@@ -452,7 +452,7 @@ interface ModuleContext {
 
 ## 附：目录结构（解耦版，见 §13/§14）
 ```
-~/nimbus/
+~/nimbus-os/nimbus/
 ├── DESIGN.md
 ├── package.json               (bun: discord.js / https-proxy-agent / undici / @anthropic-ai/claude-agent-sdk / croner / better-sqlite3 / zod)
 ├── src/
@@ -503,7 +503,7 @@ agent.ts 用 `systemPrompt: {type:'preset', preset:'claude_code', append: REPLY_
 4. **订阅 auth**：绝不设 `ANTHROPIC_API_KEY`；daemon 脚本 `unset` 它。额度有日限 + **周限**（周限耗尽 resets 周三 18:00 之类，深度 agent 全停，L0 行情不受影响）。
 
 ### 15.4 独立项目化（fork）
-`~/nimbus/skills/` = 37 个投资 skill 的 vendored 副本（rsync 排除 node_modules/venv/.git；剔除 10 个非投资）。**当前 agent 仍从 ~/.claude 读**（未改加载，不碰运行中的 bot）。**真独立待办**：① agent cwd/settingSources 切到项目 skills ② CLAUDE.md + trade-guard hook 搬进项目 ③ 外部依赖（OpenD / python futu 包 / MCP API keys）需单独处理（fork 带不走）。
+`~/nimbus-os/nimbus/skills/` = 37 个投资 skill 的 vendored 副本（rsync 排除 node_modules/venv/.git；剔除 10 个非投资）。**当前 agent 仍从 ~/.claude 读**（未改加载，不碰运行中的 bot）。**真独立待办**：① agent cwd/settingSources 切到项目 skills ② CLAUDE.md + trade-guard hook 搬进项目 ③ 外部依赖（OpenD / python futu 包 / MCP API keys）需单独处理（fork 带不走）。
 
 ### 15.5 部署（已上线）
 launchd `com.nimbus.daemon` → `scripts/nimbus-daemon.sh`（tmux `nimbus` + 退避 supervisor）→ `bun run src/main.ts`。改代码重载 = `tmux kill-session -t nimbus`。单消费者铁律：原 CC discord 插件已删、TG `com.claude.daemon` 已 bootout，Nimbus 独占两 token。测试：`bun test`（476）。运维/故障排查见 `USAGE.md`。

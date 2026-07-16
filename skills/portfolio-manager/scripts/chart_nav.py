@@ -2,7 +2,7 @@
 """
 chart_nav.py -- 净值曲线画图脚本
 
-从 nav_history.jsonl 读取累计净值历史，输出投顾风格净值曲线图到 ~/nimbus/data/outbox/nav.png。
+从 nav_history.jsonl 读取累计净值历史，输出投顾风格净值曲线图到 ~/nimbus-os/nimbus/data/outbox/nav.png。
 图表自动经 Discord 发到当前对话。
 
 用法:
@@ -27,7 +27,7 @@ import matplotlib.dates as mdates
 _SKILLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 NAV_HISTORY_FILE = os.path.join(_SKILLS, "references", "state", "nav_history.jsonl")
 HOME = os.path.expanduser("~")
-OUTBOX = os.path.join(HOME, "nimbus", "data", "outbox")
+OUTBOX = os.path.join(HOME, "nimbus-os", "nimbus", "data", "outbox")
 OUTPUT_FILE = os.path.join(OUTBOX, "nav.png")
 
 # -- 内联 rcParams（无 chart_style.mplstyle，嵌入投顾暗色主题） --
@@ -210,7 +210,7 @@ def chart(history, full_range=False):
 # CLI
 # ---------------------------------------------------------------------------
 def main():
-    ap = argparse.ArgumentParser(description="净值曲线画图（输出到 ~/nimbus/data/outbox/nav.png）")
+    ap = argparse.ArgumentParser(description="净值曲线画图（输出到 ~/nimbus-os/nimbus/data/outbox/nav.png）")
     ap.add_argument("--days", type=int, default=180, help="最近 N 天（默认 180，被 --full 覆盖）")
     ap.add_argument("--full", action="store_true", help="全部历史（覆盖 --days）")
     args = ap.parse_args()

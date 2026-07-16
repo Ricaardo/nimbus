@@ -44,10 +44,10 @@
 
 ## 数据工作 / 编码 / 画图(不局限于现成工具)
 你有**完整编码能力**:Bash / Read / Write / Edit + miniforge python(pandas / numpy / matplotlib 已装)。投资里遇到**拉数据、解析、计算、回测、画图**等需求,直接写脚本跑,别被现成 skill/MCP 局限。
-- 要给主人发**图表/文件**(K线/对比图/相关性热图/导出表格等):把文件存到 `~/nimbus/data/outbox/`,**会自动发到当前对话**。
+- 要给主人发**图表/文件**(K线/对比图/相关性热图/导出表格等):把文件存到 `~/nimbus-os/nimbus/data/outbox/`,**会自动发到当前对话**。
 - 净值曲线 → `python3 skills/portfolio-manager/scripts/chart_nav.py`，图自动发到对话（支持 `--days 30` / `--full`）。
 - 论点周报 → `python3 skills/portfolio-manager/scripts/thesis_report.py`（支持 `--json` / `--wa` 微信短版）。
-- 临时脚本/中间文件放 `~/nimbus/workspace/` 或 `/tmp`,别污染项目根。
+- 临时脚本/中间文件放 `~/nimbus-os/nimbus/workspace/` 或 `/tmp`,别污染项目根。
 - 红线照旧:写代码 ≠ 下单;任何交易仍 deny。
 
 ## 执行护栏(轻提醒,非教条)

@@ -54,7 +54,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 
 ## 3. 新增 / 强化 skill（build-ready）
 
-> 统一约定：skill 放 `~/nimbus/skills/<name>/`，含 `SKILL.md`（frontmatter: name/description 决定触发）+ `scripts/`。脚本读 key 从环境（FMP/Finnhub 等已在用，见 stock-screener 的 fmp_client.py 模式）。
+> 统一约定：skill 放 `~/nimbus-os/nimbus/skills/<name>/`，含 `SKILL.md`（frontmatter: name/description 决定触发）+ `scripts/`。脚本读 key 从环境（FMP/Finnhub 等已在用，见 stock-screener 的 fmp_client.py 模式）。
 
 ### 3.1 `serenity-tracker` —— ✅ 已建
 - **修正**：之前误判 followserenity「RSC 不可解析」——实际数据在 **HTML `<tr class>` 表格行**（532 条 thesis），grep JSON 键当然是 0。
@@ -96,7 +96,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 - **数据源（实测可用、免费、无 key）**：QuiverQuant `/beta/live/congresstrading` —— 最新 ~1000 条众议院披露，字段全（议员/党派/日期/标的/买卖/金额区间/相对 SPY 超额收益）。
   - ⚠️ UA 含 bot 标记会被 WAF 401 → 脚本用纯浏览器 UA + 重试 + 快照兜底。
   - 参议院端点 401（付费）→ 仅众议院。Finnhub congress 付费、housestockwatcher/senate-watcher 公共源已挂 → QuiverQuant 是当前唯一免费 live 源。
-- **落地**：`~/.claude/skills/congress-tracker/`（生效）+ vendored `~/nimbus/skills/congress-tracker/`。
+- **落地**：`~/.claude/skills/congress-tracker/`（生效）+ vendored `~/nimbus-os/nimbus/skills/congress-tracker/`。
   - `scripts/congress.py [--rep Pelosi] [--ticker NVDA] [--top N]`，实测拉到真实数据。
 - **触发**：「国会交易/佩洛西/谁在买X/政客炒股/congress trading」。NOT for: 13F→institutional-flow-tracker；内部人→insider-tracker。
 
@@ -107,7 +107,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
 让 nimbus 投顾能基于 news 的**实时 firehose + 结构化独家数据**推理（如「这条突发对我持仓什么影响」「今日 13F/A股候选有什么」）。
 
 ### 形式：news 写 JSON 落盘 → nimbus 读（不耦合进程）
-- **news 侧**：新增一个轻量 sink/导出，把结构化产出写到共享目录 `~/nimbus/workspace/feed/`：
+- **news 侧**：新增一个轻量 sink/导出，把结构化产出写到共享目录 `~/nimbus-os/nimbus/workspace/feed/`：
   - `feed/13f-latest.json`（13F 持仓变动，已有 edgar_13f.py 产出，改写到此路径）
   - `feed/ashare-candidates.json`（A 股扫描候选）
   - `feed/breaking.jsonl`（重大突发：trump/bwe，append，带时间/标的/译文/简评，保留近 24h）
@@ -116,7 +116,7 @@ nimbus 是 Claude Agent SDK agent，**能力单元 = skill**（agent 按 descrip
   {"ts":"2026-06-13T10:00:00+08:00","source":"trump-rss","title":"...","zh":"中文译文",
    "tickers":["NVDA"],"impact":"利好|利空|中性","note":"一句简评","link":"..."}
   ```
-- **nimbus 侧**：新增 `news-bridge` skill —— 读 `~/nimbus/workspace/feed/*`，供 agent 在「最近有什么大事/影响我持仓吗」时引用；或让 `opportunity` cron 模块每日扫 `breaking.jsonl` × 真实持仓 → 主动提示。
+- **nimbus 侧**：新增 `news-bridge` skill —— 读 `~/nimbus-os/nimbus/workspace/feed/*`，供 agent 在「最近有什么大事/影响我持仓吗」时引用；或让 `opportunity` cron 模块每日扫 `breaking.jsonl` × 真实持仓 → 主动提示。
 - **优点**：news 当 nimbus 的实时数据源，nimbus 当会推理的投顾；各自最强，零重写、进程隔离（news 挂不影响 nimbus）。
 
 ---

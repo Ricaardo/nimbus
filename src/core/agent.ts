@@ -144,9 +144,11 @@ const WEIXIN_SYSTEM_PROMPT = [
  * Warn if an explicit API key is present in the environment, which suggests
  * the session may be billed against a pay-as-you-go key rather than the
  * user's Claude subscription.  Does NOT exit — just warns.
+ * Skipped for non-claude providers (deepseek), where ANTHROPIC_API_KEY holds
+ * the provider's own key and is required for authentication.
  */
 export function assertSubscriptionMode(): void {
-  if (process.env['ANTHROPIC_API_KEY']) {
+  if (getProvider() === 'claude' && process.env['ANTHROPIC_API_KEY']) {
     process.stderr.write(
       '[nimbus/agent] WARNING: ANTHROPIC_API_KEY found in environment. ' +
       'Nimbus is designed to run under the Claude subscription (not a billed API key). ' +

@@ -15,7 +15,7 @@
 
 ## 0. 现状（已验证可用）
 - M0–M8 全通:Discord+TG 独占、三档路由(L0直连/L1 Sonnet/L2 Opus)、L0 行情秒回、深度分析能拉真数据(futu/market-data,PATH 修复后)、持仓感知注入、行为护栏、主动告警、日报、权限转 Discord、AI 绝不下单(双闸)。
-- 37 个投资 skill 已 vendored 进 `~/nimbus/skills/`,但 **agent 仍从 ~/.claude 加载**。
+- 37 个投资 skill 已 vendored 进 `~/nimbus-os/nimbus/skills/`,但 **agent 仍从 ~/.claude 加载**。
 - 依赖 CC 环境的部分:CLAUDE.md、hooks(trade-guard)、portfolio_state.json 的生成、MCP 配置+keys、python(miniforge)、IBKR(claude.ai 托管)。
 
 ---
@@ -165,7 +165,7 @@
 - ✅ **F 缓存**:已由 P0 的 buildContext-once 实现(volatile 不再每轮注入,稳定前缀可缓存)。
 - ✅ **E 告警**:经核 EventSource 本就是 detector 纯函数扫描,只在真命中+过闸才起 agent——已高效,无需改。
 - ⬜ **A 瘦身上下文(剩下的大头,Phase 3 纠缠)**:精简 CLAUDE.md + 按需加载 skill,**需 loading 切换**(去 'user' 源、用项目 .claude/skills)——风险高(可能弄坏正跑的 bot),放 Phase 3 独立化时一起做。
-- **可见性**:`sqlite3 ~/nimbus/data/state.db "select date(ts/1000,'unixepoch','localtime') d,model,round(sum(cost_usd),3) cost,count(*) n from usage group by d,model"` 看每日每模型成本。
+- **可见性**:`sqlite3 ~/nimbus-os/nimbus/data/state.db "select date(ts/1000,'unixepoch','localtime') d,model,round(sum(cost_usd),3) cost,count(*) n from usage group by d,model"` 看每日每模型成本。
 
 ### Phase 2 — 持久记忆 + 自进化（Part 1 ✅ 2026-06-11 / Part 2 待续）
 **✅ Part 1（记忆基座）已上线**:
@@ -178,7 +178,7 @@
 - **KPI**:偏好持久命中率;复盘提到的历史决策准确率。
 
 ### Phase 3 — 完全独立（loading 切换 ✅ 2026-06-11 / 余下待续）
-- ✅ **加载切换(核心)**:agent settingSources=['project','local'] + cwd=PROJECT_ROOT;新建 `~/nimbus/.claude/`(精简赚钱版 CLAUDE.md + skills 软链 vendored 37 + trade-guard hook + settings.json IBKR deny)。影子测试通过后切线上:精简省额度 + 甩掉全局 R1-R7 军规 hook + 文件独立。代价:claude.ai 连接器(IBKR/Gmail)退出。
+- ✅ **加载切换(核心)**:agent settingSources=['project','local'] + cwd=PROJECT_ROOT;新建 `~/nimbus-os/nimbus/.claude/`(精简赚钱版 CLAUDE.md + skills 软链 vendored 37 + trade-guard hook + settings.json IBKR deny)。影子测试通过后切线上:精简省额度 + 甩掉全局 R1-R7 军规 hook + 文件独立。代价:claude.ai 连接器(IBKR/Gmail)退出。
 - ⬜ **持仓刷新管线(1.3,最重)**:nimbus 自拉 futu+IBKR 写 portfolio_state.json,吸收外部 launchd cron(1.7)。现暂靠 L1 cron 续刷(IBKR 仍可见)。
 - ⬜ **IBKR 自接(补 live 查询)**:ib_insync+IB Gateway,或窄连接器刷新作业。需 Gateway/creds。
 - ⬜ keys/MCP/venv 内置(本机部署,1.9 已锁本机,跨机重装不追)。
