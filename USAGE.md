@@ -65,8 +65,10 @@ DM **Cici#8105**(Discord),它按问题自动分三档:
 
 **问净值/净值曲线/本周回报** → 直接问 Cici(如"净值曲线""本周净值变化多少""最大回撤")。它会跑
 `skills/portfolio-manager/scripts/nav_view.py`,汇总统一净值(futu+IBKR,长桥模拟盘不计入)+ 7日/30日/
-自有史以来变化 + 历史最大回撤 + 跨账户重仓重叠;历史数据来自持仓刷新作业自动累积的 `nav_history.jsonl`,
-不用你手动记账。
+自有史以来变化 + 历史最大回撤 + 跨账户重仓重叠;**并自动跑 `chart_nav.py` 出净值曲线图**（暗色投顾风格,图经 outbox 自动发到对话）;
+历史数据来自持仓刷新作业自动累积的 `nav_history.jsonl`,不用你手动记账。
+
+**论点建仓周报** → 跑 `python3 skills/portfolio-manager/scripts/thesis_report.py`（按 conviction/verdict 排序逐个标的，标注 decay 风险与裸仓;支持 `--json` / `--wa` 微信短版）；建议每周日跑一次，与周反思配套。
 
 ---
 

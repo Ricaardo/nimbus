@@ -45,7 +45,7 @@ python3 skills/market-data/scripts/quote.py AAPL 00700.HK 600519.SH
 或直接用 futu helper：
 
 ```bash
-python3 skills/futuapi/scripts/helpers/get_price.py AAPL NVDA TSLA
+python3 skills/futuapi/scripts/quote/get_snapshot.py US.AAPL US.NVDA US.TSLA
 ```
 
 返回字段：price / change / change_pct / volume / market_cap / 52w_high / 52w_low
@@ -74,7 +74,7 @@ python3 skills/market-data/scripts/greeks.py --underlying AAPL --strike 200 --ex
 
 ```bash
 # 默认面板
-python3 skills/futuapi/scripts/helpers/get_price.py ^GSPC ^IXIC ^HSI 000001.SS AAPL NVDA 00700.HK 600519.SH
+python3 skills/futuapi/scripts/quote/get_snapshot.py US.SPY US.QQQ HK.00700 HK.09988 SH.600519
 
 # 加密：优先调用官方 CoinMarketCap MCP（cmc-mcp）的免费 quotes；MCP 不可用时用 CoinGecko fallback
 curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd&include_24hr_change=true"
@@ -119,7 +119,7 @@ curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,sola
 `mcp__stock-data__stock_realtime` **A股 (sh/sz) 失效**（Not Found）— 上游东财 push2 全市场 cluster 在本机网络返回 empty，akshare/efinance fallback 走同一上游。
 
 **A股 realtime fallback 优先级（已修复）**：
-1. **futu**（首选）：`python3 skills/futuapi/scripts/quote/get_market_snapshot.py SH.600519`
+1. **futu**（首选）：`python3 skills/futuapi/scripts/quote/get_snapshot.py SH.600519`
 2. **本 skill 自带 sina/qq 直连**：`python3 skills/market-data/scripts/a_share_realtime.py 600519 000858`
 3. **stock-data 历史代替**：`mcp__stock-data__stock_prices(symbol=600519, market=sh, limit=1)` — 拿最近 1 日 K 线，含全部技术指标
 

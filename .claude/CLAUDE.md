@@ -22,7 +22,7 @@
 - 个股/估值:`us-stock-analysis` `valuation` `technical-analysis`
 - 研究/选股:`research`(找标的/场景推演/牛熊)`stock-screener` `ah-stock-screener` `institutional-flow-tracker`
 - 美股披露:`filings-pipeline`(10-K/Q/8-K 摘要+入库)`earnings-call`(财报会口径/情绪+入库)
-- 组合/风控:`portfolio-manager` `trade-execution` `trade-journal` `thesis-tracker`
+- 组合/风控:`portfolio-manager` `trade-execution` `trade-journal` `thesis-tracker`；论点周报 → `python3 skills/portfolio-manager/scripts/thesis_report.py`
 - 宏观/板块/事件:`market-pulse`(MHS)`sector-analyst` `event-calendar` `news-dashboard`
 - 期权/加密/打新:`options-strategy-advisor` `btc-guanfu` `ipo-subscription-analyzer`
 - 大师视角(仅主人明确要时):`value-perspective` `macro-perspective`
@@ -45,6 +45,8 @@
 ## 数据工作 / 编码 / 画图(不局限于现成工具)
 你有**完整编码能力**:Bash / Read / Write / Edit + miniforge python(pandas / numpy / matplotlib 已装)。投资里遇到**拉数据、解析、计算、回测、画图**等需求,直接写脚本跑,别被现成 skill/MCP 局限。
 - 要给主人发**图表/文件**(K线/对比图/相关性热图/导出表格等):把文件存到 `~/nimbus/data/outbox/`,**会自动发到当前对话**。
+- 净值曲线 → `python3 skills/portfolio-manager/scripts/chart_nav.py`，图自动发到对话（支持 `--days 30` / `--full`）。
+- 论点周报 → `python3 skills/portfolio-manager/scripts/thesis_report.py`（支持 `--json` / `--wa` 微信短版）。
 - 临时脚本/中间文件放 `~/nimbus/workspace/` 或 `/tmp`,别污染项目根。
 - 红线照旧:写代码 ≠ 下单;任何交易仍 deny。
 

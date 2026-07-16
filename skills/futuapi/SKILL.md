@@ -1,6 +1,6 @@
 ---
 name: futuapi
-description: 富途 OpenAPI 交易与行情助手。查询股票行情、K线、报价、快照、买卖盘、逐笔成交、分时数据；解析期权简写代码、查询期权链、期权到期日；执行买入/卖出/下单/撤单/改单；查询持仓/资金/账户/订单；订阅实时推送；支持加密货币 (crypto / BTC / ETH / 比特币 / 以太坊) 行情与交易；API 接口速查。用户提到行情、报价、价格、K线、快照、买卖盘、摆盘、成交、分时、买入、卖出、下单、撤单、交易、持仓、资金、账户、订单、委托、futu、API、选股、板块、期权、期权链、期权代码、行权价、到期日、Call、Put、看涨、看跌、认购、认沽、加密货币、数字货币、crypto、BTC、ETH、比特币、以太坊、币对、财报、业绩、财务报表、利润表、资产负债表、现金流、主营构成、营收拆分、分析师评级、目标价、晨星报告、估值、PE、PB、PS、板块估值、指数估值、成分股估值、分红、派息、股息、回购、拆股、合股、拆合股、股东、持股统计、股东分布、持股变动、增持、减持、新进、清仓、持股明细、机构持股、机构持仓、内部人持股、内部人交易、公司概况、公司详情、公司介绍、高管信息、高管背景、经营效率、员工数、人均营收、人均利润、十大经纪商、买卖经纪商、卖空、每日卖空、空头持仓、期权波动率、隐含波动率、IV、期权行权概率 时自动使用。
+description: 富途 OpenAPI 交易与行情助手。查询股票行情、K线、报价、快照、买卖盘、逐笔成交、分时数据；搜索行情标的、搜索资讯；解析期权简写代码、查询期权链、期权到期日；执行买入/卖出/下单/撤单/改单；查询持仓/资金/账户/订单；订阅实时推送；支持加密货币 (crypto / BTC / ETH / 比特币 / 以太坊) 行情与交易；指标列表与计算（MA/MACD/RSI/KDJ等）；API 接口速查。用户提到行情、报价、价格、K线、快照、买卖盘、摆盘、成交、分时、搜索、搜股票、搜资讯、新闻、公告、买入、卖出、下单、撤单、交易、持仓、资金、账户、订单、委托、futu、API、选股、板块、期权、期权链、期权代码、行权价、到期日、Call、Put、看涨、看跌、认购、认沽、加密货币、数字货币、crypto、BTC、ETH、比特币、以太坊、币对、财报、业绩、财务报表、利润表、资产负债表、现金流、主营构成、营收拆分、分析师评级、目标价、晨星报告、估值、PE、PB、PS、板块估值、指数估值、成分股估值、分红、派息、股息、回购、拆股、合股、拆合股、股东、持股统计、股东分布、持股变动、增持、减持、新进、清仓、持股明细、机构持股、机构持仓、内部人持股、内部人交易、公司概况、公司详情、公司介绍、高管信息、高管背景、经营效率、员工数、人均营收、人均利润、十大经纪商、买卖经纪商、卖空、每日卖空、空头持仓、期权波动率、隐含波动率、IV、期权行权概率、指标、指标列表、指标计算、MA、MACD、RSI、KDJ、BOLL、技术指标、indicator 时自动使用。
 allowed-tools: Bash Read Write Edit
 metadata:
   version: 0.1.1
@@ -276,6 +276,8 @@ ret, data = trd_ctx.order_list_query(
     │   ├── get_plate_list.py                      # 板块列表
     │   ├── get_plate_stock.py                     # 板块成分股
     │   ├── get_stock_info.py                      # 股票基本信息
+    │   ├── get_search_quote.py                    # 搜索行情标的
+    │   ├── get_search_news.py                     # 搜索资讯
     │   ├── get_stock_filter.py                    # 条件选股（V1，旧）
     │   ├── get_stock_screen.py                    # 筛选正股 V2（新，因子覆盖更广）
     │   ├── get_owner_plate.py                     # 股票所属板块
@@ -325,7 +327,55 @@ ret, data = trd_ctx.order_list_query(
     │   ├── get_option_strategy.py                         # 期权策略组合腿列表
     │   ├── get_option_strategy_spread.py                  # 期权策略有效价差
     │   ├── get_option_quote.py                            # 期权快照行情
-    │   └── get_option_strategy_analysis.py                # 期权策略损益分析
+    │   ├── get_option_strategy_analysis.py                # 期权策略损益分析
+    │   ├── get_option_market_statistic.py                 # 期权市场统计（成交量/持仓量时间序列）
+    │   ├── get_option_underlying_his_statistic.py         # 期权标的历史统计（P/C比率时间序列）
+    │   ├── get_option_underlying_overview.py              # 批量标的最新数据（IV/HV多周期快照）
+    │   ├── get_option_underlying_his_volatility.py        # 期权标的历史波动率（IV/HV时间序列）
+    │   ├── get_option_underlying_rank.py                  # 期权标的排行（13种排序+筛选）
+    │   ├── get_option_rank.py                             # 期权合约排行（10种排序+筛选）
+    │   ├── get_option_event.py                            # 期权异动列表（25+种筛选因子）
+    │   ├── get_option_event_alert.py                      # 获取期权异动告警设置
+    │   ├── set_option_event_alert.py                      # 修改期权异动告警条件
+    │   ├── get_option_zero_dte_screener.py                # 末日期权标的列表（0DTE筛选）
+    │   ├── get_option_zero_dte_contract.py                # 末日期权合约列表（0DTE合约详情）
+    │   ├── get_option_earnings_screener.py                # 财报期权标的列表（IV Crush/预期波动）
+    │   ├── get_option_seller_screener.py                  # 期权卖方策略列表（CC/CSP筛选）
+    │   ├── get_indicator_list.py                          # 指标列表（全部可用指标）
+    │   ├── get_indicator_calc_result.py                   # 指标计算结果（K线+指标参数→推送结果）
+    │   ├── get_hot_list.py                                # 热门榜（量比/涨跌/换手等排序）
+    │   ├── get_top_movers_rank.py                         # 领涨领跌榜
+    │   ├── get_period_change_rank.py                      # 区间涨跌幅排行
+    │   ├── get_us_pre_market_rank.py                      # 美股盘前排行
+    │   ├── get_us_after_hours_rank.py                     # 美股盘后排行
+    │   ├── get_us_overnight_rank.py                       # 美股夜盘排行
+    │   ├── get_short_selling_rank.py                      # 卖空异动榜
+    │   ├── get_earnings_calendar.py                       # 财报日历
+    │   ├── get_earnings_beat_rank.py                      # 财报超预期排行
+    │   ├── get_economic_calendar.py                       # 经济事件日历
+    │   ├── get_dividend_calendar.py                       # 派息日历
+    │   ├── get_dividend_rank.py                           # 股息排行
+    │   ├── get_high_dividend_soe_rank.py                  # 破净高股息国央企排行（港股）
+    │   ├── get_ark_fund_holding.py                        # ARK 基金持仓
+    │   ├── get_ark_active_transaction.py                  # ARK 主动交易聚合
+    │   ├── get_ark_stock_dynamic.py                       # ARK 个股交易动态
+    │   ├── get_industrial_chain_list.py                   # 产业链列表
+    │   ├── get_industrial_chain_detail.py                 # 产业链详情
+    │   ├── get_industrial_chain_by_plate.py               # 板块关联产业链
+    │   ├── get_industrial_plate_info.py                   # 产业板块信息
+    │   ├── get_industrial_plate_stock.py                  # 产业板块成分股
+    │   ├── get_institution_list.py                        # 机构列表
+    │   ├── get_institution_profile.py                     # 机构概况
+    │   ├── get_institution_holding_list.py                # 机构持股列表
+    │   ├── get_institution_holding_change.py              # 机构持仓变动
+    │   ├── get_institution_distribution.py                # 机构持仓行业分布
+    │   ├── get_macro_indicator_list.py                    # 宏观指标列表
+    │   ├── get_macro_indicator_history.py                 # 宏观指标历史数据
+    │   ├── get_fed_watch_target_rate.py                   # FedWatch 目标利率概率
+    │   ├── get_fed_watch_dot_plot.py                      # FedWatch 点阵图
+    │   ├── get_heat_map_data.py                           # 热力图数据
+    │   ├── get_rise_fall_distribution.py                  # 涨跌分布
+    │   └── get_rating_change.py                           # 评级变动
     ├── trade/                        # 交易脚本
     │   ├── get_accounts.py           # 账户列表
     │   ├── get_portfolio.py          # 持仓与资金
@@ -484,6 +534,38 @@ python skills/futuapi/scripts/quote/get_stock_info.py US.AAPL,HK.00700 [--json]
 ```
 - 底层使用 `get_market_snapshot`，返回包含实时行情的快照数据（含价格、市值、市盈率等）
 - 每次最多 400 个标的
+
+### 搜索行情标的
+当用户问 "搜索股票"、"搜代码"、"search quote"、"找标的" 时：
+```bash
+python skills/futuapi/scripts/quote/get_search_quote.py keyword [--max-count 10] [--json]
+```
+- 按关键词搜索股票、ETF、板块等行情标的
+- `max_count` 默认 10，最大 100
+- 返回 `market`/`code`/`name`/`sec_type`/`is_watched`
+- 限频：每 30 秒最多 10 次
+
+示例：
+```bash
+python skills/futuapi/scripts/quote/get_search_quote.py aapl
+python skills/futuapi/scripts/quote/get_search_quote.py 腾讯 --max-count 20 --json
+```
+
+### 搜索资讯
+当用户问 "搜索资讯"、"搜新闻"、"搜公告"、"search news" 时：
+```bash
+python skills/futuapi/scripts/quote/get_search_news.py keyword [--max-count 10] [--news-sub-type ALL] [--json]
+```
+- 按关键词搜索新闻、公告、评级等资讯
+- `--news-sub-type`：`ALL`（全部）/ `NEWS`（新闻）/ `NOTICE`（公告）/ `RATING`（评级）
+- 返回 `title`/`news_sub_type`/`source`/`publish_time`/`view_count`/`related_securities`/`url`
+- 限频：每 30 秒最多 10 次
+
+示例：
+```bash
+python skills/futuapi/scripts/quote/get_search_news.py space
+python skills/futuapi/scripts/quote/get_search_news.py 苹果 --news-sub-type NEWS --json
+```
 
 ### 条件选股
 当用户问 "选股"、"筛选"、"stock filter" 时：
@@ -773,40 +855,336 @@ python skills/futuapi/scripts/quote/get_option_strategy_analysis.py '[{"code":"H
 
 ## F10 基本面 / 研究 / 公司行动 / 股东 / 简况
 
-覆盖牛牛客户端个股数据模块：**基本面/披露类**（财务、预测、公司行动、股东、简况、经纪商、卖空）见下方索引 + [`docs/F10_REFERENCE.md`](docs/F10_REFERENCE.md)；**期权数据类**（波动率/行权概率/策略/价差/快照/损益）在本文件内联。脚本用法与限制也可看脚本开头说明或运行 `-h`，如
+下列 27 个接口覆盖牛牛客户端个股相关数据模块（财务、预测、公司行动、股东、公司简况、经纪商、卖空、期权数据）相关，脚本使用方法和使用限制可以查看对应脚本开头介绍，或者运行脚本加 [-h] 参数查看详情，如
 ```bash
 python skills/futuapi/scripts/quote/get_financials_earnings_price_move.py -h
 ```
-> **以下基本面/披露类接口（财务·预测·公司行动·股东·简况·经纪商·卖空）的完整触发词、参数、市场限制见 [`docs/F10_REFERENCE.md`](docs/F10_REFERENCE.md)。** 下表是命令索引——确认能力后按需读取参考文件取详细用法。
+### 财务 — 财报分析
 
-| 能力（含主要触发词） | 脚本（scripts/quote/） |
-|---|---|
-| 财报日前后涨跌幅 / 波动率 | get_financials_earnings_price_move.py |
-| 财报日股价历史 / IV Crush / 下次财报时间 | get_financials_earnings_price_history.py |
-| 财务报表（利润表/资产负债表/现金流/关键指标·ROE·EPS·毛利率） | get_financials_statements.py |
-| 主营构成 / 营收拆分 / revenue breakdown | get_financials_revenue_breakdown.py |
-| 分析师综合评级 / 目标价 / 一致预期 / consensus | get_research_analyst_consensus.py |
-| 评级汇总 / 机构-分析师评级详情 | get_research_rating_summary.py |
-| 晨星研报 / 公允价值 / 护城河 / Morningstar | get_research_morningstar_report.py |
-| 估值详情（PE/PB/PS·估值分位·历史估值） | get_valuation_detail.py |
-| 板块/指数成分股估值列表 / 行业估值比较 | get_valuation_plate_stock_list.py |
-| 分红 / 派息 / 股息 / dividend | get_corporate_actions_dividends.py |
-| 回购 / buyback | get_corporate_actions_buybacks.py |
-| 拆股 / 并股 / 拆合股 / stock split | get_corporate_actions_stock_splits.py |
-| 持股统计 / 股权结构 / 主要股东占比 | get_shareholders_overview.py |
-| 持股变动 / 增减持 / 新进 / 清仓 | get_shareholders_holding_changes.py |
-| 持股明细 / 十大股东 / 大股东名单 | get_shareholders_holder_detail.py |
-| 机构持股 / 机构持仓 / 13F | get_shareholders_institutional.py |
-| 内部人持股列表 / insider ownership | get_insider_holder_list.py |
-| 内部人交易 / insider trading / Form 4 | get_insider_trade_list.py |
-| 公司详情 / 概况 / company profile | get_company_profile.py |
-| 公司高管信息 / 管理层 / 董事会 | get_company_executives.py |
-| 公司高管背景 / 高管简历 | get_company_executive_background.py |
-| 经营效率 / 员工数 / 人均营收·利润 | get_company_operational_efficiency.py |
-| 十大买卖经纪商 / 经纪队列排名 / broker ranking | get_top_ten_buy_sell_brokers.py |
-| 每日卖空 / 卖空量 / short volume | get_daily_short_volume.py |
-| 空头持仓 / short interest / 回补天数 | get_short_interest.py |
+#### 获取个股财报日前后价格涨跌幅表现（财务-财报分析-历史财报日涨跌幅&波动率）
+当用户问"历史财报日涨跌幅"、"财报前后涨跌幅"、"财报日波动率"、"财报前后IV/HV"、"财报前后5日价格"时：
+```bash
+python skills/futuapi/scripts/quote/get_financials_earnings_price_move.py [--period-count N] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股
 
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --period-count: 财报周期数量，默认 10，范围 1-50
+
+#### 获取个股财报日前后股价历史（财务-财报分析-历史财报日数据明细）
+当用户问"历史财报日数据明细"、"财报日股价历史"、"财报日逐日数据"、"IV Crush"、"财报前后隐波变化"、"财报预期波动率"、"财报日明细"、"每期财报明细" 、"下次/最新财报时间"时：
+```bash
+python skills/futuapi/scripts/quote/get_financials_earnings_price_history.py [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+### 财务 — 财报与主营
+
+#### 获取财务报表（财务-关键指标/利润表/资产负债表/现金流量表）
+当用户问"财务报表"、"财报"、"利润表"、"资产负债表"、"现金流量表"、"关键指标"、"三大表"、"income statement"、"balance sheet"、"cash flow"、"营收多少"、"净利润多少"、"毛利率"、"ROE"、"EPS" 时：
+```bash
+python skills/futuapi/scripts/quote/get_financials_statements.py [--statement-type STATEMENT_TYPE] [--financial-type FINANCIAL_TYPE] [--currency-code CURRENCY_CODE] [--next-key KEY] [--num N] [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --statement-type: 财务报表类型（必填可选）：1=利润表(Income) 2=资产负债表(BalanceSheet) 3=现金流量表(CashFlow) 4=关键指标(MainIndex)；（默认：1=利润表）
+- --financial-type: 财报类型：1=Q1单季报 2=Q2单季报 3=Q3单季报 4=Q4单季报 5=Q6累计报(Q1+Q2) 6=Q9累计报(Q1+Q2+Q3) 7=年报 9=单季报组合(Q1/Q2/Q3/Q4) 10=单季报+年报 11=累计季报(Q1/Q6/Q9/年报)；（默认：10=单季报+年报）
+- --currency-code: 币种代码（ISO 4217），如 CNY、USD、HKD、SGD、JPY、CAD、AUD；不填返回原始货币数据（默认：空=原始货币）
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+#### 获取主营构成（财务-主营构成）
+当用户问"主营构成"、"主营业务"、"收入构成"、"营收拆分"、"产品收入占比"、"行业收入占比"、"地区收入占比"、"分业务收入"、"revenue breakdown"、"营收结构" 时：
+```bash
+python skills/futuapi/scripts/quote/get_financials_revenue_breakdown.py [--date DATE] [--financial-type FINANCIAL_TYPE] [--currency-code CURRENCY_CODE] [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --date: 筛选时间戳；从输出 screen_date_list 取 date 值可查历史；不填返回最新一期
+- --financial-type: 财报类型：1=Q1单季报 2=Q2单季报 3=Q3单季报 4=Q4单季报 5=半年报 6=Q9累计报 7=年报 9=聚合季报
+- --currency-code: 币种代码（ISO 4217），如 CNY、USD、HKD、SGD、JPY、CAD、AUD；不填返回原始货币数据
+
+**返回说明**：返回产品、行业、地区、业务各维度数据；`breakdown_list` 中每个分组含 `type`（维度类型）和 `item_list`；`screen_date_list` 仅在 `--date` 与 `--financial-type` 均未传时返回
+
+### 预测 — 分析师评级
+
+#### 获取分析师综合评级与目标价（预测-分析师评级）
+当用户问"分析师评级"、"一致预期"、"目标价"、"综合评级"、"consensus"、"analyst rating"、"分析师看多还是看空"、"买入评级占比"、"平均目标价"、"最高/最低目标价"、"多少分析师覆盖" 时：
+```bash
+python skills/futuapi/scripts/quote/get_research_analyst_consensus.py [--json] code
+```
+**接口限制（市场）**：支持正股及 REIT
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+#### 获取评级汇总 / 机构-分析师详情（预测-分析师评级）
+当用户问"评级汇总"、"机构评级"、"哪些机构给出评级"、"评级列表"、"分析师评级明细"、"rating summary"、"某家机构对 XX 的评级记录"、"某分析师历史评级"、"机构目标价"、"分析师目标价" 时：
+```bash
+python skills/futuapi/scripts/quote/get_research_rating_summary.py [--rating-dimension-type RATING_DIMENSION_TYPE] [--uid UID] [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持美股正股及 REIT
+
+**参数说明**：
+- code: 股票代码，如 US.AAPL
+- --rating-dimension-type: 评级维度类型：1=机构维度（默认） 2=分析师维度
+- --uid: 空=汇总列表；非空=指定机构/分析师的评级详情（如分析师 uid 须搭配 --rating-dimension-type 2）
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~20
+
+### 预测 — 晨星研报
+
+#### 获取晨星研究报告（预测-晨星研报）
+当用户问"晨星研报"、"晨星报告"、"Morningstar"、"晨星星级"、"公允价值"、"fair value"、"护城河"、"经济护城河"、"economic moat"、"多空观点"、"bull case"、"bear case"、"分析师观点"、"晨星评分" 时：
+```bash
+python skills/futuapi/scripts/quote/get_research_morningstar_report.py [--json] code
+```
+**接口限制（市场）**：支持正股及 REIT
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+### 预测 — 公司估值
+
+#### 获取估值详情（预测-公司估值）
+当用户问"估值详情"、"公司估值"、"PE"、"PB"、"PS"、"市盈率"、"市净率"、"市销率"、"历史估值"、"估值分位"、"估值分布"、"估值趋势"、"相对板块估值"、"相对市场估值"、"利润增速估值" 时：
+```bash
+python skills/futuapi/scripts/quote/get_valuation_detail.py [--valuation-type VALUATION_TYPE] [--interval-type INTERVAL_TYPE] [--json] code
+```
+**接口限制（市场）**：支持正股、基金及指数；PB 估值类型无盈利增速模块；指数无排名、均值、中位数字段
+
+**参数说明**：
+- code: 股票或指数代码，如 HK.00700
+- --valuation-type: 估值类型：1=PE, 2=PB, 3=PS（默认不传，服务端推荐）
+- --interval-type: 时间周期（有效值 1-10）：1=3月 2=6月 3=1年 4=3年 5=从2019年起 6=5年 7=10年 8=2年 9=20年 10=30年（默认：3=1年）
+
+#### 获取板块/指数成分股估值列表（预测-公司估值）
+当用户问"板块估值"、"指数估值"、"成分股估值"、"板块内估值排名"、"行业估值比较"、"指数成分股估值"、"哪些成分股估值最便宜"、"哪些成分股估值最贵" 时：
+```bash
+python skills/futuapi/scripts/quote/get_valuation_plate_stock_list.py [--valuation-type VALUATION_TYPE] [--next-key NEXT_KEY] [--num NUM] [--sort-type SORT_TYPE] [--sort-id SORT_ID] [--filter-security FILTER_SECURITY] [--json] code
+```
+**接口限制（市场）**：支持板块和指数；不支持个股；指数作为入参时，首次请求额外返回所属板块列表（plate_list）
+
+**参数说明**：
+- code: 板块或指数代码，如 HK.800000
+- --valuation-type: 估值类型：1=市盈率(PE), 2=市净率(PB), 3=市销率(PS)（默认：1=市盈率(PE)）
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+- --sort-type: 排序方向：1=Desc(降序), 2=Asc(升序)（默认：2=升序）
+- --sort-id: 排序列（Qot_Common.SortField）：51=市值（默认）52=估值 53=预测估值 54=历史分位
+- --filter-security: 仅对指数有效：按行业/板块筛选成分股（如 HK.LIST23363）；不传则不筛选
+
+### 公司行动
+
+#### 获取分红派息（公司行动-分红派息）
+当用户问"分红"、"派息"、"股息"、"分红派息"、"dividend"、"除权除息日"、"登记日"、"派息日"、"分配方案"、"分红历史"、"每股派息" 时：
+```bash
+python skills/futuapi/scripts/quote/get_corporate_actions_dividends.py [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+#### 获取回购（公司行动-回购）
+当用户问"回购"、"股票回购"、"公司回购"、"buyback"、"回购记录"、"回购历史"、"回购金额"、"港股回购"、"A 股回购" 时：
+```bash
+python skills/futuapi/scripts/quote/get_corporate_actions_buybacks.py [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持港股、A股正股及基金；港股和A股各返回独立数据表，字段结构不同
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+#### 获取拆合股（公司行动-拆股并股）
+当用户问"拆股"、"并股"、"拆合股"、"股票拆分"、"合股"、"stock split"、"reverse split"、"拆股历史"、"拆股比例"、"拆股日期" 时：
+```bash
+python skills/futuapi/scripts/quote/get_corporate_actions_stock_splits.py [--next-key KEY] [--num N] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+### 股东
+
+#### 获取持股统计（股东-持股统计）
+当用户问"持股统计"、"股权结构汇总"、"持股比例汇总"、"主要股东"、"各类股东占比"、"shareholder overview"、"ownership overview"、"流通股东比例"、"机构/个人/内部人占比" 时：
+```bash
+python skills/futuapi/scripts/quote/get_shareholders_overview.py [--period-id PERIOD_ID] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金；period_id 为 0 或不传时，同一次响应中额外返回可用报告期列表（holding_period 子表）
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --period-id: 报告期 ID；传 0 或不传则返回最新数据，并额外返回可用报告期列表
+
+#### 获取持股变动（股东-股东增减持）
+当用户问"持股变动"、"股东增减持"、"增持"、"减持"、"新进"、"清仓"、"建仓"、"holding changes"、"谁在加仓"、"谁在减仓"、"最近增持" 时：
+```bash
+python skills/futuapi/scripts/quote/get_shareholders_holding_changes.py [--next-key NEXT_KEY] [--num NUM] [--sort-type SORT_TYPE] [--sort-column SORT_COLUMN] [--filter-type FILTER_TYPE] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金；支持分页，默认每页 10 条，最多 50 条
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+- --sort-type: 排序方向：1=降序（默认）2=升序
+- --sort-column: 排序字段（Qot_Common.SortField）：62=持股变动数（默认）63=持股日期 64=变动比例 65=变动金额 66=持股比例
+- --filter-type: 筛选类型：0=全部（默认）1=增持 2=减持 3=建仓 4=清仓
+
+#### 获取持股明细（股东-股东持股）
+当用户问"持股明细"、"股东持股"、"十大股东"、"前十大股东"、"大股东名单"、"谁持有 XX"、"持有人明细"、"holder detail"、"持股明细列表"、"流通股东明细" 时：
+```bash
+python skills/futuapi/scripts/quote/get_shareholders_holder_detail.py [--request-type REQUEST_TYPE] [--next-key NEXT_KEY] [--num NUM] [--sort-column SORT_COLUMN] [--sort-type SORT_TYPE] [--period-id PERIOD_ID] [--holder-id HOLDER_ID] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金；支持分页，默认每页 10 条；分页标识为字符串类型
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --request-type: 请求类型：0=默认，1000=全部，1=其他机构，2=传统投资经理，3=对冲基金，4=风险资本/私募，5=企业年金，6=基金会基金，7=保险公司，8=银行/投资银行，9=家族办公室/信托，10=主权财富基金，11=REIT，12=结构化融资经理，13=联合养老金，14=政府养老金，15=捐赠基金，100=个人，200=ADS，300=上市公司，400=未公开上市公司，500=国有股
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+- --sort-column: 排序列（Qot_Common.SortField）：61=持股股数（默认）62=持股变动数
+- --sort-type: 排序方式：1=降序（默认），2=升序
+- --period-id: 报告期 ID，0=最新
+- --holder-id: 持有人对象 ID，0=不过滤；可取自 GetShareholdersOverview/GetShareholdersHoldingChanges/本协议/GetInsiderHolderList/GetInsiderTradeList返回的 holder_id
+
+#### 获取机构持股（股东-机构持股）
+当用户问"机构持股"、"机构股东"、"institutional holdings"、"institutional investors"、"机构持股变化"、"机构持股比例"、"机构持仓"、"基金持仓"、"13F" 时：
+```bash
+python skills/futuapi/scripts/quote/get_shareholders_institutional.py [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+#### 获取内部人持股列表（股东-内部人）
+当用户问"内部人持股"、"高管持股"、"董事持股"、"大股东持股"、"insider holder"、"insider ownership"、"内部人名单"、"美股内部人"、"公司高管买了多少股" 时：
+```bash
+python skills/futuapi/scripts/quote/get_insider_holder_list.py [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持美股正股及基金；首页额外返回内部人统计摘要（总人数/增持数/减持数），续页无此摘要
+
+**参数说明**：
+- code: 股票代码，如 US.AAPL
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~20
+
+#### 获取内部人交易（股东-内部人）
+当用户问"内部人交易"、"内部人买卖"、"高管交易"、"董事交易"、"insider trading"、"insider trade"、"insider buying"、"insider selling"、"Form 4"、"高管在买还是在卖" 时：
+```bash
+python skills/futuapi/scripts/quote/get_insider_trade_list.py [--holder-id HOLDER_ID] [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持美股正股及基金
+
+**参数说明**：
+- code: 股票代码，如 US.AAPL
+- --holder-id: 持有人对象 ID，不传则查询全部内部人（可选）；可取自 GetInsiderHolderList或本协议返回的 holder_id
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+### 简况
+
+#### 获取公司详情（简况-公司概况）
+当用户问"公司概况"、"公司详情"、"公司介绍"、"公司简介"、"company profile"、"公司资料"、"主营业务是什么"、"公司官网"、"总部地址"、"上市地" 时：
+```bash
+python skills/futuapi/scripts/quote/get_company_profile.py [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+#### 获取公司高管信息（简况-公司高管）
+当用户问"公司高管"、"董事及高管"、"高管名单"、"管理层"、"董事会"、"executives"、"board members"、"CEO 是谁"、"CFO 是谁"、"高管薪酬"、"高管持股数"、"高管性别/年龄" 时：
+```bash
+python skills/futuapi/scripts/quote/get_company_executives.py [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+
+#### 获取公司高管背景（简况-公司高管）
+当用户问"高管背景"、"高管简历"、"高管履历"、"CEO 背景"、"executive background"、"高管从业经历"、"XX 是谁" 时：
+**注意**：`leader_name` 在 Git Bash 下直接传中文可能乱码，建议改用 Unicode 转义序列（如 `张三` → `\u5f20\u4e09`），脚本会自动解码为正确字符。
+```bash
+python skills/futuapi/scripts/quote/get_company_executive_background.py [--json] code leader_name
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- leader_name: 高管姓名，使用 get_company_executives.py 返回的 leader_name 字段值；支持直接传中文（如 "张三"）或 Unicode 转义序列（如 "\u5f20\u4e09"），两种方式等价
+
+#### 获取公司经营效率（简况-经营效率）
+当用户问"经营效率"、"员工数"、"雇员人数"、"人均营收"、"人均利润"、"operational efficiency"、"员工效率"、"人均薪酬" 时：
+```bash
+python skills/futuapi/scripts/quote/get_company_operational_efficiency.py [--next-key NEXT_KEY] [--num NUM] [--currency-code CURRENCY_CODE] [--json] code
+```
+**接口限制（市场）**：支持正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+- --currency-code: 货币代码（ISO 4217），如 CNY、USD、HKD、SGD、JPY、CAD、AUD；不传返回默认货币
+
+### 经纪商
+
+#### 获取十大买卖经纪商（十大买卖经纪商）
+当用户问"十大买卖经纪商"、"十大净买入经纪"、"十大净卖出经纪"、"大单经纪"、"经纪队列排名"、"broker ranking"、"高盛在买还是在卖"、"港股经纪动向"、"席位资金" 时：
+```bash
+python skills/futuapi/scripts/quote/get_top_ten_buy_sell_brokers.py [--days-before DAYS_BEFORE] [--json] code
+```
+**接口限制（市场）**：支持港股正股及基金；days_before=0 返回实时数据（含均价/总量/总额），days_before>0 仅含净量和经纪商名称
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --days-before: 距当前交易日天数，0=实时，>0=历史第 N 个交易日（默认不填=实时）
+
+### 卖空
+
+#### 获取每日卖空（每日卖空）
+当用户问"每日卖空"、"卖空数据"、"卖空量"、"卖空比例"、"short volume"、"daily short"、"当日卖空额"、"卖空占比"、"sell short" 时：
+```bash
+python skills/futuapi/scripts/quote/get_daily_short_volume.py [--next-key NEXT_KEY] [--num NUM] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
+
+#### 获取空头持仓（空头持仓）
+当用户问"空头持仓"、"short interest"、"空头持仓量"、"空头比例"、"short ratio"、"回补天数"、"days to cover"、"做空比例"、"浮动流通空头占比" 时：
+```bash
+python skills/futuapi/scripts/quote/get_short_interest.py [--next-key NEXT_KEY] [--num MAX_COUNT] [--json] code
+```
+**接口限制（市场）**：支持港股、美股正股及基金；单次最多返回 50 条，默认 10 条
+
+**参数说明**：
+- code: 股票代码，如 HK.00700
+- --next-key: 分页标识，首次不传，续拉填上次返回的 next_key；"-1" 表示无更多数据
+- --num: 每页返回数量，默认 10，范围 1~50
 
 ### 期权数据
 
@@ -835,6 +1213,230 @@ python skills/futuapi/scripts/quote/get_option_exercise_probability.py [--json] 
 
 **参数说明**：
 - code: 期权代码，如 US.AAPL260427C270000
+
+#### 获取期权市场统计（成交量/持仓量时间序列）
+当用户问"期权市场统计"、"期权成交量统计"、"期权持仓量统计"、"option market statistic"、"option volume trend"、"option open interest trend"、"期权市场成交量趋势"、"期权市场持仓量趋势" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_market_statistic.py --market US_SECURITY --data-type VOLUME [--begin 2024-01-01] [--end 2024-06-01] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --data-type: 数据类型（必填）: VOLUME(成交量), OPEN_INTEREST(持仓量)
+- --begin: 开始日期 YYYY-MM-DD（不传默认近一年）
+- --end: 结束日期 YYYY-MM-DD
+- 跨度不超过一年；自动分页拉取全部数据
+
+#### 获取期权标的历史统计（P/C 比率时间序列）
+当用户问"期权标的历史统计"、"Put/Call 比率"、"PCR"、"P/C ratio"、"期权成交量比率"、"期权持仓比率"、"underlying option statistic" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_underlying_his_statistic.py US.AAPL [--index-option-type NORMAL] [--begin 2025-01-01] [--end 2025-06-01] [--json]
+```
+
+**参数说明**：
+- code: 标的股票代码（必填），如 US.AAPL
+- --index-option-type: 指数期权类型: NORMAL, SMALL（仅指数标的需要）
+- --begin/--end: 日期范围，跨度最多 364 天
+- 持仓量数据有 T-1 日延迟
+
+#### 获取批量标的最新数据（IV/HV 多周期快照）
+当用户问"期权标的总览"、"批量标的数据"、"标的 IV 快照"、"underlying overview"、"批量 IV HV"、"期权标的成交量" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_underlying_overview.py US.AAPL US.TSLA US.NVDA [--index-option-type NORMAL] [--json]
+```
+
+**参数说明**：
+- codes: 标的股票代码列表（必填），空格分隔，最多 500 个
+- --index-option-type: 指数期权类型: NORMAL, SMALL
+- 快照接口，返回当前最新数据；持仓量有 T-1 延迟
+
+#### 获取期权标的历史波动率（IV/HV 时间序列）
+当用户问"标的历史波动率"、"IV 走势"、"HV 走势"、"IV 时间序列"、"underlying historical volatility"、"IV trend"、"HV trend"、"IV history" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_underlying_his_volatility.py US.AAPL [--index-option-type NORMAL] [--begin 2025-01-01] [--end 2025-06-01] [--json]
+```
+
+**参数说明**：
+- code: 标的股票代码（必填），如 US.AAPL
+- --index-option-type: 指数期权类型: NORMAL, SMALL
+- --begin/--end: 日期范围，跨度最多 364 天
+
+#### 获取期权标的排行（热门标的排行）
+当用户问"期权标的排行"、"期权热门标的"、"underlying rank"、"option underlying rank"、"期权标的成交量排行"、"IV 排行"、"HV 排行" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_underlying_rank.py --market US_SECURITY --sort-type VOLUME [--sort-direction 0] [--count 20] [--trading-date 2025-06-01] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --sort-type: 排序字段（必填）: VOLUME, VOLUME_RATIO, OPEN_INTEREST, OPEN_INTEREST_RATIO, PRICE, PRICE_CHANGE, IV, IV_CHANGE, HV, HV_CHANGE, IV_RANK, IV_PERCENTILE, MARKET_CAP
+- --sort-direction: 0=降序(默认), 1=升序
+- --count: 每页数量 [1,200]
+- --config: JSON 筛选配置文件（支持 13 种筛选因子）
+
+#### 获取期权合约排行
+当用户问"期权合约排行"、"期权排行"、"option rank"、"期权成交量排行"、"期权持仓排行"、"OI 排行"、"期权 IV 排行" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_rank.py --market US_SECURITY --sort-type VOLUME [--sort-direction 0] [--count 20] [--trading-date 2025-06-01] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --sort-type: 排序类型（必填）: VOLUME, TURNOVER, OI, OI_INCREMENT, OI_DECREMENT, OI_MARKET_CAP, OI_MARKET_CAP_INCREMENT, OI_MARKET_CAP_DECREMENT, CHANGE_RATE, IV
+- --sort-direction: 0=降序(默认), 1=升序
+- --count: 每页数量 [1,200]
+- --config: JSON 筛选配置文件（支持 18 种筛选因子）
+
+#### 获取期权异动列表
+当用户问"期权异动"、"期权大单"、"option event"、"期权异动列表"、"unusual option activity"、"option flow"、"期权扫单" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_event.py --market US_SECURITY [--count 50] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --count: 每页数量 [1,300]
+- --config: JSON 筛选/排序配置文件（支持 25+ 种筛选因子 + 排序）
+
+**配置示例**：
+```json
+{
+  "filters": [
+    {"indicator_type": "OPTION_TYPE", "value_list": [1]},
+    {"indicator_type": "TURNOVER", "interval_min": 100000.0},
+    {"indicator_type": "OWNER_LIST", "security_list": ["US.TSLA", "US.AAPL"]}
+  ],
+  "sort": {"indicator_type": "TURNOVER", "direction": "DESCEND"}
+}
+```
+
+#### 获取期权异动告警设置
+当用户问"期权异动告警"、"异动提醒列表"、"option event alert"、"我的期权告警"、"查看告警设置" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_event_alert.py [--count 50] [--json]
+```
+
+**参数说明**：
+- --count: 每页数量 [1,500]，默认 200
+- 自动分页拉取全部告警设置
+
+**返回字段**（--json 输出）：
+- key: 告警唯一标识
+- enable: 告警开关
+- option_market: 市场品类（OptionMarket）
+- watchlist_group_name: 自选股分组名称
+- underlying: 指定标的代码
+- option_type: 期权类型 CALL/PUT
+- side_type_list: 成交方向列表
+- order_type_list: 订单类型列表
+- market_cap_range_min/max: 标的市值范围
+- market_cap_min_inclusive/max_inclusive: 标的市值是否闭区间
+- expiry_days_range_min/max: 距到期天数范围
+- expiry_days_min_inclusive/max_inclusive: 距到期天数是否闭区间
+- price_range_min/max: 异动成交价范围
+- price_min_inclusive/max_inclusive: 异动成交价是否闭区间
+- size_range_min/max: 异动成交量范围（张）
+- size_min_inclusive/max_inclusive: 异动成交量是否闭区间
+- premium_range_min/max: 异动成交额范围
+- premium_min_inclusive/max_inclusive: 异动成交额是否闭区间
+- iv_range_min/max: 隐含波动率范围(%)
+- iv_min_inclusive/max_inclusive: 隐含波动率是否闭区间
+- earnings_date_begin/end: 财报时间筛选日期(yyyy-MM-dd)
+- note: 备注
+
+#### 修改期权异动告警条件
+当用户问"设置期权异动告警"、"新增告警"、"删除告警"、"修改告警"、"set option alert"、"add alert"、"delete alert" 时：
+```bash
+python skills/futuapi/scripts/quote/set_option_event_alert.py --op ADD --config alert.json [--json]
+python skills/futuapi/scripts/quote/set_option_event_alert.py --op DELETE --key 14694 [--json]
+python skills/futuapi/scripts/quote/set_option_event_alert.py --op ENABLE --key 14694 [--json]
+python skills/futuapi/scripts/quote/set_option_event_alert.py --op DISABLE --key 14694 [--json]
+python skills/futuapi/scripts/quote/set_option_event_alert.py --op DELETE_ALL [--json]
+```
+
+**参数说明**：
+- --op: 操作类型（必填）: ADD, DELETE, MODIFY, ENABLE, DISABLE, DELETE_ALL
+- --key: 告警唯一标识（DELETE/MODIFY/ENABLE/DISABLE 时使用）
+- --config: JSON 配置文件（ADD/MODIFY 时使用）
+
+**JSON 配置字段**：
+- 监控范围（三选一）：option_market / watchlist_group_name / underlying
+- option_type: 期权类型 CALL/PUT
+- side_type_list: 成交方向列表（BUY/SELL/NEUTRAL）
+- order_type_list: 订单类型列表（SWEEP/BLOCK/NORMAL/CROSS/FLOOR）
+- market_cap_range_min/max: 标的市值范围
+- expiry_days_range_min/max: 距到期天数范围
+- price_range_min/max: 异动成交价范围
+- size_range_min/max: 异动成交量范围（张）
+- premium_range_min/max: 异动成交额范围
+- iv_range_min/max: 隐含波动率范围(%)
+- 每个范围支持独立开闭区间（如 size_min_inclusive: false 表示开区间），默认 true 闭区间
+- earnings_date_begin/end: 财报时间筛选日期(yyyy-MM-dd)
+- note: 备注（最多20字）
+
+#### 接收期权异动推送
+当用户问"期权异动推送"、"实时期权异动"、"push option event"、"订阅期权异动"、"期权异动通知" 时：
+```bash
+python skills/futuapi/scripts/subscribe/push_option_event.py [--duration 300] [--json]
+```
+
+**参数说明**：
+- --duration: 持续接收时间（秒，默认 300）
+- 需先通过 set_option_event_alert 设置提醒条件，推送才会触发
+- Ctrl+C 可中断
+
+#### 获取末日期权标的列表（0DTE 筛选）
+当用户问"末日期权"、"0DTE"、"zero dte"、"当日到期期权"、"0DTE 标的"、"末日期权筛选" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_zero_dte_screener.py --market US_SECURITY [--sort-type VOLUME] [--asc] [--count 20] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --sort-type: 排序类型: VOLUME, IV, CHANGE_RATIO, OPEN_INTEREST, MARKET_CAP
+- --asc: 升序排列
+- --count: 每页数量 [1,500]，默认 50
+- --config: JSON 筛选配置文件（支持 10 种筛选因子）
+- 返回结果中的 chain_info 可作为 get_option_zero_dte_contract 的输入
+
+#### 获取末日期权合约列表（0DTE 合约详情）
+当用户问"末日期权合约"、"0DTE 合约"、"zero dte contract"、"0DTE 期权链"、"末日期权详情" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_zero_dte_contract.py --owner US.TSLA --chain-info chain.json [--sort-type VOLUME] [--asc] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --owner: 标的股票代码（必填），如 US.TSLA
+- --chain-info: chain_info JSON 文件路径（必填，来自 get_option_zero_dte_screener 返回）
+- --sort-type: 排序类型: VOLUME, OPEN_INTEREST, IV, DELTA
+- --config: JSON 筛选配置文件（支持 15 种筛选因子）
+- 无分页，一次返回全部
+
+#### 获取财报期权标的列表（IV Crush / 预期波动）
+当用户问"财报期权"、"earnings option"、"IV crush"、"财报波动"、"期权财报"、"earnings screener"、"财报日期权" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_earnings_screener.py --market US_SECURITY [--sort-type EARNINGS_DATE] [--asc] [--count 50] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, HK_SECURITY（仅支持这两个市场）
+- --sort-type: 排序类型: EARNINGS_DATE, VOLUME, IV, MARKET_CAP, CHANGE_RATIO, PRICE, IV_RANK, IV_PERCENTILE, HV, OPEN_INTEREST, LAST_REPORT_IV_CRUSH, HISTORY_REPORT_IV_CRUSH, LAST_REPORT_CHG_RATIO, HISTORY_REPORT_CHG_RATIO, ESTIMATE_EPS_YOY, ESTIMATE_REVENUE_YOY, EXPECTED_MOVE_RATIO
+- --count: 每页数量 [1,500]，默认 50
+- --config: JSON 筛选配置文件（支持 20 种筛选因子）
+
+#### 获取期权卖方策略列表（Covered Call / Cash Secured Put）
+当用户问"期权卖方策略"、"covered call"、"cash secured put"、"CC 策略"、"CSP 策略"、"卖方筛选"、"seller screener"、"期权收租" 时：
+```bash
+python skills/futuapi/scripts/quote/get_option_seller_screener.py --market US_SECURITY --seller-type COVERED_CALL [--sort-type ANNUALIZED_RETURN] [--asc] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 期权市场（必填）: US_SECURITY, US_INDEX, HK_SECURITY, HK_INDEX
+- --seller-type: 卖方策略（必填）: COVERED_CALL, CASH_SECURED_PUT
+- --sort-type: 排序类型: ANNUALIZED_RETURN, INTERVAL_RETURN, ITM_PROBABILITY, PREMIUM
+- --config: JSON 筛选配置文件（支持 26 种筛选因子：标的级 13 种 + 期权级 13 种）
+- 无分页，一次返回全部
+
 ---
 
 #### 获取期权策略组合腿列表（期权策略）
@@ -900,6 +1502,453 @@ python skills/futuapi/scripts/quote/get_option_strategy_analysis.py [--json] leg
 
 **参数说明**：
 - legs: JSON 数组，如 `'[{"code":"HK.TCH260522P330000","action":"BUY","quantity":1.0},{"code":"HK.TCH260522C330000","action":"BUY","quantity":1.0}]'`
+
+### 指标
+
+#### 获取指标列表
+当用户问"指标列表"、"有哪些指标"、"可用指标"、"搜索指标"、"indicator list" 时：
+```bash
+python skills/futuapi/scripts/quote/get_indicator_list.py [--search SUB] [--lang 0|1|2] [--mode 0|1] [--json]
+```
+
+**参数说明**：
+- --search: 按 short_name 子串过滤（大小写不敏感）
+- --lang: 过滤语言：0=不过滤（默认）1=MyLang 2=Python
+- --mode: 搜索模式：0=Partial 部分匹配（默认）1=Exact 完全匹配并返回 script 源码（必须配合 --search）
+
+**示例**：
+```bash
+# 列出所有指标
+python skills/futuapi/scripts/quote/get_indicator_list.py
+
+# 搜索包含 MA 的指标
+python skills/futuapi/scripts/quote/get_indicator_list.py --search MA
+
+# 精确匹配并获取脚本源码
+python skills/futuapi/scripts/quote/get_indicator_list.py --search MACD --mode 1 --lang 1
+```
+
+#### 获取指标计算结果
+当用户问"计算指标"、"指标结果"、"MA计算"、"MACD结果"、"RSI"、"indicator calc" 时：
+```bash
+python skills/futuapi/scripts/quote/get_indicator_calc_result.py --short-name MA --lang 1 --kl-file <K线JSON路径> [--param 0=5] [--num 30] [--json]
+```
+
+**前置步骤**：需先用 `get_kline.py --json` 获取 K 线数据缓存文件，该文件含 code/ktype/data 字段。
+
+**参数说明**：
+- --short-name: 指标短名（对应 IndicatorInfo.shortName，如 MA、MACD、RSI）[必填]
+- --lang: 语言类型：1=MyLang, 2=Python [必填]
+- --kl-file: K 线 JSON 路径（含 code/ktype/data，由 get_kline --json 写出）[必填]
+- --param: 入参覆盖，格式 idx=value（index 从 0 起），可多次使用；不传则使用云端默认配置
+- --num: 截取前 N 条 K 线参与计算（正整数）；省略表示使用全部 K 线
+
+**工作流示例**：
+```bash
+# 1. 先获取 K 线数据（输出 JSON 到 Output/）
+python skills/futuapi/scripts/quote/get_kline.py HK.00700 --ktype 1d --num 100 --json > Output/test_cache_kl_HK_00700_day_100.json
+
+# 2. 计算 MA(5) 指标
+python skills/futuapi/scripts/quote/get_indicator_calc_result.py --short-name MA --lang 1 --kl-file Output/test_cache_kl_HK_00700_day_100.json --param 0=5
+
+# 3. 计算 MACD 指标（使用默认参数）
+python skills/futuapi/scripts/quote/get_indicator_calc_result.py --short-name MACD --lang 1 --kl-file Output/test_cache_kl_HK_00700_day_100.json
+```
+
+---
+
+### 特色榜单
+
+#### 获取热门榜
+当用户问"热门榜"、"热股排行"、"hot list"、"热门股票排行"时：
+```bash
+python skills/futuapi/scripts/quote/get_hot_list.py --market US [--sort-field VOLUME_RATIO] [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --sort-field: 排序字段（VOLUME_RATIO/PRICE_CHANGE/PRICE_CHANGE_RATE/TURNOVER/VOLUME/AMPLITUDE/PRICE），默认 VOLUME_RATIO
+- --sort-dir: 排序方向（0=降序，1=升序）
+- --count: 返回数量 [1,35]，默认 10
+- --offset: 起始偏移
+- --config: JSON 筛选配置文件（HotListFilter，支持 price/volume/turnover 等筛选）
+
+#### 获取领涨领跌榜
+当用户问"领涨榜"、"领跌榜"、"涨跌排行"、"top movers"、"gainers"、"losers"时：
+```bash
+python skills/futuapi/scripts/quote/get_top_movers_rank.py --market US [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US/MY/SG/JP），必填
+- --sort-dir: 排序方向（0=降序=领涨，1=升序=领跌）
+- --count: 返回数量 [1,35]，默认 10
+- --config: JSON 筛选配置文件（SimpleRankFilter，含 PriceFilter）
+
+#### 获取区间涨跌幅排行
+当用户问"区间涨跌幅"、"周涨幅排行"、"月涨幅排行"、"period change rank"时：
+```bash
+python skills/futuapi/scripts/quote/get_period_change_rank.py --market US --period ONE_WEEK [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US/MY/SG/JP），必填
+- --period: 周期（ONE_WEEK/TWO_WEEKS/ONE_MONTH/TWO_MONTHS/THREE_MONTHS/SIX_MONTHS/ONE_YEAR/TWO_YEARS/THREE_YEARS/FIVE_YEARS/TEN_YEARS/YTD），必填
+- --sort-dir: 排序方向（0=降序，1=升序）
+- --count: 返回数量 [1,35]，默认 10
+- --config: JSON 筛选配置文件（PeriodChangeRankFilter）
+
+#### 获取美股盘前排行
+当用户问"盘前排行"、"盘前涨幅"、"pre market rank"、"美股盘前"时：
+```bash
+python skills/futuapi/scripts/quote/get_us_pre_market_rank.py [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --sort-dir: 排序方向（0=降序，1=升序）
+- --count: 返回数量 [1,35]，默认 10
+- --config: JSON 筛选配置文件（SimpleRankFilter）
+
+#### 获取美股盘后排行
+当用户问"盘后排行"、"盘后涨幅"、"after hours rank"、"美股盘后"时：
+```bash
+python skills/futuapi/scripts/quote/get_us_after_hours_rank.py [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- 参数同盘前排行
+
+#### 获取美股夜盘排行
+当用户问"夜盘排行"、"overnight rank"、"美股夜盘"时：
+```bash
+python skills/futuapi/scripts/quote/get_us_overnight_rank.py [--sort-dir 0] [--count 10] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- 参数同盘前排行
+
+#### 获取卖空异动榜
+当用户问"卖空异动"、"卖空排行"、"short selling rank"、"做空排行"时：
+```bash
+python skills/futuapi/scripts/quote/get_short_selling_rank.py [--market US] [--sort-field SHORT_NUMBER_CHANGE] [--sort-dir 0] [--count 10] [--offset 0] [--plates US.BK2024,US.BK2025] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），默认 US
+- --sort-field: 排序字段（SHORT_NUMBER_CHANGE/SHORT_RATIO_CHANGE/SHORT_NUMBER/SHORT_RATIO/VOLUME/POSITION_VOLUME/POSITION_RATIO/DAYS_TO_COVER/WEEK_AVG_VOLUME/WEEK_AVG_SHORT_NUMBER/WEEK_AVG_SHORT_RATIO/MONTH_AVG_VOLUME/MONTH_AVG_SHORT_NUMBER/MONTH_AVG_SHORT_RATIO）
+- --count: 返回数量 [1,35]，默认 10
+- --plates: 行业板块代码，逗号分隔（如 US.BK2024）
+
+### 财报/日历
+
+#### 获取财报日历
+当用户问"财报日历"、"earnings calendar"、"财报发布日"、"业绩公告日程"时：
+```bash
+python skills/futuapi/scripts/quote/get_earnings_calendar.py --market US [--sort-type MARKET_CAP] [--begin-date 2026-06-23] [--end-date 2026-06-30] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --sort-type: 排序类型（MARKET_CAP/EARNINGS_TIME/NAME/CODE），默认 MARKET_CAP
+- --begin-date/--end-date: 日期范围
+- --config: JSON 筛选配置文件（EarningsCalendarFilter）
+
+#### 获取财报超预期排行
+当用户问"财报超预期"、"earnings beat"、"业绩超预期"、"EPS beat"时：
+```bash
+python skills/futuapi/scripts/quote/get_earnings_beat_rank.py --market US [--beat-type REVENUE] [--count 10] [--term Q] [--sort-field SURPRISE_PCT] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --beat-type: 超预期类型（REVENUE/EPS），默认 REVENUE
+- --count: 返回数量 [1,35]，默认 10
+- --term: 财报周期（Q=季度/H=半年/A=年度）
+- --sort-field: 排序字段（SURPRISE_PCT/ACTUAL/CONSENSUS/MARKET_CAP）
+- --config: JSON 筛选配置文件（EarningsBeatRankFilter）
+
+#### 获取经济事件日历
+当用户问"经济日历"、"economic calendar"、"经济事件"、"宏观事件日程"时：
+```bash
+python skills/futuapi/scripts/quote/get_economic_calendar.py --begin-date 2026-06-23 [--end-date 2026-06-30] [--markets US,HK] [--importance HIGH] [--count 50] [--json]
+```
+
+**参数说明**：
+- --begin-date: 开始日期 yyyy-MM-dd，必填
+- --end-date: 结束日期
+- --markets: 市场列表（HK/US/SH/SG/JP/AU/MY/CA），逗号分隔
+- --importance: 重要性（ALL/LOW/MEDIUM/HIGH）
+- --count: 每页数量，默认 50
+
+#### 获取派息日历
+当用户问"派息日历"、"dividend calendar"、"分红日程"、"除息日"时：
+```bash
+python skills/futuapi/scripts/quote/get_dividend_calendar.py --market US [--date 2026-06-23] [--offset 0] [--count 10] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --date: 日期 yyyy-MM-dd
+- --offset: 起始偏移
+- --count: 返回数量
+
+### 股息/特估
+
+#### 获取股息排行
+当用户问"股息排行"、"高股息"、"dividend rank"、"股息率排名"时：
+```bash
+python skills/futuapi/scripts/quote/get_dividend_rank.py --market US --rank-type HIGH_YIELD [--count 50] [--sort-field DIVIDEND_YIELD_TTM] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US/MY/SG/JP），必填
+- --rank-type: 排行类型（HIGH_YIELD/DIVIDEND_GROWTH），必填
+- --count: 返回数量 [1,300]
+- --sort-field: 排序字段（DIVIDEND_YIELD_TTM/AVG_DIVIDEND_YIELD_5Y/DISTRIBUTION_FREQUENCY/DIVIDEND_GROW_YEAR/DIVIDENDS_TTM/PAYOUT_RATIO_LFY/PRICE/MARKET_CAP/CHANGE_RATE/CHANGE_AMOUNT）
+- --config: JSON 筛选配置文件（DividendRankFilter）
+
+#### 获取破净高股息国央企排行
+当用户问"破净高股息"、"国央企排行"、"high dividend SOE"、"央企高股息"时：
+```bash
+python skills/futuapi/scripts/quote/get_high_dividend_soe_rank.py [--sort-field DIVIDEND_YIELD_TTM] [--sort-dir 0] [--count 20] [--offset 0] [--config filters.json] [--json]
+```
+
+**参数说明**：
+- --sort-field: 排序字段（MARKET_CAP/DIVIDEND_YIELD_TTM/PB/PE_TTM/PRICE/CHANGE_RATIO）
+- --sort-dir: 排序方向（0=降序，1=升序）
+- --count: 返回数量
+- --config: JSON 筛选配置文件（HighDividendSOERankFilter）
+- 仅港股
+
+### ARK 基金
+
+#### 获取 ARK 基金持仓
+当用户问"ARK持仓"、"ARK基金"、"ark fund holding"、"方舟基金"时：
+```bash
+python skills/futuapi/scripts/quote/get_ark_fund_holding.py [--holding-type POSITION] [--cycle ONE_DAY] [--sort-field SHARES] [--sort-dir 0] [--count 20] [--json]
+```
+
+**参数说明**：
+- --holding-type: 持仓类型（POSITION/INCREASE/DECREASE/NEW/SOLD_OUT）
+- --cycle: 周期（ONE_DAY/FIVE_DAY/TEN_DAY/THIRTY_DAY/SIXTY_DAY）
+- --sort-field: 排序字段（SHARES/WEIGHT_CHANGE/SHARES_CHANGE/MARKET_VALUE/WEIGHT）
+- --sort-dir: 排序方向（0=降序，1=升序）
+- --count: 每页数量
+- 自动分页获取全部数据
+
+#### 获取 ARK 主动交易聚合
+当用户问"ARK交易"、"ARK买卖"、"ark active transaction"、"方舟买入"、"方舟卖出"时：
+```bash
+python skills/futuapi/scripts/quote/get_ark_active_transaction.py [--holding-type INCREASE] [--cycle ONE_DAY] [--sort-field CHANGE_AMOUNT] [--sort-dir 0] [--count 20] [--json]
+```
+
+**参数说明**：
+- --holding-type: 持仓类型（INCREASE/DECREASE/NEW/SOLD_OUT）
+- --cycle: 周期（同上）
+- --sort-field: 排序字段（CHANGE_AMOUNT/CHANGE_SHARES）
+- 自动分页
+
+#### 获取 ARK 个股交易动态
+当用户问"ARK个股"、"ARK持有"、"ark stock dynamic"、"方舟持有什么"时：
+```bash
+python skills/futuapi/scripts/quote/get_ark_stock_dynamic.py --code US.TSLA [--json]
+```
+
+**参数说明**：
+- --code: 股票代码（如 US.TSLA），必填
+
+### 产业链
+
+#### 获取产业链列表
+当用户问"产业链"、"产业链列表"、"industrial chain"、"产业链搜索"时：
+```bash
+python skills/futuapi/scripts/quote/get_industrial_chain_list.py --market HK [--keyword 芯片] [--count 20] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US/CN/JP/SG/MY），必填
+- --keyword: 搜索关键字
+- --count: 每页数量 [1,50]
+- 自动分页
+
+#### 获取产业链详情
+当用户问"产业链详情"、"产业链上下游"、"industrial chain detail"时：
+```bash
+python skills/futuapi/scripts/quote/get_industrial_chain_detail.py --chain-id 123 [--json]
+```
+
+**参数说明**：
+- --chain-id: 产业链 ID（必填，来自 get_industrial_chain_list）
+
+#### 获取板块关联产业链
+当用户问"板块产业链"、"板块关联"、"industrial chain by plate"时：
+```bash
+python skills/futuapi/scripts/quote/get_industrial_chain_by_plate.py --plate-id 123 [--json]
+```
+
+**参数说明**：
+- --plate-id: 产业板块 ID（必填）
+
+#### 获取产业板块信息
+当用户问"产业板块信息"、"板块简介"、"industrial plate info"时：
+```bash
+python skills/futuapi/scripts/quote/get_industrial_plate_info.py --plate-id 123 [--json]
+```
+
+**参数说明**：
+- --plate-id: 产业板块 ID（必填）
+
+#### 获取产业板块成分股
+当用户问"产业板块成分股"、"板块成分"、"industrial plate stock"时：
+```bash
+python skills/futuapi/scripts/quote/get_industrial_plate_stock.py --plate-id 123 [--chain-id 456] [--markets HK,US] [--sort-field MARKET_VAL] [--ascend] [--count 50] [--json]
+```
+
+**参数说明**：
+- --chain-id/--plate-id: 二选一，plate-id 优先
+- --markets: 市场筛选（HK/US/CN/JP/SG/MY），逗号分隔
+- --sort-field: 排序字段（CODE/CHANGE_RATE/TURNOVER/VOLUME/MARKET_VAL）
+- --ascend: 升序
+- 自动分页
+
+### 机构持仓
+
+#### 获取机构列表
+当用户问"机构列表"、"机构排行"、"institution list"、"基金公司"时：
+```bash
+python skills/futuapi/scripts/quote/get_institution_list.py --market US [--sort-field POSITION_VALUE] [--sort-dir 0] [--count 20] [--name 桥水] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --sort-field: 排序字段（POSITION_VALUE/POSITION_VALUE_CHANGE/POSITION_COUNT/POSITION_COUNT_CHANGE）
+- --name: 机构名模糊搜索
+- 自动分页
+
+#### 获取机构概况
+当用户问"机构概况"、"机构信息"、"institution profile"时：
+```bash
+python skills/futuapi/scripts/quote/get_institution_profile.py --market US --institution-id 123 [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --institution-id: 机构 ID（必填）
+
+#### 获取机构持股列表
+当用户问"机构持股"、"机构重仓"、"institution holding"、"持仓列表"时：
+```bash
+python skills/futuapi/scripts/quote/get_institution_holding_list.py --market US --institution-id 123 [--change-type INCREASE] [--sort-field HOLDING_VALUE] [--sort-dir 0] [--count 20] [--keyword TSLA] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --institution-id: 机构 ID（必填）
+- --change-type: 变动类型筛选（NEW/SOLD_OUT/INCREASE/DECREASE）
+- --sort-field: 排序字段（HOLDING_VALUE/HOLDING_PCT/LAST_HOLDING_PCT/CHANGE_SHARES/CHANGE_PCT/PORTFOLIO_PCT/INDUSTRY/HOLDING_DATE）
+- --keyword: 搜索关键词
+- 自动分页
+
+#### 获取机构持仓变动
+当用户问"机构变动"、"机构建仓"、"机构增仓"、"institution holding change"时：
+```bash
+python skills/futuapi/scripts/quote/get_institution_holding_change.py --market US --institution-id 123 [--change-type NEW] [--sort-field CHANGE_PCT] [--sort-dir 0] [--count 20] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --institution-id: 机构 ID（必填）
+- --change-type: 变动类型（NEW/SOLD_OUT/INCREASE/DECREASE）
+- --sort-field: 排序字段（CHANGE_PCT/CHANGE_SHARES/HOLDING_DATE）
+- 自动分页
+
+#### 获取机构持仓行业分布
+当用户问"机构行业分布"、"持仓分布"、"institution distribution"时：
+```bash
+python skills/futuapi/scripts/quote/get_institution_distribution.py --market US --institution-id 123 [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US），必填
+- --institution-id: 机构 ID（必填）
+
+### 宏观数据
+
+#### 获取宏观指标列表
+当用户问"宏观指标"、"宏观数据列表"、"macro indicator list"、"经济指标"时：
+```bash
+python skills/futuapi/scripts/quote/get_macro_indicator_list.py --region US [--json]
+```
+
+**参数说明**：
+- --region: 国家/地区（HK/US/JP/SG/AU/CA/MY/CN），必填
+
+#### 获取宏观指标历史数据
+当用户问"宏观历史数据"、"指标历史"、"macro indicator history"、"CPI历史"、"GDP历史"时：
+```bash
+python skills/futuapi/scripts/quote/get_macro_indicator_history.py --indicator-id 123 [--time 2026-06-01] [--max-count 100] [--json]
+```
+
+**参数说明**：
+- --indicator-id: 宏观指标 ID（必填，来自 get_macro_indicator_list）
+- --time: 时间节点 yyyy-MM-dd（往前拉取）
+- --max-count: 拉取条数，默认 100，上限 1000
+
+#### 获取 FedWatch 目标利率概率
+当用户问"FedWatch"、"联储利率预期"、"fed watch"、"利率概率"、"CME FedWatch"时：
+```bash
+python skills/futuapi/scripts/quote/get_fed_watch_target_rate.py [--json]
+```
+
+**参数说明**：
+- 无参数
+
+#### 获取 FedWatch 点阵图
+当用户问"点阵图"、"FedWatch 点阵"、"dot plot"、"联储点阵图"时：
+```bash
+python skills/futuapi/scripts/quote/get_fed_watch_dot_plot.py [--json]
+```
+
+**参数说明**：
+- 无参数
+
+### 其他行情
+
+#### 获取热力图数据
+当用户问"热力图"、"heat map"、"板块热力图"、"行业热力图"时：
+```bash
+python skills/futuapi/scripts/quote/get_heat_map_data.py --market US [--sort-field CHANGE_RATE] [--ascend] [--count 30] [--plate-type INDUSTRY] [--json]
+```
+
+**参数说明**：
+- --market: 市场（HK/US/CN），必填
+- --sort-field: 排序字段（CHANGE_RATE/MARKET_VAL/TURNOVER/HOT）
+- --plate-type: 板块类型（INDUSTRY/CONCEPT/THEME）
+- 自动分页
+
+#### 获取涨跌分布
+当用户问"涨跌分布"、"rise fall distribution"、"涨跌家数"时：
+```bash
+python skills/futuapi/scripts/quote/get_rise_fall_distribution.py [--security HK.BK1001] [--market HK] [--json]
+```
+
+**参数说明**：
+- --security: 板块代码（优先）
+- --market: 市场（HK/US/CN），security 未传时使用
+- 二选一
+
+#### 获取评级变动
+当用户问"评级变动"、"分析师评级变动"、"rating change"、"评级上调"、"评级下调"时：
+```bash
+python skills/futuapi/scripts/quote/get_rating_change.py --market US [--change-type UPGRADE] [--count 10] [--json]
+```
+
+**参数说明**：
+- --market: 市场（仅 US），必填
+- --change-type: 评级变动类型（UPGRADE/DOWNGRADE/NEW_RATING）
+- --count: 每页数量 [1,20]
+- 自动分页
+
 ---
 
 ## 交易命令

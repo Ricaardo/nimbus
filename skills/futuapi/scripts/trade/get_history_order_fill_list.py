@@ -29,6 +29,7 @@ from common import (
     create_trade_context,
     parse_trd_env,
     parse_market,
+    TRD_MARKET_CLI_CHOICES,
     parse_security_firm,
     get_default_acc_id,
     get_default_trd_env,
@@ -70,11 +71,17 @@ def get_history_order_fill_list(start=None, end=None, acc_id=None, market=None, 
                 print("=" * 70)
             return
 
+        no_date_filter = not start and not end
         if output_json:
-            print(json.dumps({"market": format_enum(trd_market), "deals": df_to_records(data)}, ensure_ascii=False))
+            result = {"market": format_enum(trd_market), "deals": df_to_records(data)}
+            if no_date_filter:
+                result["note"] = "默认仅查询最近90天的成交记录，如需更早的记录请指定 --start/--end"
+            print(json.dumps(result, ensure_ascii=False))
         else:
             print("=" * 70)
             print(f"历史成交 - 市场: {format_enum(trd_market)}")
+            if no_date_filter:
+                print("提示：默认仅查询最近90天的成交记录，如需更早的记录请指定 --start/--end")
             print("=" * 70)
             print(data.to_string(index=False))
             print(f"\n共 {len(data)} 条成交")
@@ -95,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--start", default=None, help="起始日期 yyyy-MM-dd")
     parser.add_argument("--end", default=None, help="结束日期 yyyy-MM-dd")
     parser.add_argument("--acc-id", type=int, default=None, help="账户 ID")
-    parser.add_argument("--market", choices=["US", "HK", "HKCC", "CN", "SG"], default=None, help="交易市场")
+    parser.add_argument("--market", choices=TRD_MARKET_CLI_CHOICES, default=None, help="交易市场")
     parser.add_argument("--trd-env", choices=["REAL", "SIMULATE"], default=None, help="交易环境")
     parser.add_argument("--security-firm",
                         choices=["FUTUSECURITIES", "FUTUINC", "FUTUSG", "FUTUAU", "FUTUCA", "FUTUJP", "FUTUMY"],

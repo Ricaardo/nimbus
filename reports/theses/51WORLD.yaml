@@ -2,7 +2,7 @@ ticker: "HK:6651"
 name: 五一视界 (51WORLD)
 position: long
 created: "2026-07-11"
-last_updated: "2026-07-11"
+last_updated: "2026-07-13"
 conviction: low
 thesis_statement: "观望 HK:6651 — 数字孪生赛道储备性布局,但当前-29%浮亏证明入场过早且方向未确认。标的本身(稀缺性/赛道)仍有价值,但不对称性极差(30% upside vs 51% downside),不作为加仓目标,以被动等待半年报验证,破止损即认错离场"
 
@@ -50,12 +50,19 @@ catalysts:
     expected_impact: medium
 
 target_price: 100
-stop_loss: 45
+stop_loss: 75   # 对齐 07-03 技术止损(原误设 45,远低于抛物线破位结构,失去止损意义)
 entry_price: 92.2
-current_conviction_score: 25
+current_conviction_score: 15
 
 thesis_vs_price:
-  date: "2026-07-11"
-  thesis_progress_pct: 20
+  date: "2026-07-13"
+  thesis_progress_pct: 15
   price_change_pct: -29.1
   verdict: failed
+
+exit_plan:
+  status: pending_execution   # 待主人手动执行;成交后改 closed 并归档
+  decided: "2026-07-13"
+  action: "清仓 400 股"
+  reference_price: "反抽 68-72 分批;破 65.4(07-10 低)市价了结"
+  rationale: "147→65.4 跌 55% 抛物线破位,跌穿 75 止损;纯 PS 故事股估值无垫,营收爆发未兑现前市场杀估值;认赔 -29%(约 -$1,370,占 NAV 5.3%)"

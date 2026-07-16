@@ -228,32 +228,6 @@ def get_stock_filter(market="HK", limit=20, sort=None, asc=False, output_json=Fa
             sf.filter_max = kwargs["max_pb"]
         filter_list.append(sf)
 
-    # [本地增强] FinancialFilter: ROE / 资产负债率 / 净利率（价值核心，按 quarter，默认年报）
-    _quarter = QUARTER_MAP.get(str(kwargs.get("quarter", "ANNUAL")).upper(), FinancialQuarter.ANNUAL)
-    for _key, _field in (("roe", StockField.RETURN_ON_EQUITY_RATE),
-                         ("debt_ratio", StockField.DEBT_ASSET_RATE),
-                         ("net_margin", StockField.NET_PROFIT_RATE)):
-        _fmin, _fmax = kwargs.get(f"min_{_key}"), kwargs.get(f"max_{_key}")
-        if _fmin is None and _fmax is None:
-            continue
-        ff = FinancialFilter()
-        ff.stock_field = _field
-        ff.is_no_filter = False
-        ff.quarter = _quarter
-        if _fmin is not None:
-            ff.filter_min = _fmin
-        if _fmax is not None:
-            ff.filter_max = _fmax
-        filter_list.append(ff)
-
-    # [本地增强] 成交额(流动性)地板，排除停牌/权证/零成交僵尸
-    if kwargs.get("min_turnover") is not None:
-        af = AccumulateFilter()
-        af.stock_field = StockField.TURNOVER
-        af.is_no_filter = False
-        af.filter_min = kwargs["min_turnover"]
-        filter_list.append(af)
-
     # AccumulateFilter: 涨跌幅、成交量、换手率
     if kwargs.get("min_change_rate") is not None or kwargs.get("max_change_rate") is not None:
         af = AccumulateFilter()
@@ -285,16 +259,15 @@ def get_stock_filter(market="HK", limit=20, sort=None, asc=False, output_json=Fa
     # 排序：必须显式设置 is_no_filter=False，否则 SDK 不会序列化 filter_min/sort 到 protobuf
     accumulate_fields = {"volume", "turnover", "turnover_rate", "change_rate"}
     if sort and sort in SORT_MAP:
-        # [本地增强] 若排序字段已被 filter（如 --preset value 排序PB又筛PB）→ 跳过 API 排序
-        # 避免 futu「同字段重复指定筛选条件」报错；下方 Python 侧重排序仍保证顺序正确
-        _existing_fields = {getattr(f, "stock_field", None) for f in filter_list}
-        if SORT_MAP[sort] not in _existing_fields:
-            sf_sort = AccumulateFilter() if sort in accumulate_fields else SimpleFilter()
-            sf_sort.stock_field = SORT_MAP[sort]
-            sf_sort.is_no_filter = False
-            sf_sort.filter_min = 1
-            sf_sort.sort = SortDir.ASCEND if asc else SortDir.DESCEND
-            filter_list.append(sf_sort)
+        if sort in accumulate_fields:
+            sf_sort = AccumulateFilter()
+        else:
+            sf_sort = SimpleFilter()
+        sf_sort.stock_field = SORT_MAP[sort]
+        sf_sort.is_no_filter = False
+        sf_sort.filter_min = 1
+        sf_sort.sort = SortDir.ASCEND if asc else SortDir.DESCEND
+        filter_list.append(sf_sort)
 
     if not filter_list:
         sf_default = SimpleFilter()
@@ -403,15 +376,6 @@ if __name__ == "__main__":
     parser.add_argument("--min-volume", type=int, default=None)
     parser.add_argument("--min-turnover-rate", type=float, default=None, help="最小换手率(%%)")
     parser.add_argument("--max-turnover-rate", type=float, default=None, help="最大换手率(%%)")
-    parser.add_argument("--min-turnover", type=float, default=None, help="[增强]最小成交额（元）流动性地板")
-    # [本地增强] 财务 filter（价值核心，FinancialFilter，按 --quarter）
-    parser.add_argument("--min-roe", type=float, default=None, help="[增强]最小 ROE(%%)")
-    parser.add_argument("--max-debt-ratio", type=float, default=None, help="[增强]最大资产负债率(%%)")
-    parser.add_argument("--min-net-margin", type=float, default=None, help="[增强]最小净利率(%%)")
-    parser.add_argument("--quarter", choices=["ANNUAL", "FIRST_QUARTER", "INTERIM", "THIRD_QUARTER"],
-                        default="ANNUAL", help="[增强]财务报告期（默认年报）")
-    parser.add_argument("--preset", choices=["value"], default=None,
-                        help="[增强]value=低估值+正盈利+稳健杠杆的价值粗筛")
     parser.add_argument("--sort", choices=["market_val", "price", "volume", "turnover", "turnover_rate", "change_rate", "pe", "pb"],
                         default=None, help="排序字段")
     parser.add_argument("--asc", action="store_true", help="升序排序（默认降序）")
@@ -419,25 +383,14 @@ if __name__ == "__main__":
     parser.add_argument("--json", action="store_true", dest="output_json", help="输出 JSON 格式")
     args = parser.parse_args()
 
-    # [本地增强] value 预设：仅填未显式设置项（用户参数优先）
-    if args.preset == "value":
-        for _k, _v in {"max_pe": 20, "min_pe": 0, "max_pb": 2.5, "min_roe": 8,
-                       "max_debt_ratio": 70, "min_market_cap": 50}.items():
-            if getattr(args, _k) is None:
-                setattr(args, _k, _v)
-        if args.sort is None:
-            args.sort, args.asc = "pb", True
-
     get_stock_filter(
         market=args.market, limit=args.limit, sort=args.sort, asc=args.asc,
-        output_json=args.output_json, quarter=args.quarter,
+        output_json=args.output_json,
         min_price=args.min_price, max_price=args.max_price,
         min_market_cap=args.min_market_cap, max_market_cap=args.max_market_cap,
         min_pe=args.min_pe, max_pe=args.max_pe,
         min_pb=args.min_pb, max_pb=args.max_pb,
         min_change_rate=args.min_change_rate, max_change_rate=args.max_change_rate,
-        min_volume=args.min_volume, min_turnover=args.min_turnover,
+        min_volume=args.min_volume,
         min_turnover_rate=args.min_turnover_rate, max_turnover_rate=args.max_turnover_rate,
-        min_roe=args.min_roe, max_debt_ratio=args.max_debt_ratio,
-        min_net_margin=args.min_net_margin,
     )

@@ -31,7 +31,7 @@ get_rehab(code)  -- 获取复权因子
 get_history_kl_quota(get_detail=False)  -- 查询历史K线额度(调用request_history_kline前应先检查)
 ```
 
-### 基础信息（5 个）
+### 基础信息（7 个）
 
 ```
 get_stock_basicinfo(market, stock_type=SecurityType.STOCK, code_list=None)  -- 获取股票静态信息
@@ -39,6 +39,8 @@ get_global_state()  -- 获取各市场状态（返回 dict，key 包括 market_h
 request_trading_days(market=None, start=None, end=None, code=None)  -- 获取交易日历
 get_market_state(code_list)  -- 获取市场状态
 get_stock_filter(market, filter_list, plate_code=None, begin=0, num=200)  -- 条件选股
+get_search_quote(keyword, max_count=10)  -- 搜索行情标的
+get_search_news(keyword, max_count=10, news_sub_type=NewsSubType.ALL)  -- 搜索资讯
 ```
 
 ### 板块（3 个）
@@ -91,7 +93,7 @@ set_price_reminder(code, op, key=None, reminder_type=None, reminder_freq=None, v
 get_ipo_list(market)  -- 获取IPO列表
 ```
 
-**行情 API 小计：39 个**
+**行情 API 小计：41 个**
 
 ---
 

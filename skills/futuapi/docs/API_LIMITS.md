@@ -55,6 +55,8 @@
 | `get_cur_kline` | num 最大 1000 |
 | `request_history_kline` | 单次 max_count 最大 1000，超过需用 page_req_key 翻页 |
 | `get_stock_filter` | 单次最多 200 个结果 |
+| `get_search_quote` | 每 30 秒最多 10 次 |
+| `get_search_news` | 每 30 秒最多 10 次 |
 
 ## 加密货币接口限制
 
