@@ -35,10 +35,10 @@ backoff=5
 fail_count=0
 
 while true; do
-  if tmux has-session -t "$SESSION" 2>/dev/null; then
+  if tmux has-session -t "=$SESSION" 2>/dev/null; then
     # Session already running — record start time and wait for it to exit.
     start_ts=$(date +%s)
-    while tmux has-session -t "$SESSION" 2>/dev/null; do
+    while tmux has-session -t "=$SESSION" 2>/dev/null; do
       sleep 5
     done
     end_ts=$(date +%s)
@@ -65,8 +65,11 @@ while true; do
     fi
   else
     echo "$(date -u +%FT%TZ) nimbus: starting tmux session '$SESSION'" >> "$LOG_DIR/daemon.out.log"
+    # env -u strips the weixin/DeepSeek instance's variables: if that daemon
+    # started the tmux server, its launchd env is the server's global env and
+    # would leak into this session (PROVIDER=deepseek, port 8770 conflict…).
     tmux new-session -d -s "$SESSION" -c "$NIMBUS_DIR" \
-      "exec env NIMBUS_OWNER_IDS=1086665220723855560,o9cq80_Kihl0hEX5CLKu1I1b_FyM@im.wechat bun run src/main.ts >> '$LOG_DIR/nimbus.stdout.log' 2>> '$LOG_DIR/nimbus.stderr.log'"
+      "exec env -u PROVIDER -u ANTHROPIC_BASE_URL -u ANTHROPIC_API_KEY -u NIMBUS_DISCORD_ENABLED -u NIMBUS_API_ENABLED -u WEIXIN_INBOUND -u WEIXIN_INBOUND_PORT -u WEIXIN_INBOUND_TOKEN -u NIMBUS_DB_PATH -u NIMBUS_OUTBOX_DIR NIMBUS_OWNER_IDS=1086665220723855560,o9cq80_Kihl0hEX5CLKu1I1b_FyM@im.wechat bun run src/main.ts >> '$LOG_DIR/nimbus.stdout.log' 2>> '$LOG_DIR/nimbus.stderr.log'"
     # Wait for the session to come up.
     sleep 2
   fi
