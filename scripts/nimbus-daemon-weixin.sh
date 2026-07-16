@@ -38,9 +38,9 @@ backoff=5
 fail_count=0
 
 while true; do
-  if tmux has-session -t "$SESSION" 2>/dev/null; then
+  if tmux has-session -t "=$SESSION" 2>/dev/null; then
     start_ts=$(date +%s)
-    while tmux has-session -t "$SESSION" 2>/dev/null; do
+    while tmux has-session -t "=$SESSION" 2>/dev/null; do
       sleep 5
     done
     end_ts=$(date +%s)
