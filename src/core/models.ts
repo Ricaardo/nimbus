@@ -58,9 +58,11 @@ export async function refreshModels(): Promise<Record<Tier, string>> {
   // from the provider config instead.  The 'claude' path below is byte-identical
   // to before this branch was added — no behaviour change when PROVIDER is unset.
   if (getProvider() === 'deepseek') {
-    resolved.haiku  = DEEPSEEK_MODELS.haiku
-    resolved.sonnet = DEEPSEEK_MODELS.sonnet
-    resolved.opus   = DEEPSEEK_MODELS.opus
+    // DEEPSEEK_MODEL env 覆盖（如 Cici 强制 pro）；未设则按 tier 映射（flash/省钱）
+    const force = process.env['DEEPSEEK_MODEL']
+    resolved.haiku  = force ?? DEEPSEEK_MODELS.haiku
+    resolved.sonnet = force ?? DEEPSEEK_MODELS.sonnet
+    resolved.opus   = force ?? DEEPSEEK_MODELS.opus
     lastRefresh = Date.now()
     process.stderr.write(
       `nimbus: models resolved (deepseek) — haiku=${resolved.haiku} sonnet=${resolved.sonnet} opus=${resolved.opus}\n`,

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.nimbus.cici-deepseek.plist — Cici on DeepSeek V4 Pro.
+
+  与 com.nimbus.daemon.plist (Cici on Claude) 互斥：同一时间只运行一个，
+  否则两个进程抢同一个 Discord token 造成双重回复。
+
+  INSTALL:
+    cp ~/nimbus-os/nimbus/deploy/com.nimbus.cici-deepseek.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.cici-deepseek.plist
+
+  UNLOAD:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.cici-deepseek.plist
+
+  切回 Claude:
+    1. launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.cici-deepseek.plist
+    2. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nimbus.daemon.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nimbus.cici-deepseek</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/x/nimbus-os/nimbus/scripts/nimbus-daemon-cici-deepseek.sh</string>
+  </array>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/x/nimbus-os/nimbus/logs/cici-deepseek.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/x/nimbus-os/nimbus/logs/cici-deepseek.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/x/miniforge3/bin:/Users/x/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+
+    <!-- Provider: DeepSeek 后端 -->
+    <key>PROVIDER</key>
+    <string>deepseek</string>
+
+    <!-- Agent SDK 发往 DeepSeek Anthropic 兼容端点 -->
+    <key>ANTHROPIC_BASE_URL</key>
+    <string>https://api.deepseek.com/anthropic</string>
+
+    <!-- DeepSeek API key（去 platform.deepseek.com 创建，填入后不要 commit） -->
+    <key>ANTHROPIC_API_KEY</key>
+    <string>sk-你的deepseek-key</string>
+
+    <!-- Cici 强制使用 deepseek-v4-pro，无视 tier（haiku/sonnet 也走 pro） -->
+    <key>DEEPSEEK_MODEL</key>
+    <string>deepseek-v4-pro</string>
+
+    <!-- Discord 通道（Cici 主力通道） -->
+    <key>NIMBUS_DISCORD_ENABLED</key>
+    <string>1</string>
+
+    <!-- /chat API 通道 -->
+    <key>NIMBUS_API_ENABLED</key>
+    <string>1</string>
+
+    <!-- 独立 SQLite DB，不和 Claude Cici 共用会话 -->
+    <key>NIMBUS_DB_PATH</key>
+    <string>/Users/x/nimbus-os/nimbus/data/cici-deepseek.db</string>
+  </dict>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/x/nimbus-os/nimbus</string>
+</dict>
+</plist>

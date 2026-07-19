@@ -273,14 +273,19 @@ export class AgentRunnerImpl implements AgentRunner {
       // 托管连接器(IBKR/Gmail)随 'user' 一起退出 → IBKR 持仓改由 portfolio_state.json 提供。
       // PROVIDER=deepseek(微信群实例):瘦身——不载项目 skills/CLAUDE.md/hook(闲聊用不上,
       // 省每条消息的常驻 token);Cici 路径不变。
-      settingSources: getProvider() === 'deepseek' ? [] : (settingSources ?? ['project', 'local']),
+      // WeChat 频道：轻量闲聊，省 token 不加载 skills/CLAUDE.md/hook。
+      // Cici（Discord/API）：完整投资人格 + trade-guard 护栏。
+      settingSources: process.env['WEIXIN_INBOUND'] === '1'
+        ? []
+        : (settingSources ?? ['project', 'local']),
       // 两条都用 claude_code 预设(完整工具脚手架,机器人保有全部能力);只换 append:
       // deepseek → Andy 群聊人格;Cici → 投资风格。预设那段前缀虽大,但 DeepSeek 提示缓存
       // 会按 cache_read 计费(便宜 ~50 倍),同群第二条起几乎免费,故不为省 token 而砍能力。
       systemPrompt: {
         type: 'preset',
         preset: 'claude_code',
-        append: getProvider() === 'deepseek' ? WEIXIN_SYSTEM_PROMPT : REPLY_STYLE_APPEND,
+        // WeChat 频道：Andy 群聊人格；Cici（Discord/API）：御姐投资人格
+        append: process.env['WEIXIN_INBOUND'] === '1' ? WEIXIN_SYSTEM_PROMPT : REPLY_STYLE_APPEND,
       },
       // AI 自适应思考:Claude 自己决定何时/想多深(难题多想、闲聊少想),不硬编码。
       // display:'omitted' 让思考过程不进回复,保持聊天端干净。
