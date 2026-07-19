@@ -48,8 +48,15 @@ while true; do
     fi
   else
     echo "$(date -u +%FT%TZ) cici-deepseek: starting tmux session '$SESSION'" >> "$LOG_DIR/cici-deepseek.daemon.log"
+    # -u flags 必须在 KEY=VALUE 之前（去掉 tmux server 全局 env 泄漏的微信变量）
     tmux new-session -d -s "$SESSION" -c "$NIMBUS_DIR" \
       "exec env \
+-u WEIXIN_INBOUND \
+-u WEIXIN_INBOUND_PORT \
+-u WEIXIN_INBOUND_TOKEN \
+-u WEIXIN_MIRROR \
+-u WEIXIN_TWOWAY \
+-u NIMBUS_OUTBOX_DIR \
 PROVIDER='${PROVIDER:-deepseek}' \
 ANTHROPIC_BASE_URL='$ANTHROPIC_BASE_URL' \
 ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY' \
@@ -58,10 +65,6 @@ NIMBUS_DISCORD_ENABLED='${NIMBUS_DISCORD_ENABLED:-1}' \
 NIMBUS_API_ENABLED='${NIMBUS_API_ENABLED:-1}' \
 NIMBUS_DB_PATH='$NIMBUS_DB_PATH' \
 NIMBUS_OWNER_IDS='$NIMBUS_OWNER_IDS' \
--u WEIXIN_INBOUND \
--u WEIXIN_INBOUND_PORT \
--u WEIXIN_INBOUND_TOKEN \
--u NIMBUS_OUTBOX_DIR \
 bun run src/main.ts >> '$LOG_DIR/cici-deepseek.stdout.log' 2>> '$LOG_DIR/cici-deepseek.stderr.log'"
     sleep 2
   fi
