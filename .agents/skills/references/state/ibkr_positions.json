@@ -1,0 +1,10 @@
+{
+  "_source": "ibkr-mcp",
+  "as_of": "2026-07-18",
+  "stale": false,
+  "net_liquidation": 2429.62,
+  "total_cash": -77.38,
+  "positions": [
+    {"ticker": "USO", "qty": 20, "average_cost": 110.229505, "price": 125.5189972, "currency": "USD"}
+  ]
+}

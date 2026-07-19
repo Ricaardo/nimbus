@@ -2,7 +2,7 @@ import type { Module, ChannelRegistry, AgentRunner, DB, Memory, Safety, EventTyp
 import type { InboundMsg } from '../channels/channel.js'
 import { readdirSync, statSync, renameSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { WORKSPACE, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, OUTBOX_DIR, OWNER_IDS } from '../config.js'
+import { WORKSPACE, STREAM_EDIT_INTERVAL_MS, STREAM_EDIT_MIN_CHARS, OUTBOX_DIR, OWNER_IDS, CONTEXT_REFRESH_ROUNDS, CONTEXT_REFRESH_MS } from '../config.js'
 import { modelFor } from './models.js'
 import { detect as guardrailDetect } from '../modules/guardrail/index.js'
 import type { PermissionBroker } from './permission.js'
@@ -269,6 +269,12 @@ export class Dispatcher {
    *  concurrently. */
   readonly #queue = new Map<string, Promise<void>>()
 
+  /** Per-chat context injection tracker: records {rounds, lastInjectedAt} so
+   *  buildContext (portfolio snapshot) is re-injected every N rounds or M minutes
+   *  — not just on turn 1. DeepSeek's context retention is weaker than Claude's;
+   *  periodic re-injection keeps real-position grounding from drifting. */
+  readonly #contextState = new Map<string, { rounds: number; lastInjectedAt: number }>()
+
   constructor(
     modules: Module[],
     channels: ChannelRegistry,
@@ -459,13 +465,36 @@ export class Dispatcher {
     await this.#channels.send(inbound.channel, chatId, quoteText, { replyTo: inbound.messageId })
   }
 
+  /** Decide whether to re-inject portfolio context for this chat+turn.
+   *  Returns true when: first turn (no prior state), OR enough rounds/time have
+   *  passed since last injection.  Side-effects: updates the tracker state. */
+  #shouldRefreshContext(chatId: string): boolean {
+    const now = Date.now()
+    const st = this.#contextState.get(chatId)
+    if (!st) {
+      // First turn — inject and initialise tracker.
+      this.#contextState.set(chatId, { rounds: 1, lastInjectedAt: now })
+      return true
+    }
+    st.rounds++
+    const roundsExceeded = st.rounds > CONTEXT_REFRESH_ROUNDS
+    const timeExceeded = (now - st.lastInjectedAt) > CONTEXT_REFRESH_MS
+    if (roundsExceeded || timeExceeded) {
+      st.rounds = 1
+      st.lastInjectedAt = now
+      return true
+    }
+    return false
+  }
+
   /** Assemble the agent prompt: [now] [privacy-guard?] [context] [recall?] [guardrail?] --- [user].
    *  ★隐私隔离:持仓画像/记忆/护栏只对主人本人注入;他人完全不注入。
-   *  P0 省额度:持仓上下文只在会话首轮注入(resume 带走),省 token + 利缓存。
+   *  Context refresh: 首轮必然注入;后续每 N 轮或 M 分钟重新注入(防 DeepSeek 上下文漂移)。
    *  Phase 1: haiku tier 永不注入 buildContext(闲聊不需要持仓画像)。 */
-  async #buildPrompt(inbound: InboundMsg, isOwner: boolean, prior: string | undefined, tier: Tier): Promise<string> {
+  async #buildPrompt(inbound: InboundMsg, isOwner: boolean, prior: string | undefined, tier: Tier, _forceRefresh = false): Promise<string> {
     // haiku = 闲聊/问候,不需要持仓画像,永不注入 buildContext。
-    const ctxPrefix = isOwner && !prior && tier !== 'haiku' ? this.#memory.buildContext() : ''
+    // forceRefresh → 即使有 prior 也重新注入(周期性刷新机制)
+    const ctxPrefix = isOwner && (!prior || _forceRefresh) && tier !== 'haiku' ? this.#memory.buildContext() : ''
     const guardrailInstruction = isOwner ? guardrailDetect(inbound.content) : null
     const recalled = isOwner ? recallMemories(inbound.content) : []
     // 知识层语义召回:只对主人 + 分析档(sonnet/opus,闲聊 haiku 跳过省 sidecar 调用)。
@@ -495,7 +524,10 @@ export class Dispatcher {
   async #runConversation(inbound: InboundMsg, isOwner: boolean, tier: Tier, model: string, degraded = false): Promise<void> {
     const chatId = inbound.chatId
     const prior = this.#db.getSession(inbound.channel, chatId)?.sdkSessionId
-    const prompt = await this.#buildPrompt(inbound, isOwner, prior, tier)
+    // Periodic context refresh: re-inject portfolio snapshot every N rounds or M
+    // minutes so DeepSeek doesn't drift away from real-position grounding.
+    const forceRefresh = isOwner && tier !== 'haiku' && this.#shouldRefreshContext(chatId)
+    const prompt = await this.#buildPrompt(inbound, isOwner, prior, tier, forceRefresh)
 
     // Audit inbound message (enriched with src header + tier)
     const stateForAudit = this.#memory.loadPortfolioState()
@@ -573,11 +605,13 @@ export class Dispatcher {
           }
         : undefined
 
-      // Phase 1: 按 tier 注入不同 MCP 白名单(省工具定义 token)。
-      // haiku=闲聊:零 MCP,最省。sonnet=分析:tavily。opus=深度:tavily+alpaca。
+      // Phase 1: 按 tier 注入不同 MCP 白名单(省工具定义 token + 防搜索幻觉)。
+      // haiku=闲聊:零 MCP。sonnet=分析:零 MCP(内置 WebSearch/WebFetch 够用,
+      //   不给 tavily 减少"搜一下"诱惑,逼它先用注入的持仓/知识库/skill)。
+      // opus=深度:挂 tavily+alpaca(真正需要多源交叉验证时才用)。
       const mcpAllow: readonly string[] =
         tier === 'haiku' ? [] :
-        tier === 'sonnet' ? ['tavily'] :
+        tier === 'sonnet' ? [] :
         /* opus */ ['tavily', 'alpaca']
 
       const result = await this.#agent.run({

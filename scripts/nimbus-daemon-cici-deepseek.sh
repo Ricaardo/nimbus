@@ -4,7 +4,7 @@
 # 与 nimbus-daemon.sh (Cici on Claude) 结构一致，差异：
 #   • 不 unset ANTHROPIC_API_KEY（DeepSeek 用它认证）
 #   • tmux session 名 = nimbus-cici-ds（和 Claude 的 nimbus / 微信的 nimbus-weixin 都不冲突）
-#   • 转发 DEEPSEEK_MODEL（强制 pro）和 DeepSeek 认证变量
+#   • 转发 DeepSeek 认证变量；DEEPSEEK_MODEL 由 provider.ts 按 tier 自动映射（不再强制 pro）
 #   • -u 剥离微信专属环境变量，防止 plist 间交叉污染
 #
 # Usage: called by launchd (com.nimbus.cici-deepseek.plist).
@@ -60,7 +60,6 @@ while true; do
 PROVIDER='${PROVIDER:-deepseek}' \
 ANTHROPIC_BASE_URL='$ANTHROPIC_BASE_URL' \
 ANTHROPIC_API_KEY='$ANTHROPIC_API_KEY' \
-DEEPSEEK_MODEL='${DEEPSEEK_MODEL:-deepseek-v4-pro}' \
 NIMBUS_DISCORD_ENABLED='${NIMBUS_DISCORD_ENABLED:-1}' \
 NIMBUS_API_ENABLED='${NIMBUS_API_ENABLED:-1}' \
 NIMBUS_DB_PATH='$NIMBUS_DB_PATH' \

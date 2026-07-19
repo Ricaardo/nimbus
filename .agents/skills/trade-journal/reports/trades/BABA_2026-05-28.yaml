@@ -1,0 +1,53 @@
+ticker: "BABA"
+alt_ticker: "9988.HK"
+name: Alibaba Group
+direction: long
+status: planned            # ⚠️ 计划单，非成交单
+routing: "待定 — 版本A: 9988.HK(300股, 退市保护) / 版本B: BABA ADR(32股, 精确分批, 可转港股)"
+currency: "USD (ADR) 或 HKD (9988)"
+entry_date: "2026-05-28"   # 计划日
+entry_price: 124.08        # ADR 参考价（9988 ≈ HKD 122）
+exit_price: null
+exit_date: null
+strategy: "left_side_value_accumulation"
+role: "satellite"          # 卫星仓（腾讯为核心）
+thesis: >
+  Long 阿里 — 从低增长电商+监管折价 重估为中国 AI-云第一龙头。云 +38% 加速、AI run-rate
+  $5.2B，Forward 13.5x + 净现金。但利润坍塌(EBITA -84%)+FCF 负 → 比腾讯弹性大但质量差，
+  仅配卫星仓。SOTP 中枢 $155。详见 thesis-tracker/BABA.yaml
+tags: [china_tech, ai_cloud, value, contrarian, satellite]
+
+plan:
+  sleeve_target_pct: 4          # 阿里目标占组合 4%（中概 sleeve 内卫星）
+  first_tranche: "版本B: 15股ADR(1.9%) / 版本A: 一次100-300股9988"
+  add_zone_adr: [103, 118]      # ADR 加仓区
+  add_zone_hk: [101, 115]       # 9988.HK 等价加仓区
+  hard_stop_adr: 100            # = 破 52 周低 $103.71
+  hard_stop_hk: 98
+  take_profit_fair_value: 155   # SOTP 中枢，减 30-50%（~1.3R）
+  take_profit_2R: 172           # 2R（≈ thesis 目标 $175）
+  rr: "1:2 (到 2R)"
+
+pre_mortem:
+  q1_drop_20pct: "跌到 ADR ~$99/9988 ~HKD98 已破止损 → 认错/重审，不无脑加。加仓区是 $103-118，不是 $99。"
+  q2_failure_mode: "AI capex 无止境致 FCF 持续负 / 云货币化 miss / 电商被 PDD·京东压制 / 地缘·ADR 退市。"
+  q3_info_edge: "无信息优势。这是云重估弹性 + 估值便宜的卫星 bet，conviction 低于腾讯。"
+  q4_kill_signal: "外部云增长跌回 <25% / FCF 持续负且 capex 超预期 / 一年后 AI 占外部云收入 <40%。"
+  q5_conviction: 6              # 卫星仓，低于腾讯的 7
+
+kill_criteria:
+  - "外部云增长连续 2 季 <25%"
+  - "AI 占外部云收入一年后 <40% 或停止三位数增长"
+  - "capex 持续超预期且 EBITA 同比连续 4 季为负"
+  - "中国电商 CMR 调整后连续 2 季负增长"
+  - "价格破 ADR $100 / 9988 HKD 98 硬止损"
+
+discipline_pledge:
+  - "破止损全平，不抗"
+  - "禁止在止损下方摊低成本"
+  - "$155(fair value) 减 30-50%，不贪"
+  - "卫星仓 ≤ 腾讯核心仓；与腾讯合计中概 ≤ 10-12%"
+
+linked_thesis: "thesis-tracker/reports/theses/BABA.yaml"
+related_trade: "0700HK_2026-05-28.yaml"   # 腾讯核心仓，高度相关
+note: "卫星仓，与腾讯 0700.HK 并列。实际成交后更新 status/routing/entry_price/size。两者相关 0.8，合计受中概 sleeve 上限约束。"

@@ -95,6 +95,13 @@ export const PORTFOLIO_STATE_PATH = join(STATE_ROOT, 'portfolio_state.json')
 /** Leverage-ETF ban end date (ISO date, exclusive — i.e., ban lifts after this day). */
 export const LEVERAGE_BAN_UNTIL = '2026-07-06'
 
+/** Portfolio context refresh: re-inject buildContext every N rounds OR every M ms
+ *  so the model doesn't lose grounding in real positions during long sessions.
+ *  Previously injected only on turn 1 (no resume); DeepSeek's context retention
+ *  is weaker than Claude's, so periodic re-injection prevents drift. */
+export const CONTEXT_REFRESH_ROUNDS = 5
+export const CONTEXT_REFRESH_MS = 30 * 60_000 // 30 minutes
+
 // ── Model tiers (动态发现,别写死版本号) ──────────────────────────────────────
 // SDK 的 supportedModels() 返回滚动别名(haiku/sonnet/opus),新版发布自动跟随。
 // 启动时 model-registry 用它解析每档;解析不到才退到这些 fallback。

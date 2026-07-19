@@ -1,0 +1,86 @@
+ticker: NOK
+name: Nokia Corporation (NOK)
+currency: USD
+position: long
+type: held                   # 实际持仓：100 股 @ $17.20（IBKR 小号，-18.4%）
+held_qty: 100
+held_account: IBKR
+held_cost: 17.20
+created: "2026-06-06"
+last_updated: "2026-06-06"
+conviction: medium           # 论点真，但入场追高 + 上行空间已压缩
+current_conviction_score: 58
+source_report: "tavily 2026-06-06（Q1 2026 财报 + 券商上调）"
+thesis_statement: >
+  Long Nokia — 从"慢吞吞 5G 电信"重估为"AI 光网络/数据中心互联"成长股。Q1'26 AI&Cloud
+  +49%、单季 €10 亿新订单、book-to-bill >1，管理层上调网络基础设施指引至 12-14%、
+  光网+IP 18-20%。对标 Ciena/Arista。核心问题不在标的而在入场：本人 $17.20 追在财报后
+  AI 狂热顶（分析师目标当时仅 $15-16），现 $14 回落 -18%，论点未破但买贵了。
+
+pillars:
+  - id: P1
+    description: "AI 光网络/数据中心互联放量 — Optical+IP 18-20% 增长"
+    status: on_track
+    kill_criteria: "AI&Cloud 订单增速连续 2 季 <20%，或网络基础设施指引下修"
+    evidence:
+      - date: "2026-04-23"
+        event: "Q1 AI&Cloud +49%、€10 亿新订单、book-to-bill>1；指引上调（NI 6-8%→12-14%）"
+        impact: strengthens
+  - id: P2
+    description: "盈利质量改善 + 净现金 — 营业利润 +54%、毛利 +320bp、净现金 €3.79B"
+    status: on_track
+    kill_criteria: "可比营业利润率回落至 <5% 或 FCF 转负"
+    evidence:
+      - date: "2026-04-23"
+        event: "营业利润 €281M(+54%)、EPS €0.05、FCF €629M、毛利率 45.5%(+320bp)"
+        impact: strengthens
+
+risks:
+  - id: R1
+    description: "★入场风险已兑现★ 追在 AI 狂热顶 $17.20，估值 Fwd PE 30-37x 已是成长股口径"
+    severity: medium
+    status: active
+    note: "上行空间压缩：现 $14 vs 目标 $15-16 仅 ~10%"
+  - id: R2
+    description: "光网竞争（Ciena/Arista/Marvell ASIC）+ 光器件 12-18 月交期波动"
+    severity: medium
+    status: active
+  - id: R3
+    description: "AI capex 周期见顶 → 订单降速（与持仓 AVGO/MRVL 同向，集中半导体-网络主题）"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-07"
+    event: "Q2 2026 财报（看 AI&Cloud 订单延续性 + 指引是否再上调）"
+    expected_impact: high
+  - date: "ongoing"
+    event: "数据中心互联/光模块新签约（NScale 等 AI 数据中心客户）"
+    expected_impact: medium
+
+valuation:
+  entry_price: 17.20
+  current_price: 14.03
+  method: "Fwd PE 30-37x（AI 成长口径）+ 券商目标 Argus $15 / CFRA $16"
+  fair_value_central: 15
+  target_price: 16
+  bull_target: 19              # multiple 进一步扩张到 Arista 折价
+  bear_target: 11             # 重回 AI 重估前 $11-13 区间下沿
+  stop_loss: 12               # 破财报前平台 = 论点失效，机械执行不抗
+  add_zone: null              # ⛔ 禁止摊低成本（SOXS 教训）；论点真但已超配 AI 主题
+  position_action: "持有，5.9% 不破集中度线；设 $12 机械止损"
+
+thesis_vs_price:
+  date: "2026-06-06"
+  thesis_progress_pct: 65      # 论点兑现良好
+  price_change_pct: -18.4      # 从成本（追高所致）
+  verdict: bull_correction     # 论点进展好但价格跌 = 错杀候选，但因已超配AI主题+追高，不加仓
+
+entry_lesson: >
+  M01 追高 — 在财报后 AI 狂热（目标价 $15-16 时）以 $17.20 入场。教训：好论点 ≠ 好入场，
+  catalyst 已被定价时追入 = 把 alpha 让给了卖给你的人。与 [[feedback_user_counter_trend_pattern]]
+  的"追强势"同源。规则：财报 spike 当日不追，等回落到平台或 50DMA 再建仓。
+
+review_schedule:
+  next_review: "2026-07"       # Q2 财报
+  decay_check: "2026-09-04"

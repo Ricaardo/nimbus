@@ -1,0 +1,121 @@
+ticker: "0700.HK"
+alt_ticker: TCEHY
+name: Tencent Holdings (00700.HK)
+currency: HKD
+position: long
+type: held                   # 实际持仓：100 股 @ ~459 HKD（futu 主账户，-1.4%）
+held_qty: 100
+held_cost_hkd: 459
+created: "2026-05-28"
+last_updated: "2026-06-06"
+conviction: medium_high      # 高于 BABA
+current_conviction_score: 64
+thesis_statement: >
+  Long Tencent — 全中国最优质消费科技特许经营权（微信 14.3 亿 MAU + 游戏现金牛 +
+  高毛利广告 + 金融科技）。核心仅 11-12x + RMB 365B 投资组合白送 + 正自由现金流(+20%) +
+  持续回购。现价 HKD 425 创 52 周新低且低于 SOTP 熊市值(458)，极度悲观已定价 →
+  比 [[BABA]] 更高质量、更便宜、更稳，核心仓位首选。
+
+source_report: "us-stock-analysis/reports/0700HK_comprehensive_20260528.md"
+related: ["BABA"]            # 高度相关，注意中概集中度
+
+pillars:
+  - id: P1
+    description: "广告 AI 红利 — +20% 跑赢行业，AIM+ 占 30% 投放"
+    status: on_track
+    kill_criteria: "营销服务增速连续 2 季回落至 <10%"
+    evidence:
+      - date: "2026-05-13"
+        event: "Q1 营销服务 RMB38.2B (+20%)，AI 推荐模型升级 + 视频号库存"
+        impact: strengthens
+  - id: P2
+    description: "游戏企稳 + 出海 — 国际 +13%，国内 +6%（春节时点拖累）"
+    status: watch
+    kill_criteria: "国内游戏连续 2 季负增长（剔除时点因素）"
+    evidence:
+      - date: "2026-05-13"
+        event: "国内游戏 +6%（流水增长更快）、国际 +18.8B(+13%)，王者/和平/Delta Force 创新高"
+        impact: neutral
+  - id: P3
+    description: "云/企业服务再加速 — 企业服务 +20%，Tencent Cloud 国际 +40%"
+    status: on_track
+    kill_criteria: "企业服务增速 <10%"
+    evidence:
+      - date: "2026-05-13"
+        event: "金融科技&企服 RMB59.9B(+9%)，其中企业服务 +20%、国际云 +40%"
+        impact: strengthens
+  - id: P4
+    description: "盈利质量 + FCF — 经营利润率 38.5%、毛利 57%、FCF +20%（正）"
+    status: ahead
+    kill_criteria: "FCF 转负，或非 IFRS 经营利润率跌破 30%"
+    evidence:
+      - date: "2026-05-13"
+        event: "毛利率 57%、非 IFRS 经营利润率 38.5%、FCF RMB56.7B(+20%)"
+        impact: strengthens
+  - id: P5
+    description: "估值重估 + 投资组合变现回购 — 核心 11-12x，上市投资 RMB365B"
+    status: watch
+    kill_criteria: "核心 PE 扩到 >20x 而 thesis 未兑现，或停止回购"
+    evidence:
+      - date: "2026-05-28"
+        event: "现价低于 SOTP 熊市值 458；Q1 回购 1270 万股(HKD7.6B)"
+        impact: strengthens
+
+risks:
+  - id: R1
+    description: "H2 2026 capex 大幅增加（中国 ASIC 放量）→ 短期 margin 承压"
+    severity: medium_high
+    status: active
+  - id: R2
+    description: "游戏增速下台阶（+24%→+6%）"
+    severity: medium
+    status: active
+  - id: R3
+    description: "中国内需复苏证伪 → 广告/金融科技放缓"
+    severity: medium
+    status: active
+  - id: R4
+    description: "监管/地缘（游戏版号、反垄断历史更直接）"
+    severity: high
+    status: active
+  - id: R5
+    description: "投资组合（美团等）同步走弱拖累 NAV"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "2026-08-13"
+    event: "Q2 2026 财报（看 H2 capex 对 margin 实际冲击 + 游戏增速企稳）"
+    expected_impact: high
+  - date: "2026-H2"
+    event: "capex 放量节奏 + 中国 ASIC 到位"
+    expected_impact: high
+  - date: "ongoing"
+    event: "Hunyuan 3 / WorkBuddy / 元宝 商业化进展"
+    expected_impact: medium
+
+valuation:
+  entry_price: 425           # HKD，分析参考价
+  method: SOTP（核心 PE + 投资组合 + 净现金），2026-05-28
+  fair_value_central: 555    # HKD 中枢锚
+  sotp_bear: 458
+  sotp_base: 560
+  sotp_bull: 659
+  target_price: 560          # base，+32%
+  bull_target: 659
+  bear_target: 458
+  stop_loss: 360             # 破历史筹码密集区
+  accumulation_zone: [380, 425]   # 现价已在区内
+  trend_confirm_above: 487   # 收复 SMA50
+  core_pe: "11-12x（剥离投资组合后）"
+  note: "现价 HKD425 < SOTP 熊市值 458 → 极度悲观已定价；估值比 BABA 更便宜"
+
+thesis_vs_price:
+  date: "2026-05-28"
+  thesis_progress_pct: 60    # 三引擎健康 + FCF 正，游戏减速+capex 是减项
+  price_change_pct: 0        # 以分析价为基准
+  verdict: bull_correction   # 财报 beat 但价格创新低 = 典型错杀候选
+
+review_schedule:
+  next_review: "2026-08-13"  # Q2 财报
+  decay_check: "2026-08-26"

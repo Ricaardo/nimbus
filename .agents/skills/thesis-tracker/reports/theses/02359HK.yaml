@@ -1,0 +1,97 @@
+ticker: "02359.HK"
+alt_ticker: WX / 603259.SS
+name: WuXi AppTec 药明康德 (02359.HK)
+currency: HKD
+position: long
+type: held                   # 实际持仓：300 股 @ ~126.5 HKD（futu 主账户，-1.6%）
+held_qty: 300
+held_cost_hkd: 126.5
+created: "2026-06-06"
+last_updated: "2026-06-06"
+conviction: medium_high      # 2026-06-06 深挖验证：BIOSECURE 去险 + Q1 全面 beat
+current_conviction_score: 72
+source_report: "us-stock-analysis/reports/02359HK_comprehensive_20260606.md"
+thesis_statement: >
+  Long WuXi AppTec — 全球 CRDMO 龙头 + HALO 资产（重资产/抗 AI 淘汰）。TIDES（寡核苷酸/
+  多肽）借 GLP-1 繁荣高增（全年指引 +40%、破 150 亿），在手订单 RMB597.7 亿 +23.6%
+  能见度高，毛利率首破 50%。BIOSECURE 最新版已不再点名药明（转间接 1260H 路径）→
+  最大悬顶实质松绑。论点增强，主要剩余风险是 72% 美国收入集中 + 1260H 残余尾部。
+
+pillars:
+  - id: P1
+    description: "TIDES（寡核苷酸+多肽）借 GLP-1 高增 + 产能护城河（全球仅~4 玩家）"
+    status: ahead
+    kill_criteria: "TIDES 收入增速连续 2 季回落至 <25%（vs +40% 指引）"
+    evidence:
+      - date: "2026-04-27"
+        event: "Q1 TIDES RMB23.8 亿，客户+28%、分子+59%；全年指引 +40% 破 150 亿（2025 已 +96%）"
+        impact: strengthens
+  - id: P2
+    description: "CRDMO 一体化 + 在手订单能见度 + 经营杠杆"
+    status: ahead
+    kill_criteria: "在手订单同比转负，或调整后净利率跌破 30%"
+    evidence:
+      - date: "2026-04-27"
+        event: "在手订单 RMB597.7 亿 +23.6%；毛利率 50.4%（首破 50）；调整净利率 37%；小分子 D&M +80.1%"
+        impact: strengthens
+  - id: P3
+    description: "BIOSECURE 去险 — 最新版不点名药明，转间接 1260H"
+    status: on_track
+    kill_criteria: "DoD 正式将药明列入 1260H 清单（非乌龙撤回）"
+    evidence:
+      - date: "2025-12-10"
+        event: "众院通过含 BIOSECURE 的 FY26 NDAA，不再点名公司，改引 1260H（药明不在其上）"
+        impact: strengthens
+      - date: "2026-01"
+        event: "DoD 一度发布含药明的 2026 版 1260H，约 1 小时后撤回 → 残余尾部仍带电"
+        impact: neutral
+
+risks:
+  - id: R1
+    description: "★残余二元尾部★ DoD 将药明加入 1260H 清单 → 触发承包/资金限制"
+    severity: high
+    status: active
+    note: "概率与即时性较点名版大降，但年初 1 小时乌龙说明带电；是减仓而非清仓的理由"
+  - id: R2
+    description: "★美国收入集中 72%（RMB312.5 亿 +34%）★ 单一市场依赖极端"
+    severity: high
+    status: active
+  - id: R3
+    description: "中美地缘/脱钩结构性折价，长期压制 multiple"
+    severity: medium_high
+    status: active
+  - id: R4
+    description: "Capex 回 4 年高位（65-75 亿）→ 近端 FCF 承压；GLP-1 周期性（Paxlovid 类比）"
+    severity: medium
+    status: active
+
+catalysts:
+  - date: "ongoing"
+    event: "美国国会 BIOSECURE 法案进展（任何投票/版本更新）"
+    expected_impact: high
+  - date: "2026-H2"
+    event: "半年报 / TIDES 产能与 backlog 更新"
+    expected_impact: high
+
+valuation:
+  entry_price: 126.5           # HKD，实际成本均价
+  current_price: 124.5
+  method: "Fwd PE 14.8× + 分析师 21 家 strong_buy 均值 163.4"
+  fair_value_central: 150      # HKD，17-18× FY26 调整后 EPS
+  bull_target: 182
+  bear_target: 92              # 1260H 落实 → multiple 压缩 + 美国收入去险
+  target_price: 160           # 12-18 月，+28%
+  stop_loss: 100              # 破 A 股平台 + 前密集区；或 1260H 正式落实（kill criteria）
+  accumulation_zone: [95, 105] # 仅在 1260H 乌龙式恐慌砸出且基本面未变时
+  position_action: "现 20.2% 超配 → 降至 13-15%（卖 ~75-100 股），为集中度非看空"
+
+thesis_vs_price:
+  date: "2026-06-06"
+  thesis_progress_pct: 75      # 三支柱兑现良好 + BIOSECURE 去险
+  price_change_pct: -1.6       # 从成本
+  verdict: on_track            # 论点验证通过，价格已 +78% 离底，重估大半已走
+
+review_schedule:
+  next_review: "2026-08"       # H2 半年报 + 看指引是否上调
+  decay_check: "2026-09-04"
+  watch: "DoD 1260H 年度更新 + BIOSECURE 实施细则/FAR 修订"

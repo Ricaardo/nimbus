@@ -1,0 +1,190 @@
+---
+name: options-screener
+description: 期权策略筛选器（来自 scanner-pmcc）。4 种筛选模式：(1) PMCC — Poor Man's Covered Call 候选，LEAPS delta/liquidity/yield；(2) Premium Selling — 高 IV 卖期权候选（covered call / CSP）；(3) Unusual Activity — 异常期权大单扫描；(4) LEAPS Stock Replacement — LEAPS 替代正股成本对比。当用户询问'PMCC/poor man covered call/穷人备兑'、'LEAPS 候选/对角价差/diagonal spread'、'高 delta call'、'期权筛选/option screen'、'卖期权/covered call候选/sell premium'、'异常期权/unusual options activity'时触发。当用户用中文询问时触发。
+---
+
+# 期权筛选器 — 4 模式协议
+
+不是只找 PMCC。期权对个人投资者有 4 个核心用法，每个都有筛选逻辑。
+
+---
+
+## 🔀 模式选择
+
+| 我想... | 用哪个模式 | 适合谁 |
+|---|---|---|
+| 低成本做多（替代买正股）| **PMCC** 或 **LEAPS Stock Replacement** | 小额账户 |
+| 收租（持有正股 + 卖 call）| **Premium Selling** | 有正股持仓的人 |
+| 发现聪明钱动向 | **Unusual Activity** | 所有人（信号） |
+| 比较"买 LEAPS vs 买正股"哪个更划算 | **LEAPS Stock Replacement** | 资金效率导向 |
+
+---
+
+## 模式 1：PMCC（Poor Man's Covered Call）
+
+```bash
+python3 /Users/x/.claude/skills/options-screener/scripts/<script>.py --mode pmcc
+```
+
+### 筛选标准
+
+| 组件 | 要求 | 原因 |
+|---|---|---|
+| LEAPS Delta | ≥ 0.70 | 接近正股行为 |
+| LEAPS DTE | 360-720 天 | 足够的 time decay 缓冲 |
+| LEAPS Bid-Ask | < $0.15 spread | 流动性 |
+| Short Call Delta | 0.20-0.30 | balance yield vs assignment risk |
+| Short Call DTE | 30-45 天 | theta decay 最快区间 |
+| Yield/月 | > 1.5% of LEAPS cost | 覆盖 LEAPS time decay |
+
+### 适用条件
+- ✅ 趋势向上的大盘蓝筹（AAPL/MSFT/SPY/GOOGL）
+- ✅ IV 在历史中位以上（卖方有溢价）
+- ❌ 不要在财报前/财报当周做（IV crush + gap risk）
+- ❌ 不要在 bear market（LEAPS 会全损）
+
+### 与 options-strategy-advisor 的分工
+- `options-screener` → "找候选"（哪些票值得开 PMCC）
+- `options-strategy-advisor` → "算细节"（具体合约 Greeks、P/L 模拟、调整方案）
+
+---
+
+## 模式 2：Premium Selling 候选（Covered Call / CSP）
+
+```bash
+python3 /Users/x/.claude/skills/options-screener/scripts/<script>.py --mode premium-selling
+```
+
+**核心逻辑**：找 IV 高 + 你愿意持有（或被行权买入）的标的。
+
+### 筛选标准
+
+| 条件 | 阈值 | 原因 |
+|---|---|---|
+| IV Rank | > 50%（在自身历史区间）| 卖方溢价充足 |
+| IV Percentile | > 60% | 相对历史，当前 IV 偏高 |
+| 标的趋势 | 横盘或温和上涨（非强烈下跌）| 卖 put 在下跌趋势中 = 接飞刀 |
+| 正股流动性 | 日均成交 > $50M | option 流动性才有保证 |
+| Dividend Risk | 股息率 < 4%（对于 covered call）| 高股息容易被 early assignment |
+
+### 输出
+
+```
+🎯 Premium Selling 候选
+
+| Ticker | Price | IV Rank | 30∆ OTM Call Premium | Yield/M | Trend |
+|---|---|---|---|---|---|
+| AAPL | 260 | 62% | $3.50 | 1.3% | 横盘 |
+| MSFT | 480 | 55% | $6.20 | 1.3% | 微涨 |
+
+⚠ 排除：
+- TICKER (IV Rank 85% — possible IV crush incoming, check for earnings)
+- TICKER (下跌趋势 — selling puts on downtrend = catching knife)
+```
+
+---
+
+## 模式 3：Unusual Options Activity（异常大单）
+
+```bash
+python3 /Users/x/.claude/skills/options-screener/scripts/<script>.py --mode unusual-activity
+```
+
+**核心逻辑**：某个 strike/expiry 出现远超日均的成交量 → 可能有人知道你不知道的事。
+
+### 信号分级
+
+| 信号 | 条件 | 含义 |
+|---|---|---|
+| 🔴 Strong Bullish | OTM Call vol > 5× avg + premium > $500K | 有大资金赌涨 |
+| 🟢 Bullish Lean | OTM Call vol > 3× avg | 偏多 |
+| 🔴 Strong Bearish | OTM Put vol > 5× avg + premium > $500K | 有大资金赌跌 / hedge |
+| 🟢 Bearish Lean | OTM Put vol > 3× avg | 偏空 |
+| ⚪ Neutral | ATM straddle vol > 3× avg | 赌大波动（方向不明）|
+
+### 输出格式
+
+```
+🔍 Unusual Options Activity — [Date]
+
+🔴 AAPL 260C 2026-06-20: 12,500 contracts vs avg 1,800 (6.9×)
+   Premium: $3.2M | Bid-side → likely buyer
+   解读：大资金开仓赌 AAPL 6 月前突破 260
+
+🔴 NVDA 200P 2026-05-16: 8,200 contracts vs avg 950 (8.6×)
+   Premium: $4.1M | Ask-side → likely seller (collecting premium) or buyer (hedge)
+   解读：需要看 NVDA 持仓来判断是 hedge 还是 bearish bet
+
+⚪ SPY 695 straddle 2026-05-02: 25,000 contracts vs avg 5,000 (5×)
+   解读：有人赌 CPI 日前后 SPY 大幅波动
+```
+
+### 假信号过滤
+
+- ❌ Spread/Combo 被误报为单腿大单（check if same timestamp + opposite side exists）
+- ❌ Roll/Adjustment（existing position roll 不是新信号）
+- ❌ 到期日 < 3 天的近月大单（可能是平仓不是开仓）
+
+> 详细过滤逻辑见 `references/unusual-activity-filters.md`
+
+---
+
+## 模式 4：LEAPS Stock Replacement（LEAPS 替代正股成本对比）
+
+```bash
+python3 /Users/x/.claude/skills/options-screener/scripts/<script>.py --mode leaps-replacement --ticker AAPL
+```
+
+**核心逻辑**：买 100 股正股 vs 买 1 张 deep ITM LEAPS call — 哪个资金效率更高？
+
+### 对比维度
+
+```
+📊 AAPL — LEAPS vs Stock
+
+| | 100 股正股 | 1 LEAPS Call (DTE 500, Δ=0.85) |
+|---|---|---|
+| 成本 | $26,000 | $6,500 |
+| 资金占用 | 100% | 25% |
+| Delta 敞口 | 100 Δ | 85 Δ |
+| 股息 | 有 | 无 |
+| 到期风险 | 无 | 有（到期前需 roll/行权/卖） |
+| Theta decay | 无 | 约 $3-5/day |
+| 最大亏损 | $26,000 | $6,500 |
+
+结论：LEAPS 用 25% 资金获得 85% 涨幅参与，节省 75% 资金做其他配置。
+代价：无股息 + theta decay + 到期风险。
+适合：不依赖股息、持有 < 18 个月、资金效率优先的投资者。
+```
+
+### 筛选标准
+
+| 条件 | 阈值 |
+|---|---|
+| LEAPS Delta | ≥ 0.80 |
+| LEAPS DTE | 360-720 天 |
+| Bid-Ask spread | < 2% of option price |
+| 资金节省率 | ≥ 60%（LEAPS 成本 < 40% 正股成本）|
+| 隐含利率（LEAPS 隐含借贷成本）| < 6% annualized |
+
+---
+
+## ⚠ 反模式
+
+- ❌ **PMCC 在 bear market** — LEAPS 全损，short call 赚的 premium 不够填
+- ❌ **高 IV 卖 premium 不看趋势** — 下跌趋势卖 put = 被行权拿高位正股
+- ❌ **Unusual activity 盲跟** — 不知道是 hedge 还是 bet，跟风 = 瞎跟
+- ❌ **LEAPS 替代不滚仓** — 到期前 90 天必须决定 roll/exit/exercise
+- ❌ **筛选完直接下单** — 必须进 options-strategy-advisor 算 Greeks/P&L
+
+## 📂 与 options-strategy-advisor 的分工
+
+```
+options-screener                  options-strategy-advisor
+─────────────────                 ───────────────────────
+找候选（广度）       ──────────→  算细节（深度）
+4 种筛选模式                     18+ 策略 P&L 模拟
+"哪些票值得做 X"                  "具体怎么做、盈亏多少"
+                                 Greeks、IV、概率
+                                 行权/被行权风险
+```

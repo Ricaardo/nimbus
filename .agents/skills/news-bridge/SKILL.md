@@ -1,0 +1,36 @@
+---
+name: news-bridge
+description: 读取 news 平台落盘到 ~/nimbus-os/nimbus/workspace/feed/ 的结构化实时数据——机构13F持仓变动、A股扫描候选、突发新闻(trump/bwe/finnhub，含中文译文+简评)。当用户问「最近有什么大事/突发对我持仓什么影响/今日13F变动/A股候选/news feed/有什么机会」或 opportunity 引擎需要实时事件上下文时触发。让投顾基于 news 的实时 feed 推理。NOT for: 通用搜新闻→news-dashboard/websearch。
+---
+
+# News Bridge — news 平台实时数据桥
+
+读 `~/nimbus-os/nimbus/workspace/feed/`（news 平台落盘）：
+- `breaking.jsonl` — 突发(trump/bwe/finnhub)，含标的/中文译文/利好利空简评，近 24h
+- `13f-latest.json` — 机构 13F 当前持仓/变动（11 只名基金）
+- `ashare-candidates.json` — A 股扫描候选
+
+## 用法
+```bash
+python3 skills/news-bridge/scripts/feed.py all                 # 文件桥 + 全部源清单
+python3 skills/news-bridge/scripts/feed.py breaking --hours 12 # 近12h突发
+python3 skills/news-bridge/scripts/feed.py breaking --tickers NVDA,AAPL  # 只看相关持仓
+python3 skills/news-bridge/scripts/feed.py 13f
+```
+
+## 取【全部数据源】(API 模式)
+breaking.jsonl 只含高频突发;news 平台 store 捕获**所有源**(与推送 sink 无关),
+经 HTTP API(`:8081/api/news`)按源拉取——A股扫描/宏观报告/VIX期限/FedWatch/超级投资者/全球宏观都在这。
+```bash
+feed.py sources                       # 列出 store 内全部源 + 条数(先看菜单)
+feed.py source vix-term --limit 3     # VIX 恐慌指数+期限结构
+feed.py source fedwatch               # 利率路径概率
+feed.py source superinvestors         # 大师 13F 共识(Dataroma 式)
+feed.py source global-macro           # 全球经济总览
+feed.py source a-evening-report       # A股收盘复盘
+```
+源名即 config.platform.yaml 的 source name。env `NEWS_API` 可改基址(默认 http://localhost:8081)。
+
+## 配合 opportunity 引擎
+每日机会扫描时读 `breaking.jsonl × 真实持仓` → 「这条突发影响你的 X 持仓」。
+feed 由 news 平台写入；news 故障时此桥仅显示「无数据」，不影响 nimbus 其它能力（进程隔离）。

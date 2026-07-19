@@ -1,0 +1,49 @@
+# 个人交易军规 v1 · Cici 投资台
+# 来源：feedback_user_counter_trend_pattern + 2026-06-06 全链条复盘（SOXL/SOXS 实测亏 $1,630）
+# 用途：(1) behavior_monitor 阈值锚 (2) trade-guardrail hook 决策时弹相关条 (3) 周报/复盘对照
+# 性质：本人自定纪律护栏；AI 只提醒不下单（trade-guard deny）。
+
+owner: 主人
+created: "2026-06-06"
+profile:
+  style: 日内/波段活跃交易者（非买入持有）—— 由真实成交还原确认
+  edge: 方向直觉常对（逆势均值回归）
+  weakness: 执行毁 edge —— 过度交易 + 杠杆 decay + 情绪止损 + 反手接刀
+  account: futu 主(~$22K) + IBKR(~$1.4K)；满仓低现金；半导体集中
+
+rules:
+  - id: R1
+    name: 禁摊低成本
+    rule: "亏损中不加仓救自己。加仓只在盈利/突破确认，不在下跌途中。"
+    mistake: M02
+    monitor: "behavior_monitor M02_摊低成本（≥2 笔递降买入即报警）"
+  - id: R2
+    name: 杠杆ETF不装多日观点
+    rule: "多日级别观点禁用 3x 每日重置 ETF（SOXL/SOXS/TQQQ…）。逆势单一律 1x 工具或正股/期权。"
+    mistake: M08
+    monitor: "leverage-etf hook（30天硬警告至 2026-07-06）+ behavior_monitor M08"
+  - id: R3
+    name: 机械止损前置
+    rule: "开仓即设机械止损价并前置挂单，禁在最大痛苦点（常=反转点）临时投降交枪。"
+    mistake: M04
+  - id: R4
+    name: 平仓冷却期
+    rule: "平仓后强制空仓冷却 ≥24h，禁同一情绪周期内反手翻向反面。"
+    mistake: M01
+    monitor: "behavior_monitor M01_反手（持仓穿越零轴 ≤60min 真反向报警）"
+  - id: R5
+    name: 周转上限
+    rule: "周毛周转 ≤ 1x NAV。超出 = 过度交易，摩擦+decay 自我消耗。"
+    monitor: "behavior_monitor 周转率（实测 2026-06 高达 10x，严重超标）"
+  - id: R6
+    name: 集中度上限
+    rule: "单标的 ≤15%，单行业 ≤30%（半导体重点盯）。破线只在反弹减、不在崩盘割。"
+    monitor: "portfolio-manager 硬阈值"
+  - id: R7
+    name: 财报spike不追
+    rule: "财报后 AI 狂热/spike 当日不追高（NOK $17.20 教训）。等回落到平台或 50DMA 再建。"
+    mistake: M01
+
+review:
+  cadence: "周日复盘跑 behavior_monitor + trade-journal review；月度看周转/胜率/错误频率趋势"
+  success_metric: "周转率下降 + 重复错误（M01/M02/M04/M08）频率下降 = 护栏有效"

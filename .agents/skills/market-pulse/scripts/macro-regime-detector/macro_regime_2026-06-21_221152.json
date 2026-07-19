@@ -1,0 +1,290 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-21 22:11:52",
+    "data_source": "FMP API",
+    "market": "us",
+    "history_days": 400,
+    "api_calls": {
+      "cache_entries": 9,
+      "api_calls_made": 10,
+      "max_api_calls": 200,
+      "rate_limit_reached": false
+    },
+    "etfs_analyzed": [
+      "RSP",
+      "SPY",
+      "IWM",
+      "TLT",
+      "SHY",
+      "HYG",
+      "LQD",
+      "XLY",
+      "XLP"
+    ],
+    "cn_etf_mapping": null,
+    "treasury_data_available": false
+  },
+  "composite": {
+    "composite_score": 55.1,
+    "zone": "Transition Zone (Preparing)",
+    "zone_color": "orange",
+    "guidance": "Multiple indicators in transition. Begin planning portfolio adjustment.",
+    "actions": [
+      "Develop regime-change response plan",
+      "Begin gradual diversification shifts",
+      "Reduce concentrated bets",
+      "Identify new regime beneficiaries",
+      "Weekly monitoring"
+    ],
+    "signaling_components": 5,
+    "strongest_signal": {
+      "component": "sector_rotation",
+      "label": "Sector Rotation (XLY/XLP)",
+      "score": 70
+    },
+    "weakest_signal": {
+      "component": "equity_bond",
+      "label": "Equity-Bond (SPY/TLT)",
+      "score": 20
+    },
+    "data_quality": {
+      "available_count": 6,
+      "total_components": 6,
+      "label": "Complete (6/6 components)",
+      "missing_components": []
+    },
+    "component_scores": {
+      "concentration": {
+        "score": 60,
+        "weight": 0.25,
+        "weighted_contribution": 15.0,
+        "label": "Market Concentration (RSP/SPY)"
+      },
+      "yield_curve": {
+        "score": 54,
+        "weight": 0.2,
+        "weighted_contribution": 10.8,
+        "label": "Yield Curve (10Y-2Y)"
+      },
+      "credit_conditions": {
+        "score": 69,
+        "weight": 0.15,
+        "weighted_contribution": 10.3,
+        "label": "Credit Conditions (HYG/LQD)"
+      },
+      "size_factor": {
+        "score": 60,
+        "weight": 0.15,
+        "weighted_contribution": 9.0,
+        "label": "Size Factor (IWM/SPY)"
+      },
+      "equity_bond": {
+        "score": 20,
+        "weight": 0.15,
+        "weighted_contribution": 3.0,
+        "label": "Equity-Bond (SPY/TLT)"
+      },
+      "sector_rotation": {
+        "score": 70,
+        "weight": 0.1,
+        "weighted_contribution": 7.0,
+        "label": "Sector Rotation (XLY/XLP)"
+      }
+    }
+  },
+  "regime": {
+    "current_regime": "broadening",
+    "regime_label": "Broadening",
+    "regime_description": "Market participation expanding. RSP/SPY rising, small-caps catching up. Credit easing or stable.",
+    "confidence": "high",
+    "regime_scores": {
+      "concentration": 1,
+      "broadening": 5,
+      "contraction": 1,
+      "inflationary": 1,
+      "transitional": 0
+    },
+    "signaling_components": 5,
+    "transition_probability": {
+      "level": "high",
+      "probability_range": "70-90%",
+      "signaling_count": 5,
+      "avg_component_score": 55.5,
+      "ambiguous": false,
+      "from_regime": null,
+      "to_regime": null
+    },
+    "portfolio_posture": "Add small-cap/mid-cap exposure. Equal-weight strategies. Value and cyclical rotation.",
+    "evidence": [
+      {
+        "component": "Sector Rotation (XLY/XLP)",
+        "score": 70,
+        "signal": "TRANSITION: Sector rotation to risk_off (XLY/XLP=1.4589)",
+        "direction": "risk_off"
+      },
+      {
+        "component": "Credit Conditions (HYG/LQD)",
+        "score": 69,
+        "signal": "TRANSITION: Credit conditions easing (HYG/LQD=0.7345)",
+        "direction": "easing"
+      },
+      {
+        "component": "Market Concentration (RSP/SPY)",
+        "score": 60,
+        "signal": "TRANSITION SIGNAL: RSP/SPY crossover or sharp momentum reversal detected",
+        "direction": "broadening"
+      },
+      {
+        "component": "Size Factor (IWM/SPY)",
+        "score": 60,
+        "signal": "TRANSITION: Size factor shift to small-cap outperformance (IWM/SPY=0.3839)",
+        "direction": "small_cap_leading"
+      },
+      {
+        "component": "Yield Curve (10Y-2Y)",
+        "score": 54,
+        "signal": "PROXY (SHY/TLT): flattening signal, score=54",
+        "direction": "flattening"
+      }
+    ],
+    "tied_regimes": null,
+    "consistency": {
+      "concentration": "consistent",
+      "yield_curve": "neutral",
+      "credit_conditions": "consistent",
+      "size_factor": "consistent",
+      "equity_bond": "consistent",
+      "sector_rotation": "contradicting"
+    }
+  },
+  "components": {
+    "concentration": {
+      "score": 60,
+      "signal": "TRANSITION SIGNAL: RSP/SPY crossover or sharp momentum reversal detected",
+      "data_available": true,
+      "direction": "broadening",
+      "momentum_qualifier": "fading",
+      "current_ratio": 0.2761,
+      "current_date": "2026-05-29",
+      "sma_6m": 0.2867,
+      "sma_12m": 0.2865,
+      "roc_3m": -7.61,
+      "roc_12m": -7.78,
+      "percentile": 5.0,
+      "crossover": {
+        "type": "golden_cross",
+        "bars_ago": 0,
+        "gap_pct": 0.075
+      },
+      "monthly_points": 20
+    },
+    "yield_curve": {
+      "score": 54,
+      "signal": "PROXY (SHY/TLT): flattening signal, score=54",
+      "data_available": true,
+      "data_source": "shy_tlt_proxy",
+      "direction": "flattening",
+      "curve_state": "proxy_only",
+      "steepening_type": null,
+      "current_spread": null,
+      "current_10y": null,
+      "current_2y": null,
+      "current_date": "2026-05-29",
+      "proxy_ratio": 0.9597,
+      "sma_6m": 0.9543,
+      "sma_12m": 0.9582,
+      "roc_3m": 4.02,
+      "roc_12m": -3.82,
+      "percentile": 45.0,
+      "crossover": {
+        "type": "death_cross",
+        "bars_ago": 6,
+        "gap_pct": -0.409
+      },
+      "monthly_points": 20
+    },
+    "credit_conditions": {
+      "score": 69,
+      "signal": "TRANSITION: Credit conditions easing (HYG/LQD=0.7345)",
+      "data_available": true,
+      "direction": "easing",
+      "momentum_qualifier": "confirmed",
+      "current_ratio": 0.7345,
+      "current_date": "2026-05-29",
+      "sma_6m": 0.7318,
+      "sma_12m": 0.7316,
+      "roc_3m": 1.62,
+      "roc_12m": -0.52,
+      "percentile": 60.0,
+      "crossover": {
+        "type": "golden_cross",
+        "bars_ago": 0,
+        "gap_pct": 0.038
+      },
+      "monthly_points": 20
+    },
+    "size_factor": {
+      "score": 60,
+      "signal": "TRANSITION: Size factor shift to small-cap outperformance (IWM/SPY=0.3839)",
+      "data_available": true,
+      "direction": "small_cap_leading",
+      "momentum_qualifier": "confirmed",
+      "current_ratio": 0.3839,
+      "current_date": "2026-05-29",
+      "sma_6m": 0.3782,
+      "sma_12m": 0.3682,
+      "roc_3m": 0.74,
+      "roc_12m": 10.33,
+      "percentile": 80.0,
+      "crossover": {
+        "type": "golden_cross",
+        "bars_ago": 5,
+        "gap_pct": 2.72
+      },
+      "monthly_points": 20
+    },
+    "equity_bond": {
+      "score": 20,
+      "signal": "STABLE: Equity-bond stable, near-zero correlation (transitional) (SPY/TLT=8.8208)",
+      "data_available": true,
+      "direction": "risk_on",
+      "momentum_qualifier": "N/A",
+      "correlation_regime": "near_zero",
+      "current_ratio": 8.8208,
+      "current_date": "2026-05-29",
+      "sma_6m": 8.0495,
+      "sma_12m": 7.82,
+      "roc_3m": 15.93,
+      "roc_12m": 23.98,
+      "percentile": 95.0,
+      "correlation_6m": 0.194,
+      "correlation_12m": 0.262,
+      "crossover": {
+        "type": "none",
+        "bars_ago": null,
+        "gap_pct": 2.934
+      },
+      "monthly_points": 20
+    },
+    "sector_rotation": {
+      "score": 70,
+      "signal": "TRANSITION: Sector rotation to risk_off (XLY/XLP=1.4589)",
+      "data_available": true,
+      "direction": "risk_off",
+      "momentum_qualifier": "fading",
+      "current_ratio": 1.4589,
+      "current_date": "2026-05-29",
+      "sma_6m": 1.4131,
+      "sma_12m": 1.4341,
+      "roc_3m": 12.37,
+      "roc_12m": 13.71,
+      "percentile": 75.0,
+      "crossover": {
+        "type": "death_cross",
+        "bars_ago": 1,
+        "gap_pct": -1.466
+      },
+      "monthly_points": 20
+    }
+  }
+}

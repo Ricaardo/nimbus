@@ -1,0 +1,112 @@
+ticker: BABA
+name: Alibaba Group (BABA / 09988.HK)
+position: long
+type: research_watchlist   # 尚未建仓；entry_price 为分析参考价
+created: "2026-05-28"
+last_updated: "2026-05-28"
+conviction: medium
+current_conviction_score: 51   # 0-100，50-70 区间偏低端
+thesis_statement: >
+  Long BABA — 从"低增长电商 + 监管折价"重估为"中国 AI-云第一龙头"。
+  云/AI 加速（外部云 +40%、AI 收入连续 11 季三位数）+ Forward P/E 13.5× 便宜估值 +
+  净现金资产负债表，左侧分批布局博 multiple 重估 + margin 拐点。短期利润坍塌、
+  FCF 转负、技术下行 → 不追第一刀。
+
+source_report: "us-stock-analysis/reports/BABA_comprehensive_20260528.md"
+
+pillars:
+  - id: P1
+    description: "云智能加速 — 云整体 +38%、外部云 +40%"
+    status: on_track
+    kill_criteria: "外部云增长连续 2 季回落至 <25%"
+    evidence:
+      - date: "2026-05-13"
+        event: "FY26 Q4 云 RMB41.6B (+38%)，外部客户 +40%，全年云 +34%"
+        impact: strengthens
+  - id: P2
+    description: "AI 货币化 — AI 占外部云收入 30%，指引一年内破 50%"
+    status: ahead
+    kill_criteria: "一年后 AI 占比 <40%，或停止三位数增长"
+    evidence:
+      - date: "2026-05-13"
+        event: "AI 相关收入连续 11 季三位数增长，年化 run-rate ~US$5.2B / RMB35.8B"
+        impact: strengthens
+  - id: P3
+    description: "Margin 拐点 — capex 见顶后调整后 EBITA 从 -84% 低基数反弹"
+    status: behind
+    kill_criteria: "capex 持续超预期且调整后 EBITA 同比连续 4 季为负"
+    evidence:
+      - date: "2026-05-13"
+        event: "Q4 调整后 EBITA -84% 至 RMB5.1B，经营亏损 $123M，季度烧钱 $2.5B"
+        impact: weakens
+  - id: P4
+    description: "估值重估 — Forward 13.5× + 净现金，向 SOTP / 中国 AWS 类比靠拢"
+    status: watch
+    kill_criteria: "thesis 未兑现却 forward PE 扩到 >20×（泡沫），或地缘事件触发逆向重估"
+    evidence:
+      - date: "2026-05-28"
+        event: "Forward P/E 13.5×, PEG 0.44, P/B 1.85×, β 0.49；分析师均值目标 $191.7 (40 家)"
+        impact: strengthens
+  - id: P5
+    description: "核心电商守住份额 — CMR 调整后 +8%"
+    status: behind
+    kill_criteria: "中国电商 CMR 调整后口径连续 2 季负增长"
+    evidence:
+      - date: "2026-05-13"
+        event: "CMR 报告 +1%（剔除补贴 contra revenue 调整后 +8%），核心商品收入 -1%"
+        impact: neutral
+
+risks:
+  - id: R1
+    description: "capex 无止境 → FCF 持续为负，回购弹性下降"
+    severity: high
+    status: active
+  - id: R2
+    description: "核心电商被 PDD/京东 + 即时零售烧钱长期压制"
+    severity: medium
+    status: active
+  - id: R3
+    description: "地缘 / ADR 退市 / 监管 — 结构性折价"
+    severity: high
+    status: active
+  - id: R4
+    description: "AI 货币化兑现 miss → multiple 逆向重估"
+    severity: high
+    status: active
+
+catalysts:
+  - date: "2026-08-15"
+    event: "FY2027 Q1 财报（看 capex 节奏 + AI 占比进展 + margin 是否企稳）"
+    expected_impact: high
+  - date: "2027-Q1"
+    event: "AI 占外部云收入是否兑现破 50% 的指引"
+    expected_impact: high
+  - date: "ongoing"
+    event: "即时零售单位经济改善 + Taocaicai 向 RMB1T GMV 推进"
+    expected_impact: medium
+
+valuation:
+  entry_price: 124.08          # 分析参考价（非实际成交）
+  method: SOTP + forward P/E 交叉验证（2026-05-28）
+  fair_value_central: 155      # SOTP base = 17x forward EPS，中枢锚
+  sotp_bear: 115               # 云 4x sales / 电商 6.5x EBITA
+  sotp_base: 156               # 云 6x sales / 电商 8x EBITA
+  sotp_bull: 203               # 云 8x sales / 电商 10x EBITA（≈分析师均值 $191.7）
+  target_price: 175            # 12-18 月目标，偏乐观（base↔bull 约 62 分位）
+  bull_target: 190
+  bear_target: 115             # 下调至 SOTP bear floor（原 100 为技术止损位）
+  stop_loss: 100               # 破 52 周低 ($103.71)
+  accumulation_zone: [103, 118]  # 左侧分批区（MoS 26-34% vs 中枢 $155）
+  trend_confirm_above: 131     # 收复 SMA50 = 趋势翻多门槛
+  key_swing_variable: "云的 EV/Sales 倍数 — 每 ±1x = ±$9.3/ADS，占 base 价值 36%"
+  margin_of_safety: "现价 $124 vs 中枢 $155 = 折价 20%，刚够散户门槛；累计区折价 26-34% 才充裕"
+
+thesis_vs_price:
+  date: "2026-05-28"
+  thesis_progress_pct: 45      # 云/AI 兑现好，但 margin/FCF/电商拖累
+  price_change_pct: 0          # 以分析价为基准
+  verdict: on_track            # 待建仓后随价格更新
+
+review_schedule:
+  next_review: "2026-08-15"    # 下次财报
+  decay_check: "2026-08-26"    # 90 天 decay 阈值

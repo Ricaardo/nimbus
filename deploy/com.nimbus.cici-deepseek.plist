@@ -58,9 +58,10 @@
     <key>ANTHROPIC_API_KEY</key>
     <string>sk-你的deepseek-key</string>
 
-    <!-- Cici 强制使用 deepseek-v4-pro，无视 tier（haiku/sonnet 也走 pro） -->
-    <key>DEEPSEEK_MODEL</key>
-    <string>deepseek-v4-pro</string>
+    <!-- 不强制 DEEPSEEK_MODEL：由 provider.ts 按 tier 自动映射 -->
+    <!--   haiku/sonnet → deepseek-v4-flash (快/省/听话)                -->
+    <!--   opus        → deepseek-v4-pro   (深度/推理)                  -->
+    <!-- 去掉强制 pro 可减少日常闲聊/分析时的"探索冲动"，降低幻觉       -->
 
     <!-- Discord 通道（Cici 主力通道） -->
     <key>NIMBUS_DISCORD_ENABLED</key>

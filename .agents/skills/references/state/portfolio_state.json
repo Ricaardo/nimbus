@@ -1,0 +1,77 @@
+{
+  "as_of": "2026-07-18 20:31",
+  "nav_usd": 25949.17,
+  "cash_usd": -77.38,
+  "cash_pct": -0.3,
+  "pl_usd": 305.78,
+  "ibkr_stale": false,
+  "accounts": {
+    "futu": {
+      "total_usd": 23516.17,
+      "cash_usd": 0.0,
+      "pl_usd": null
+    },
+    "ibkr": {
+      "mv_usd": 2510.38,
+      "cash_usd": -77.38,
+      "stale": false,
+      "pl_usd": 305.78,
+      "cash_carried": false
+    }
+  },
+  "positions": [
+    {
+      "code": "USO",
+      "name": "USO",
+      "source": "ibkr",
+      "qty": 20.0,
+      "avg_cost": 110.229505,
+      "price": 125.5189972,
+      "mv_usd": 2510.38,
+      "pl_pct": 13.87,
+      "canon": "USO",
+      "is_option": false,
+      "underlying": null,
+      "weight_pct": 9.67,
+      "pl_usd": 305.78,
+      "thesis": null,
+      "conviction_score": null,
+      "thesis_verdict": null,
+      "stop_loss": null,
+      "take_profit": null
+    }
+  ],
+  "journal": {
+    "trade_files": 3,
+    "tickers": [
+      "0700HK",
+      "BABA",
+      "SOXL"
+    ]
+  },
+  "reconcile_flags": [
+    {
+      "type": "裸仓_无论点",
+      "ticker": "USO",
+      "severity": "medium",
+      "detail": "USO 占 9.67% 却无论点档案"
+    },
+    {
+      "type": "FUTU数据陈旧_携带",
+      "ticker": "FUTU",
+      "severity": "medium",
+      "detail": "OpenD 未拉到实盘，携带上次 futu NAV $23,516 保持总盘完整；futu 持仓明细本次缺失，恢复 OpenD 后自动更新"
+    }
+  ],
+  "fx": {
+    "rates": {
+      "US": 1.0,
+      "HK": 0.12755589187145233,
+      "CN": 0.14756226539611816,
+      "SG": 0.7744733095169067,
+      "JP": 0.006159418262541294
+    },
+    "source": "cache",
+    "as_of": "2026-07-18 13:05"
+  }
+}

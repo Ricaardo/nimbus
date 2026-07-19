@@ -1,0 +1,52 @@
+ticker: "0700.HK"
+name: Tencent Holdings
+direction: long
+status: planned            # ⚠️ 计划单，非成交单 — 待用户实际下单后改 open + 填实际 entry/size
+currency: HKD
+entry_date: "2026-05-28"   # 计划日（非成交日）
+entry_price: 425           # 计划入场参考价
+exit_price: null
+exit_date: null
+strategy: "left_side_value_accumulation"   # 左侧分批价值建仓
+thesis: >
+  全中国最优质消费科技特许经营权（微信 14.3 亿 MAU + 游戏 + 高毛利广告 + 金融科技），
+  核心仅 11-12x + RMB365B 投资组合白送 + FCF 正(+20%)，现价 HKD425 创 52 周新低且
+  低于 SOTP 熊市值(458) → 情绪极端错杀。详见 thesis-tracker/0700HK.yaml
+tags: [china_tech, ai_capex, value, contrarian, hk_listed]
+
+# 计划仓位（无账户规模 → 以 % 记，待用户给规模后落实股数）
+plan:
+  sleeve_target_pct: 6          # 腾讯目标占组合 6%（中概 sleeve 内核心）
+  first_tranche_pct: 3          # 首笔 ~一半
+  add_zone: [380, 400]          # 剩 ~3% 子弹（计划内回撤，非恐慌）
+  hard_stop: 360                # 结构性止损（破历史筹码区）— 破则全平重审
+  take_profit_2R: 555           # = SOTP 中枢，减 30-50%
+  take_profit_3R: 620           # 移动止损跑趋势
+  risk_if_full_stopped_pct: 0.9 # 满仓 6% 止损到 360 仅损组合 ~0.9%
+  rr_first_tranche: "1:2"
+
+# Pre-Mortem（开仓前强制 5 答）
+pre_mortem:
+  q1_drop_20pct: "跌到 ~340 已破止损 360 → 认错/重审，不无脑加。加仓区是 380-400，不是 340。守住此线。"
+  q2_failure_mode: "中概高频死法：监管黑天鹅 / 地缘升级（ADR 退市、关税）/ 游戏版号冻结 / 中国通缩深化。"
+  q3_info_edge: "无信息优势。这是质量+估值+情绪极端的反向 bet，edge 来自 temperament（敢在创新低买优质资产），非信息。"
+  q4_kill_signal: "FCF 转负 / 非IFRS经营利润率<30% / 国内游戏连续2季负增长 / 监管重大恶化。"
+  q5_conviction: 7
+
+# Kill criteria（与 thesis-tracker 同步）
+kill_criteria:
+  - "FCF 转负"
+  - "非 IFRS 经营利润率跌破 30%"
+  - "国内游戏连续 2 季负增长（剔除时点）"
+  - "营销服务增速连续 2 季 <10%"
+  - "价格破 HKD 360 硬止损"
+
+# 执行纪律（开仓前自我承诺）
+discipline_pledge:
+  - "破 360 全平，不抗、不找理由"
+  - "禁止在 360 以下摊低成本（M02 = 散户最大亏损源）"
+  - "555 减 30-50%，不贪"
+  - "与 BABA 合计中概 sleeve ≤ 10-15%"
+
+linked_thesis: "thesis-tracker/reports/theses/0700HK.yaml"
+note: "本条为 trade-execution 5 道闸通过后的开仓前留痕。实际成交后请更新 status/entry_price/size，并在平仓后 24h 内做 review 评分 + mistake tag。"

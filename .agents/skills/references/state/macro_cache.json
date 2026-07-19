@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-06-27",
+  "fred_score": 77.0,
+  "regime": "risk_on",
+  "components": {
+    "credit": 84,
+    "vix": 76,
+    "curve": 62
+  },
+  "series": {
+    "10Y": 4.4,
+    "2Y": 4.09,
+    "curve_10y2y": 0.31,
+    "fed_funds_upper": 3.75,
+    "hy_spread": 2.78,
+    "dollar_broad": 120.3958,
+    "breakeven_10y": 2.2,
+    "cpi": 333.979,
+    "vix": 18.89
+  }
+}

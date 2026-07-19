@@ -1,0 +1,54 @@
+{
+  "0700.HK": {
+    "date": null,
+    "fetched": "2026-06-08"
+  },
+  "AVGO": {
+    "date": null,
+    "fetched": "2026-06-08"
+  },
+  "2359.HK": {
+    "date": null,
+    "fetched": "2026-06-08"
+  },
+  "MRVL": {
+    "date": "2026-08-26",
+    "fetched": "2026-06-27"
+  },
+  "NOK": {
+    "date": null,
+    "fetched": "2026-06-08"
+  },
+  "RKLB": {
+    "date": "2026-08-05",
+    "fetched": "2026-06-27"
+  },
+  "LITE": {
+    "date": "2026-08-10",
+    "fetched": "2026-06-27"
+  },
+  "AAPL": {
+    "date": "2026-07-29",
+    "fetched": "2026-06-27"
+  },
+  "GOOGL": {
+    "date": "2026-07-21",
+    "fetched": "2026-06-27"
+  },
+  "2697.HK": {
+    "date": null,
+    "fetched": "2026-06-27"
+  },
+  "6228.HK": {
+    "date": null,
+    "fetched": "2026-06-27"
+  },
+  "6651.HK": {
+    "date": null,
+    "fetched": "2026-07-07"
+  },
+  "NBIS": {
+    "date": "2026-07-29",
+    "fetched": "2026-07-07"
+  }
+}

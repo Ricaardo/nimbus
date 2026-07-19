@@ -1358,14 +1358,14 @@ describe('Phase 1: tier-aware mcpAllow', () => {
     expect(captured[0]!.mcpAllow).toEqual([])
   })
 
-  test('sonnet tier → mcpAllow is ["tavily"]', async () => {
+  test('sonnet tier → mcpAllow is [] (anti-hallucination: no tavily on sonnet)', async () => {
     const { agent, captured } = makeMcpCapture()
     const { registry } = makeRegistry()
     const d = new Dispatcher([], registry, agent, nullDb, passMemory, passSafety, mockQuoteFetcher)
     // 今天市场新闻 → sonnet
     await d.dispatch(makeInbound({ content: '今天有什么市场新闻', chatId: 'mcp-sonnet' }))
     expect(captured).toHaveLength(1)
-    expect(captured[0]!.mcpAllow).toEqual(['tavily'])
+    expect(captured[0]!.mcpAllow).toEqual([])
   })
 
   test('opus tier → mcpAllow is ["tavily","alpaca"]', async () => {

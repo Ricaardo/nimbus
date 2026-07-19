@@ -1,0 +1,10 @@
+{"ts": "2026-07-11 10:11", "nav_usd": 25783.14, "cash_usd": 19980.49, "futu_usd": 23733.92, "ibkr_usd": 2049.22, "ibkr_stale": false}
+{"ts": "2026-07-11 10:15", "nav_usd": 25783.14, "cash_usd": 19980.49, "futu_usd": 23733.92, "ibkr_usd": 2049.22, "ibkr_stale": false}
+{"ts": "2026-07-11 10:25", "nav_usd": 25783.14, "cash_usd": 19980.49, "futu_usd": 23733.92, "ibkr_usd": 2049.22, "ibkr_cash_usd": 359.61, "ibkr_stale": false}
+{"ts": "2026-07-11 12:36", "nav_usd": 25663.25, "cash_usd": 19881.38, "futu_usd": 23614.03, "ibkr_usd": 2049.22, "ibkr_cash_usd": 359.61, "ibkr_stale": false}
+{"ts": "2026-07-11 20:32", "nav_usd": 25663.25, "cash_usd": 19881.38, "futu_usd": 23614.03, "ibkr_usd": 2049.22, "ibkr_cash_usd": 359.61, "ibkr_stale": true}
+{"ts": "2026-07-12 07:30", "nav_usd": 25702.65, "cash_usd": 19444.39, "futu_usd": 23614.03, "ibkr_usd": 2088.62, "ibkr_cash_usd": -77.38, "ibkr_stale": false}
+{"ts": "2026-07-13 07:30", "nav_usd": 25702.52, "cash_usd": 19444.25, "futu_usd": 23613.9, "ibkr_usd": 2088.62, "ibkr_cash_usd": -77.38, "ibkr_stale": false}
+{"ts": "2026-07-13 20:35", "nav_usd": 25576.47, "cash_usd": 19609.04, "futu_usd": 23487.85, "ibkr_usd": 2088.62, "ibkr_cash_usd": -77.38, "ibkr_stale": false}
+{"ts": "2026-07-14 07:32", "nav_usd": 25577.54, "cash_usd": 19610.11, "futu_usd": 23488.92, "ibkr_usd": 2088.62, "ibkr_cash_usd": -77.38, "ibkr_stale": true}
+{"ts": "2026-07-15 07:31", "nav_usd": 25604.79, "cash_usd": -147.52, "futu_usd": 23516.17, "ibkr_usd": 2088.62, "ibkr_cash_usd": -77.38, "ibkr_stale": true}

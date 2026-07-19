@@ -1,0 +1,68 @@
+{
+  "title": "宏观体制检测 Dashboard",
+  "generated_at": "2026-06-21T22:11:52.340494",
+  "charts": [
+    {
+      "id": "component_scores",
+      "type": "bar",
+      "title": "六大组件评分",
+      "data": [
+        {
+          "name": "市场集中度",
+          "score": 60
+        },
+        {
+          "name": "收益率曲线",
+          "score": 54
+        },
+        {
+          "name": "信用环境",
+          "score": 69
+        },
+        {
+          "name": "规模因子",
+          "score": 60
+        },
+        {
+          "name": "股债关系",
+          "score": 20
+        },
+        {
+          "name": "行业轮动",
+          "score": 70
+        }
+      ],
+      "xKey": "name",
+      "yKeys": [
+        "score"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "label": "综合评分",
+      "value": 55.1,
+      "change": "",
+      "trend": "flat"
+    },
+    {
+      "label": "当前体制",
+      "value": "Broadening",
+      "change": "",
+      "trend": "flat"
+    },
+    {
+      "label": "转换概率",
+      "value": "70-90%",
+      "change": "",
+      "trend": "flat"
+    },
+    {
+      "label": "信号组件数",
+      "value": "5/6",
+      "change": "",
+      "trend": "flat"
+    }
+  ],
+  "summary": "当前宏观体制为Broadening，综合评分55.1/100，5个组件发出信号。"
+}

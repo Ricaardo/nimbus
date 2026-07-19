@@ -7,9 +7,40 @@
  *
  * 设计:**弱依赖,降级不崩**。sidecar 挂了/超时 → kbSearch 返回 [],kbIngest 静默吞掉。
  * recall 链路本就 `?? []` 兜底,知识层不可用时 bot 照常运转(只是少了历史召回)。
+ *
+ * Phase 2 可观测性:连续失败超过阈值时写 stderr 告警,避免静默裸奔数天无人知。
  */
 
 import { KB_BASE_URL } from '../config.js'
+
+// ── Observability ──────────────────────────────────────────────────────────────
+
+/** Consecutive kb-server request failures. Reset on first success. */
+let consecutiveFailures = 0
+/** Log a warning to stderr when consecutive failures reach this threshold. */
+const FAILURE_WARN_THRESHOLD = 5
+
+function recordFailure(): void {
+  consecutiveFailures++
+  if (consecutiveFailures === FAILURE_WARN_THRESHOLD) {
+    process.stderr.write(
+      `nimbus: kb-server unreachable for ${consecutiveFailures} consecutive requests — ` +
+      `知识层召回已静默失效。历史研究/复盘/论点将不可召回,agent 缺少 grounding。\n` +
+      `  检查: curl ${KB_BASE_URL}/health 或 lsof -iTCP:6901\n`,
+    )
+  } else if (consecutiveFailures > 0 && consecutiveFailures % 20 === 0) {
+    process.stderr.write(
+      `nimbus: kb-server still unreachable (${consecutiveFailures} consecutive failures)\n`,
+    )
+  }
+}
+
+function recordSuccess(): void {
+  if (consecutiveFailures >= FAILURE_WARN_THRESHOLD) {
+    process.stderr.write(`nimbus: kb-server recovered after ${consecutiveFailures} failures\n`)
+  }
+  consecutiveFailures = 0
+}
 
 export interface KbResult {
   artifact_id: number
@@ -48,9 +79,11 @@ async function post<T>(path: string, payload: unknown, timeoutMs: number): Promi
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),
     })
-    if (!res.ok) return null
+    if (!res.ok) { recordFailure(); return null }
+    recordSuccess()
     return (await res.json()) as T
   } catch {
+    recordFailure()
     return null // sidecar down / timeout → caller degrades gracefully
   }
 }
@@ -83,6 +116,23 @@ export async function kbHealth(): Promise<{ ok: boolean; artifacts: number; chun
     return (await res.json()) as { ok: boolean; artifacts: number; chunks: number }
   } catch {
     return null
+  }
+}
+
+/** 启动时健康检查:ping kb-server,不可用时写 stderr 告警(不阻塞启动)。
+ *  由 main.ts 在 dispatcher 初始化前调用,早发现早修。 */
+export async function kbStartupCheck(): Promise<void> {
+  const ok = await kbHealth()
+  if (!ok) {
+    process.stderr.write(
+      'nimbus: ⚠️ kb-server 启动健康检查失败 — 知识层召回不可用。\n' +
+      `  sidecar 预期在 ${KB_BASE_URL},请确认 scripts/kb-server.py 是否在运行。\n` +
+      '  bot 仍可正常运转,但缺少历史研究/复盘 grounding,幻觉风险升高。\n',
+    )
+  } else {
+    process.stderr.write(
+      `nimbus: kb-server ok — ${ok.artifacts} artifacts, ${ok.chunks} chunks\n`,
+    )
   }
 }
 

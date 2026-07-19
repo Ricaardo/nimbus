@@ -1,0 +1,73 @@
+ticker: "SOXL+SOXS"       # 实际：在 3x做多(SOXL) 与 3x做空(SOXS) 之间反复横跳
+name: 半导体 3x 杠杆 ETF — 多空横跳对敲
+direction: whipsaw_both_sides # 既做多 SOXL 又做空 SOXS，反复翻向
+status: closed
+currency: USD
+data_source: "futu get_history_order_fill_list REAL（已用真实成交还原）"
+
+# ✅ 真实成交还原（完整窗口 2026-05-01 ~ 06-06，两 ETF 期末均清零 net=0 → 干净往返）
+window: "2026-05-01 ~ 2026-06-06"
+realized_pnl_total: -1630.30  # 一个月在半导体多空两边对敲的净损失
+SOXS_realized: -1308.75       # 3x做空：49 笔，周转 8408 股
+SOXS_fills: 49
+SOXL_realized: -321.55        # 3x做多：13 笔，周转 95 股
+SOXL_fills: 13
+total_fills: 62
+gross_turnover_est: 80000     # ~$80K 毛周转 / 账户仅 ~$22K → 周转率 ~3.6x/月
+pct_of_account: -7.4          # 净亏 ≈ 账户 7.4%
+exit_date: "2026-06-05"
+smoking_gun: >
+  ① SOXS 价格从 5/17 ~$10 一路 decay 到 6/5 ~$5.6（-45%），主人全程反复买入摊低成本，
+  连续数周扛 3x 反向 ETF 赌半导体跌；② 6/5 SOXL 下跌中 BUY 218.95→213.33→207.63
+  （越跌越加）→ 20 股 SELL 198.21（底部投降）。M02+M04 实锤。
+also_churned: "同期 MRVL/NOK/AVGO 及多只港股(药明生物/晶泰/建滔/MINIMAX)均高频对敲 = 系统性过度交易"
+
+strategy: "countertrend_mean_reversion + overtrading"
+role: "投机/日内择时"
+tags: [semiconductor, leveraged_etf, whipsaw, overtrading, averaging_down, execution_failure, repeat_pattern]
+
+thesis: >
+  名义逆势 bet（判断半导体破位），实际演变成约 3 周（5/17–6/5）在 SOXL/SOXS 多空两边
+  反复横跳的对敲，62 笔成交、~$80K 毛周转。方向最终兑现（半导体崩），但净亏 $1,630
+  （SOXS -1309 + SOXL -322）≈ 账户 7.4%。复盘卡"赌对了"的叙事美化了现实——真相是
+  多空横跳 + 在下跌的 3x ETF 里反复摊低成本。这是 [[feedback_user_counter_trend_pattern]]
+  记录的重复弱点又一次、且更严重地发作：方向感不是病灶，过度交易+工具错配+情绪执行才是。
+
+# ============ 复盘（核心）============
+review:
+  scores:                     # 1-5
+    entry_quality: 2          # 趋势未掉头就去 fade 强势，无确认信号、入场太早
+    execution: 1              # 多空横跳 + 最大痛苦点投降交枪 + 反手
+    management: 1             # 3x 每日重置 ETF 装多日观点 + 越跌越加 + 两头同付 decay
+    result: 1                 # 净亏 $1,630（≈账户7.4%）（方向对，执行毁）
+  verdict: "名义看对方向，实际输在过度交易+工具错配+情绪执行 — 判断力不是病灶"
+
+mistake_tags:                 # 见 SKILL.md Taxonomy
+  - code: M02
+    name: 摊低成本（实锤）
+    detail: "6/5 SOXL 下跌中 BUY 218.95→213.33→207.63 三次加仓救自己，再 198.21 投降"
+  - code: M08
+    name: 越界/工具错配
+    detail: "用 3x 每日重置杠杆 ETF 承载多日观点；多空两边同时持有 → decay 双杀"
+  - code: M04
+    name: 嘴硬止损/转折点投降
+    detail: "在底部 198.21 交枪，止损纪律在情绪峰值崩溃"
+  - code: M01
+    name: 反手接飞刀/横跳
+    detail: "SOXL↔SOXS 4 天反复翻向，空仓待不住，从一边跳到另一边"
+
+lessons:
+  - "入场时机：趋势未掉头不 fade 强势；等掉头确认信号（如跌破关键 MA/结构破位）再进"
+  - "工具：多日观点禁用 3x 每日重置 ETF；改用正股/期权/1x 工具或缩短持有期"
+  - "仓位：逆势单仓位减半，给容错空间，避免被涨势+杠杆双杀逼到投降"
+  - "情绪止损纪律：预设机械止损价并前置，禁止在最大痛苦点临时交枪"
+  - "禁止反手：平仓后强制空仓冷却，不在同一情绪周期内翻向反面"
+
+repeat_warning: >
+  ⚠⚠ 重复模式 — 与记忆 feedback_user_counter_trend_pattern 完全吻合
+  （逆势 + 杠杆 ETF + 摊低成本 + 转折点投降 + 接飞刀）。M01/M02/M04/M08 四类同框。
+  → 行动建议：逆势 + 杠杆 ETF 组合操作禁用 30 天；逆势单一律 1x 工具 + 预置机械止损；
+    设月周转上限（如 ≤1x 账户）抑制对敲。
+
+linked_review_card: "~/Desktop/复盘_执行问题.png"
+note: "数字已用 futu 真实成交（5/1-6/6）还原完整，net=0 干净往返。CLI stats 如需纳入可手动登记。"

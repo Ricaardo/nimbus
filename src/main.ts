@@ -11,6 +11,7 @@ import { SimpleRegistry } from './core/registry.js'
 import { agentRunner, assertSubscriptionMode, setUsageLogger } from './core/agent.js'
 import { refreshModels } from './core/models.js'
 import { memory, setMemoryStore } from './core/memory.js'
+import { kbStartupCheck } from './core/knowledge.js'
 import { safety } from './core/safety.js'
 import { WORKSPACE, DATA_DIR, DAILY_COST_BUDGET_USD, WEIXIN_INBOUND_ENABLED, API_CHANNEL_ENABLED, DISCORD_ENABLED } from './config.js'
 import { defaultDb, closeDb } from './core/db.js'
@@ -52,6 +53,9 @@ setInterval(() => { void refreshModels() }, 24 * 3600_000).unref()
 
 // ── Database ──────────────────────────────────────────────────────────────────
 const db = defaultDb()
+
+// ── Knowledge base startup health check (non-blocking, warn-only) ─────────────
+void kbStartupCheck()
 
 // ── Usage tracking (Phase 1 省额度可见性) ─────────────────────────────────────
 // Every agent run logs cost/tokens; advisory warning when over daily budget.
