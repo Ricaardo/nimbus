@@ -290,8 +290,9 @@ export class AgentRunnerImpl implements AgentRunner {
       // AI 自适应思考:Claude 自己决定何时/想多深(难题多想、闲聊少想),不硬编码。
       // display:'omitted' 让思考过程不进回复,保持聊天端干净。
       thinking: { type: 'adaptive', display: 'omitted' },
-      // effort 仅作可选手动覆盖(默认不传 → 纯由 adaptive 决定)。
-      ...(effort ? { effort } : {}),
+      // DeepSeek V4 Pro: 默认 max reasoning effort（不传则用默认推理深度，偏浅）。
+      // Claude: adaptive thinking 自适应，effort 仅当调用方显式指定时传入。
+      ...(effort !== undefined ? { effort } : (getProvider() === 'deepseek' ? { effort: 'max' as const } : {})),
       // Give the agent only the whitelisted MCP servers for this run.
       // filterMcp returns a subset of ALL_MCP_SERVERS keyed by mcpAllow.
       // Empty result → omit mcpServers entirely (existing "空则不传" logic).
