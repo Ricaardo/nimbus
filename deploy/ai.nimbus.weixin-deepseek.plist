@@ -29,9 +29,7 @@
        After installing, update ~/.wechat-io/config.yaml:
          agent:
            openai_base_url: "http://127.0.0.1:8770/v1"   # → POST /v1/chat/completions
-           openai_api_key: "<same value as WEIXIN_INBOUND_TOKEN below>"
-           model: "deepseek-chat"
-       And send X-Hermes-Session-Id: wechat-{chat_id} for per-group session isolation.
+       Both services run on localhost — no auth token needed.
 
   ⚠️  Single-consumer rule:
     Confirm that Hermes is stopped (launchctl bootout gui/$(id -u) com.hermes.daemon)
@@ -89,17 +87,13 @@
     <string>/Users/x/nimbus-os/nimbus/data/outbox-weixin</string>
 
     <!-- ── WeChat / wechat-io connector (OpenAI-compatible inbound) ── -->
-    <!-- Turn on WeixinInboundChannel; it serves POST /v1/chat/completions. -->
+    <!-- Turn on WeixinInboundChannel; serves POST /v1/chat/completions on
+         localhost only — no auth token needed (wechat-io runs on same machine). -->
     <key>WEIXIN_INBOUND</key>
     <string>1</string>
-    <!-- Port wechat-io POSTs to.  Must match ~/.wechat-io/config.yaml
-         (agent.openai_base_url = http://127.0.0.1:8770/v1). -->
+    <!-- Port wechat-io POSTs to (must match its openai_base_url config). -->
     <key>WEIXIN_INBOUND_PORT</key>
     <string>8770</string>
-    <!-- Shared bearer secret for /v1/chat/completions.  Put the SAME value in
-         wechat-io's config as openai_api_key. -->
-    <key>WEIXIN_INBOUND_TOKEN</key>
-    <string><FILL_ME:any-random-secret></string>
     <!-- Disable Discord — this instance only serves wechat-io (has no bot token). -->
     <key>NIMBUS_DISCORD_ENABLED</key>
     <string>0</string>
